@@ -13,11 +13,11 @@
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">🧬</span>
-      <span class="brand-name">Ewolucja</span>
+      <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
     <nav class="topbar-actions">
-      <button id="btn-codex" class="btn btn-ghost" type="button">Kodeks wiedzy</button>
-      <button id="btn-restart" class="btn btn-ghost" type="button">Nowa gra</button>
+      <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex">Kodeks wiedzy</button>
+      <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
     </nav>
   </header>
 
@@ -26,24 +26,21 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <div class="card intro-card">
-        <h1 id="start-title">Ewolucja</h1>
+        <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
-          Poprowadź linię rozwojową zwierząt przez paleozoik — od prostego organizmu
-          w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong>
-          na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa
+          Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
+          aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
+          zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
           <strong>dobór naturalny</strong>.
         </p>
         <div class="intro-goal" id="intro-goal"></div>
         <form id="form-start" class="start-form">
-          <label for="species-name">Nazwij swój gatunek:</label>
+          <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
-                 placeholder="np. Prazwierz morski" autocomplete="off" />
-          <button class="btn btn-primary" type="submit">Rozpocznij ewolucję</button>
+                 data-i18n-ph="start.namePlaceholder" autocomplete="off" />
+          <button class="btn btn-primary" type="submit" data-i18n="start.button">Rozpocznij ewolucję</button>
         </form>
-        <p class="edu-note">
-          Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
-          mechanizmów, nie odwzorowaniu konkretnych gatunków.
-        </p>
+        <p class="edu-note" data-i18n="start.eduNote"></p>
       </div>
     </section>
 
@@ -51,74 +48,69 @@
     <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
       <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
 
-      <!-- Pasek stanu: EP, tura, populacja -->
       <div class="status-bar">
         <div class="status-item status-ep">
-          <span class="status-label">Punkty ewolucji</span>
+          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
           <span class="status-value" id="ep-value">0</span>
         </div>
         <div class="status-item">
-          <span class="status-label">Populacja</span>
+          <span class="status-label" data-i18n="status.population">Populacja</span>
           <span class="status-value" id="pop-value">0</span>
         </div>
-        <div class="status-item">
-          <span class="status-label">Tura</span>
-          <span class="status-value" id="turn-value">0 / 0</span>
+        <div class="status-item status-era">
+          <span class="status-label" data-i18n="status.era">Era</span>
+          <span class="status-value" id="era-value">—</span>
         </div>
         <div class="status-item status-goal">
-          <span class="status-label">Inteligencja (cel)</span>
+          <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
         </div>
       </div>
 
-      <!-- Oś czasu ery -->
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
 
-      <!-- Pasek linii rozwojowych + specjacja -->
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
         <div class="lineage-actions">
-          <button id="btn-speciate" class="btn btn-ghost" type="button" title="Rozdziel aktywną linię na dwie gałęzie">
-            🌿 Specjacja
-          </button>
-          <button id="btn-tree" class="btn btn-ghost" type="button">🌳 Drzewo życia</button>
+          <button id="btn-migrate" class="btn btn-ghost" type="button"></button>
+          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
+          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
         </div>
       </div>
 
       <div class="game-grid">
-        <!-- Panel aktywnej linii -->
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
-          <h2 id="species-panel-title" class="panel-title">Aktywna linia</h2>
+          <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
           <p class="species-name" id="species-name-display">—</p>
+          <p class="species-niche" id="species-niche">—</p>
 
-          <!-- Wykres populacji -->
           <div class="sparkline-box">
-            <span class="sparkline-label">Populacja w czasie</span>
+            <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
             <div id="sparkline" class="sparkline" aria-hidden="true"></div>
           </div>
 
+          <div class="forecast-box" id="forecast-box">
+            <span class="forecast-label" data-i18n="species.forecast">Prognoza następnej tury</span>
+            <div id="forecast-body" class="forecast-body"></div>
+          </div>
+
           <ul class="stats-list" id="stats-list"></ul>
+
           <div class="env-box">
-            <h3 class="env-title">Środowisko następnej tury</h3>
+            <h3 class="env-title" data-i18n="species.envTitle">Środowisko następnej tury</h3>
             <p class="env-name" id="env-name">—</p>
             <p class="env-note" id="env-note">—</p>
+            <div class="env-catastrophe" id="env-catastrophe" hidden></div>
             <ul class="env-stats" id="env-stats"></ul>
           </div>
-          <button id="btn-simulate" class="btn btn-primary btn-block" type="button">
-            Przeżyj turę →
-          </button>
-          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled>
-            ↶ Cofnij (tryb nauczyciela)
-          </button>
+
+          <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
+          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
         </aside>
 
-        <!-- Panel adaptacji (drzewo cech) -->
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
-          <h2 id="traits-panel-title" class="panel-title">Adaptacje — wydaj punkty ewolucji</h2>
-          <p class="panel-hint">
-            Cechy dotyczą <strong>aktywnej linii</strong>. Każda ma koszt i kompromis;
-            cechy zależne odblokowują się po zdobyciu wymaganych.
-          </p>
+          <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
+          <p class="panel-hint" data-i18n="traits.hint"></p>
           <div id="traits-container" class="traits-container"></div>
         </div>
       </div>
@@ -128,25 +120,25 @@
     <section id="screen-end" class="screen screen-end" hidden aria-labelledby="end-title">
       <div class="card end-card">
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
-        <h1 id="end-title">Koniec ery</h1>
+        <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
-          <button id="btn-play-again" class="btn btn-primary" type="button">Zagraj ponownie</button>
-          <button id="btn-open-codex-end" class="btn btn-ghost" type="button">Zobacz Kodeks</button>
+          <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
+          <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
       </div>
     </section>
-
   </main>
 
   <!-- Modal: raport tury -->
   <div id="modal-report" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="report-title">
     <div class="modal-box">
-      <h2 id="report-title" class="modal-title">Wynik tury</h2>
+      <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
+      <div id="report-era" class="report-era" hidden></div>
       <div id="report-body" class="report-body"></div>
       <div id="report-knowledge" class="report-knowledge"></div>
-      <button id="btn-report-close" class="btn btn-primary btn-block" type="button">Dalej</button>
+      <button id="btn-report-close" class="btn btn-primary btn-block" type="button" data-i18n="report.next">Dalej</button>
     </div>
   </div>
 
@@ -154,10 +146,10 @@
   <div id="modal-codex" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="codex-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="codex-title" class="modal-title">Kodeks wiedzy</h2>
+        <h2 id="codex-title" class="modal-title" data-i18n="codex.title">Kodeks wiedzy</h2>
         <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
-      <p class="panel-hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
+      <p class="panel-hint" data-i18n="codex.hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
       <div id="codex-body" class="codex-body"></div>
     </div>
   </div>
@@ -166,31 +158,25 @@
   <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="tree-title" class="modal-title">🌳 Drzewo życia</h2>
+        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">🌳 Drzewo życia</h2>
         <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
-      <p class="panel-hint">
-        Historia Twoich linii rozwojowych. Rozgałęzienia to specjacje; wygaszone gałęzie to
-        linie, które wymarły. Kliknij żywą gałąź, aby uczynić ją aktywną.
-      </p>
+      <p class="panel-hint" data-i18n="tree.hint"></p>
       <div id="tree-container" class="tree-container"></div>
     </div>
   </div>
 
-  <!-- Modal: nazwa nowej gałęzi (specjacja) -->
+  <!-- Modal: specjacja -->
   <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
     <div class="modal-box">
-      <h2 id="speciate-title" class="modal-title">🌿 Specjacja</h2>
-      <p class="panel-hint" id="speciate-hint">
-        Rozdzielasz aktywną linię na dwie gałęzie. Populacja podzieli się na pół,
-        a nowa gałąź będzie mogła ewoluować niezależnie.
-      </p>
+      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">🌿 Specjacja</h2>
+      <p class="panel-hint" id="speciate-hint"></p>
       <form id="form-speciate">
-        <label for="speciate-name" class="speciate-label">Nazwa nowej gałęzi:</label>
+        <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
         <input id="speciate-name" type="text" maxlength="28" autocomplete="off" />
         <div class="modal-actions">
-          <button class="btn btn-primary" type="submit">Rozdziel gatunek</button>
-          <button class="btn btn-ghost" type="button" id="btn-speciate-cancel">Anuluj</button>
+          <button class="btn btn-primary" type="submit" data-i18n="speciate.confirm">Rozdziel gatunek</button>
+          <button class="btn btn-ghost" type="button" id="btn-speciate-cancel" data-i18n="common.cancel">Anuluj</button>
         </div>
       </form>
     </div>
@@ -199,15 +185,29 @@
   <!-- Modal: potwierdzenie -->
   <div id="modal-confirm" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="modal-box">
-      <h2 id="confirm-title" class="modal-title">Potwierdź</h2>
+      <h2 id="confirm-title" class="modal-title" data-i18n="confirm.title">Potwierdź</h2>
       <p id="confirm-message"></p>
       <div class="modal-actions">
-        <button class="btn btn-primary" type="button" id="btn-confirm-yes">Tak</button>
-        <button class="btn btn-ghost" type="button" id="btn-confirm-no">Anuluj</button>
+        <button class="btn btn-primary" type="button" id="btn-confirm-yes" data-i18n="common.yes">Tak</button>
+        <button class="btn btn-ghost" type="button" id="btn-confirm-no" data-i18n="common.cancel">Anuluj</button>
       </div>
     </div>
   </div>
 
+  <!-- Samouczek -->
+  <div id="tutorial" class="tutorial" hidden role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+    <div class="tutorial-box">
+      <div class="tutorial-progress" id="tutorial-progress"></div>
+      <h2 id="tutorial-title" class="tutorial-title">—</h2>
+      <p id="tutorial-text" class="tutorial-text">—</p>
+      <div class="tutorial-actions">
+        <button id="btn-tutorial-skip" class="btn btn-ghost" type="button" data-i18n="tutorial.skip">Pomiń samouczek</button>
+        <button id="btn-tutorial-next" class="btn btn-primary" type="button" data-i18n="tutorial.next">Dalej</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/i18n.js"></script>
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>

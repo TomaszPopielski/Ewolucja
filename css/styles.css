@@ -147,6 +147,9 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .status-value { display: block; font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
 .status-ep .status-value { color: var(--ep); }
 .status-goal .status-value { color: var(--brand); }
+.status-era .status-value { font-size: 1.05rem; }
+.status-value.flash { animation: valueFlash .5s ease; }
+@keyframes valueFlash { 0% { transform: scale(1); } 40% { transform: scale(1.18); color: var(--accent); } 100% { transform: scale(1); } }
 
 /* --- Oś czasu --- */
 .era-timeline { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -158,7 +161,23 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 }
 .era-step.done { background: var(--brand); color: #fff; border-color: var(--brand); }
 .era-step.current { border-color: var(--accent); border-width: 2px; color: var(--ink); font-weight: 700; }
+.era-step.catastrophe { border-color: var(--danger); }
 .era-step .era-step-num { display: block; font-weight: 700; font-size: .85rem; }
+
+/* Nisza i prognoza */
+.species-niche { font-size: .85rem; color: var(--ink-soft); margin: -6px 0 12px; }
+.forecast-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+/* Stała minimalna wysokość — podgląd „co-jeśli” nie przesuwa przycisków. */
+.forecast-body { min-height: 74px; }
+.forecast-label { display: block; font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.forecast-row { display: flex; justify-content: space-between; font-size: .85rem; padding: 2px 0; }
+.forecast-row .fc { font-weight: 700; }
+.fc.pos { color: var(--good); }
+.fc.neg { color: var(--danger); }
+.forecast-preview { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: .82rem; }
+.forecast-warn { margin-top: 6px; font-size: .8rem; color: var(--danger); font-weight: 600; }
+.forecast-none { font-size: .82rem; color: var(--ink-soft); }
+.env-catastrophe { background: var(--danger); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: .82rem; font-weight: 600; margin: 6px 0; }
 
 /* --- Pasek linii rozwojowych --- */
 .lineage-bar {
@@ -250,7 +269,17 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .trait.owned { background: var(--bg-panel); border-color: var(--brand); opacity: .85; }
 .trait.owned .trait-cost { color: var(--good); }
 .trait.locked { opacity: .55; }
+.trait.era_locked { opacity: .6; }
+.trait.era_locked .trait-cost { color: var(--accent); }
 .trait.too_expensive .trait-cost { color: var(--danger); }
+.trait.path-intel { border-left: 3px solid var(--ep); }
+.trait-star { font-size: .8rem; }
+
+/* Baner ery i katastrofy w raporcie */
+.report-era { background: var(--brand); color: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; text-align: center; }
+.report-era-milestone { font-size: .82rem; opacity: .92; }
+.report-event.danger { border-left-color: var(--danger); color: var(--danger); font-weight: 600; }
+.knowledge-fossil { margin-top: 6px !important; font-size: .8rem !important; color: var(--accent) !important; font-style: italic; }
 
 /* --- Modale --- */
 .modal {
@@ -317,7 +346,29 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
   .trait-grid { grid-template-columns: 1fr; }
 }
 
-/* --- Ograniczenie animacji --- */
+/* --- Samouczek --- */
+.tutorial {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(15, 20, 18, 0.6);
+  display: flex; align-items: flex-end; justify-content: center; padding: 24px;
+}
+.tutorial[hidden] { display: none !important; }
+.tutorial-box {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35); padding: 22px; max-width: 480px; width: 100%;
+  animation: tutorialIn .25s ease;
+}
+@keyframes tutorialIn { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.tutorial-progress { font-size: .75rem; color: var(--ink-soft); font-weight: 700; margin-bottom: 6px; }
+.tutorial-title { font-size: 1.2rem; color: var(--brand); }
+.tutorial-text { font-size: .95rem; }
+.tutorial-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+
+/* Animacja wejścia modali */
+.modal-box { animation: modalIn .2s ease; }
+@keyframes modalIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* --- Ograniczenie animacji (dostępność) --- */
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }

@@ -69,17 +69,32 @@ przechodnia świadomą strategią.
 
 ## Funkcje
 
-- Pełna pętla rozgrywki: adaptacja → symulacja → wynik → wiedza, przez 8 tur ery.
-- **18 cech** w drzewie zależności z kosztami i kompromisami.
+- **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z narastającą trudnością
+  i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
+- **22 cechy** w drzewie zależności z kosztami i kompromisami; ścieżka do
+  inteligencji oznaczona ⭐.
 - **Specjacja i drzewo życia** — rozdzielaj linię na gałęzie i śledź ich historię
-  na interaktywnym diagramie filogenetycznym (żywe i wymarłe gałęzie).
+  na interaktywnym diagramie filogenetycznym (żywe i wymarłe gałęzie, oś er).
+- **Nisze ekologiczne (woda / ląd) i migracja** — różne nisze mają inne pokarmy
+  i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
+- **Katastrofy / wymierania masowe** (np. permskie, K–Pg) uderzające w wybrane nisze.
+- **Prognoza „co-jeśli"** — najedź na cechę, aby zobaczyć jej wpływ przed zakupem.
+- **Samouczek** pierwszych kroków oraz **tryb nauczyciela** (cofanie decyzji i tur).
 - **Wykres populacji** aktywnej linii w czasie (sparkline).
-- **Tryb nauczyciela** — cofanie decyzji i tur do omówienia na lekcji.
-- Warstwa edukacyjna: raporty „co się stało i dlaczego" + Kodeks wiedzy.
-- Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność.
+- Warstwa edukacyjna: raporty „co się stało i dlaczego", **Kodeks wiedzy**
+  z powiązaniami do realnych organizmów kopalnych.
+- **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
+- Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
+  (klawiatura, kontrasty, `prefers-reduced-motion`).
+
+## Struktura projektu (uzupełnienie)
+
+```
+js/i18n.js  — stringi interfejsu (warstwa i18n)
+```
 
 ## Status
 
-To działający **MVP+** (jedna era paleozoiku). Kolejne kroki opisuje sekcja 10
-dokumentu założeń: pełne ery (mezozoik, kenozoik), quizy po erze, katastrofy /
-wymierania masowe, i18n.
+Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
+katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
+tryb offline (PWA), tryb wieloosobowy, kolejne języki.
