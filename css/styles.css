@@ -234,6 +234,18 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .effect-chip.down { color: var(--danger); border-color: var(--danger); }
 .trait-tradeoff { font-size: .74rem; color: var(--accent); font-style: italic; }
 .trait-req { font-size: .72rem; color: var(--ink-soft); }
+.trait-req.warn { color: var(--danger); }
+.trait.locked .trait-cost { color: var(--ink-soft); }
+.trait.locked .trait-req { color: var(--accent); }
+
+/* Akcje w oknach modalnych */
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.modal-actions .btn { flex: 1; }
+.speciate-label { display: block; font-weight: 600; margin: 10px 0 6px; }
+#speciate-name {
+  font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+}
 
 .trait.owned { background: var(--bg-panel); border-color: var(--brand); opacity: .85; }
 .trait.owned .trait-cost { color: var(--good); }

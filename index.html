@@ -177,6 +177,37 @@
     </div>
   </div>
 
+  <!-- Modal: nazwa nowej gałęzi (specjacja) -->
+  <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
+    <div class="modal-box">
+      <h2 id="speciate-title" class="modal-title">🌿 Specjacja</h2>
+      <p class="panel-hint" id="speciate-hint">
+        Rozdzielasz aktywną linię na dwie gałęzie. Populacja podzieli się na pół,
+        a nowa gałąź będzie mogła ewoluować niezależnie.
+      </p>
+      <form id="form-speciate">
+        <label for="speciate-name" class="speciate-label">Nazwa nowej gałęzi:</label>
+        <input id="speciate-name" type="text" maxlength="28" autocomplete="off" />
+        <div class="modal-actions">
+          <button class="btn btn-primary" type="submit">Rozdziel gatunek</button>
+          <button class="btn btn-ghost" type="button" id="btn-speciate-cancel">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: potwierdzenie -->
+  <div id="modal-confirm" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-box">
+      <h2 id="confirm-title" class="modal-title">Potwierdź</h2>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="button" id="btn-confirm-yes">Tak</button>
+        <button class="btn btn-ghost" type="button" id="btn-confirm-no">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>

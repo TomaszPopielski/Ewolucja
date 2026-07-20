@@ -32,6 +32,10 @@
     reportKnowledge: $('report-knowledge'), btnReportClose: $('btn-report-close'),
     modalCodex: $('modal-codex'), codexBody: $('codex-body'), btnCodexClose: $('btn-codex-close'),
     modalTree: $('modal-tree'), treeContainer: $('tree-container'), btnTreeClose: $('btn-tree-close'),
+    modalSpeciate: $('modal-speciate'), formSpeciate: $('form-speciate'),
+    speciateName: $('speciate-name'), speciateHint: $('speciate-hint'), btnSpeciateCancel: $('btn-speciate-cancel'),
+    modalConfirm: $('modal-confirm'), confirmMessage: $('confirm-message'),
+    btnConfirmYes: $('btn-confirm-yes'), btnConfirmNo: $('btn-confirm-no'),
     endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
     endStats: $('end-stats'), btnPlayAgain: $('btn-play-again'), btnOpenCodexEnd: $('btn-open-codex-end'),
     btnCodex: $('btn-codex'), btnRestart: $('btn-restart')
@@ -245,15 +249,31 @@
     btn.type = 'button';
     btn.className = 'trait ' + status;
     btn.disabled = (status !== 'available') || state.status !== 'playing';
-    var costLabel = status === 'owned' ? '✓ zdobyta' : (trait.cost + ' EP');
-    var reqHtml = status === 'locked'
-      ? '<div class="trait-req">Wymaga: ' + reqNames(trait.requires) + '</div>' : '';
+
+    // Badge ceny zależny od statusu — żeby jasno komunikować, co blokuje cechę.
+    var costLabel;
+    if (status === 'owned') costLabel = '✓ zdobyta';
+    else if (status === 'locked') costLabel = '🔒 zablokowana';
+    else costLabel = trait.cost + ' EP';
+
+    // Dla zablokowanej cechy pokaż, KTÓRYCH wymagań brakuje (nie tylko wszystkie).
+    var extraHtml = '';
+    if (status === 'locked') {
+      var missing = trait.requires.filter(function (id) {
+        return lineage.traits.indexOf(id) === -1;
+      });
+      extraHtml = '<div class="trait-req">🔒 Najpierw zdobądź: <strong>' +
+        reqNames(missing) + '</strong> (koszt tej cechy: ' + trait.cost + ' EP)</div>';
+    } else if (status === 'too_expensive') {
+      extraHtml = '<div class="trait-req warn">Brakuje ' + (trait.cost - state.ep) + ' EP</div>';
+    }
+
     btn.innerHTML =
       '<div class="trait-head"><span class="trait-name">' + trait.name + '</span>' +
       '<span class="trait-cost">' + costLabel + '</span></div>' +
       '<div class="trait-desc">' + trait.desc + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
-      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + reqHtml;
+      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + extraHtml;
     if (status === 'available' && state.status === 'playing') {
       btn.addEventListener('click', function () { onBuyTrait(trait.id); });
     }
@@ -291,9 +311,20 @@
     var can = Engine.canSpeciate(DATA, state);
     if (!can.ok) { flash(can.error); return; }
     var base = Engine.getActiveLineage(state).name;
-    var name = window.prompt('Nazwa nowej gałęzi (specjacja z „' + base + '”):', base + ' II');
-    if (name === null) return; // anulowano
-    var res = Engine.speciate(DATA, state, name.trim() || (base + ' II'));
+    el.speciateHint.textContent =
+      'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + DATA.SPECIATION_COST +
+      ' EP). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie.';
+    el.speciateName.value = base + ' II';
+    openModal(el.modalSpeciate);
+    el.speciateName.focus();
+    el.speciateName.select();
+  }
+
+  function confirmSpeciate() {
+    var base = Engine.getActiveLineage(state).name;
+    var name = (el.speciateName.value || '').trim() || (base + ' II');
+    var res = Engine.speciate(DATA, state, name);
+    closeModal(el.modalSpeciate);
     if (!res.ok) { flash(res.error); return; }
     pushUndo();
     state = res.state;
@@ -539,6 +570,19 @@
     el.btnSimulate.textContent = msg;
     setTimeout(function () { el.btnSimulate.textContent = prev; }, 1500);
   }
+
+  // Wewnętrzne potwierdzenie (zamiast confirm(), które blokuje sandbox).
+  var confirmCallback = null;
+  function openConfirm(message, cb) {
+    el.confirmMessage.textContent = message;
+    confirmCallback = cb;
+    openModal(el.modalConfirm);
+  }
+  function resolveConfirm(yes) {
+    closeModal(el.modalConfirm);
+    var cb = confirmCallback; confirmCallback = null;
+    if (yes && cb) cb();
+  }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
@@ -568,13 +612,21 @@
     el.btnTreeClose.addEventListener('click', function () { closeModal(el.modalTree); });
     el.btnOpenCodexEnd.addEventListener('click', showCodex);
 
-    el.btnRestart.addEventListener('click', function () {
-      if (state && state.status === 'playing' &&
-          !confirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.')) return;
+    function doRestart() {
       clearSave(); state = null; undoStack = [];
       el.speciesInput.value = '';
       showScreen('start');
+    }
+    el.btnRestart.addEventListener('click', function () {
+      if (state && state.status === 'playing') {
+        openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
+      } else doRestart();
     });
+
+    el.formSpeciate.addEventListener('submit', function (e) { e.preventDefault(); confirmSpeciate(); });
+    el.btnSpeciateCancel.addEventListener('click', function () { closeModal(el.modalSpeciate); });
+    el.btnConfirmYes.addEventListener('click', function () { resolveConfirm(true); });
+    el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
     el.btnPlayAgain.addEventListener('click', function () {
       state = null; undoStack = []; el.speciesInput.value = '';
       showScreen('start');
@@ -584,8 +636,10 @@
       if (e.key !== 'Escape') return;
       if (!el.modalCodex.hidden) closeModal(el.modalCodex);
       else if (!el.modalTree.hidden) closeModal(el.modalTree);
+      else if (!el.modalSpeciate.hidden) closeModal(el.modalSpeciate);
+      else if (!el.modalConfirm.hidden) resolveConfirm(false);
     });
-    [el.modalCodex, el.modalTree].forEach(function (m) {
+    [el.modalCodex, el.modalTree, el.modalSpeciate].forEach(function (m) {
       m.addEventListener('click', function (e) { if (e.target === m) closeModal(m); });
     });
 
