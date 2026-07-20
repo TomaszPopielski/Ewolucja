@@ -67,8 +67,19 @@ Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
 mechanikę mutacji, warunki zwycięstwa/porażki oraz to, że gra jest
 przechodnia świadomą strategią.
 
+## Funkcje
+
+- Pełna pętla rozgrywki: adaptacja → symulacja → wynik → wiedza, przez 8 tur ery.
+- **18 cech** w drzewie zależności z kosztami i kompromisami.
+- **Specjacja i drzewo życia** — rozdzielaj linię na gałęzie i śledź ich historię
+  na interaktywnym diagramie filogenetycznym (żywe i wymarłe gałęzie).
+- **Wykres populacji** aktywnej linii w czasie (sparkline).
+- **Tryb nauczyciela** — cofanie decyzji i tur do omówienia na lekcji.
+- Warstwa edukacyjna: raporty „co się stało i dlaczego" + Kodeks wiedzy.
+- Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność.
+
 ## Status
 
-To działający **MVP** (jedna era, 18 cech, pełna pętla rozgrywki, warstwa
-wiedzy, zapis lokalny). Kolejne kroki opisuje sekcja 10 dokumentu założeń:
-pełne ery, drzewo życia, quizy, tryb nauczyciela, i18n.
+To działający **MVP+** (jedna era paleozoiku). Kolejne kroki opisuje sekcja 10
+dokumentu założeń: pełne ery (mezozoik, kenozoik), quizy po erze, katastrofy /
+wymierania masowe, i18n.

@@ -33,6 +33,10 @@
   var START_POPULATION = 120;
   var START_EP = 35;
 
+  // Specjacja (ZALOZENIA 4.5): rozdzielenie linii na dwie gałęzie.
+  var SPECIATION_COST = 12; // koszt w EP inwestycji w nową niszę
+  var MIN_SPECIATION_POP = 60; // minimalna populacja, by rozdzielić gatunek
+
   // Kategorie cech (ZALOZENIA 4.2).
   var CATEGORIES = {
     pokarm: 'Pokarm',
@@ -256,6 +260,12 @@
       title: 'Ewolucja inteligencji',
       body: 'Duży mózg daje przewagę (uczenie się, współpraca), ale zużywa mnóstwo energii. ' +
         'Dlatego rozwija się tylko tam, gdzie ta przewaga naprawdę się opłaca.'
+    },
+    speciation: {
+      title: 'Specjacja — powstawanie gatunków',
+      body: 'Gdy część populacji przystosowuje się do odrębnej niszy i przestaje wymieniać ' +
+        'geny z resztą, powstaje nowy gatunek. Tak jedna linia rozwojowa rozgałęzia się na ' +
+        'wiele — to dlatego historię życia rysuje się jako „drzewo życia”.'
     }
   };
 
@@ -264,6 +274,8 @@
     INTELLIGENCE_GOAL: INTELLIGENCE_GOAL,
     START_POPULATION: START_POPULATION,
     START_EP: START_EP,
+    SPECIATION_COST: SPECIATION_COST,
+    MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     CATEGORIES: CATEGORIES,
     TRAITS: TRAITS,
     ERA: ERA,

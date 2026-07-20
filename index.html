@@ -74,11 +74,29 @@
       <!-- Oś czasu ery -->
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
 
+      <!-- Pasek linii rozwojowych + specjacja -->
+      <div class="lineage-bar" aria-label="Linie rozwojowe">
+        <div class="lineage-chips" id="lineage-chips"></div>
+        <div class="lineage-actions">
+          <button id="btn-speciate" class="btn btn-ghost" type="button" title="Rozdziel aktywną linię na dwie gałęzie">
+            🌿 Specjacja
+          </button>
+          <button id="btn-tree" class="btn btn-ghost" type="button">🌳 Drzewo życia</button>
+        </div>
+      </div>
+
       <div class="game-grid">
-        <!-- Panel gatunku -->
+        <!-- Panel aktywnej linii -->
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
-          <h2 id="species-panel-title" class="panel-title">Twój gatunek</h2>
+          <h2 id="species-panel-title" class="panel-title">Aktywna linia</h2>
           <p class="species-name" id="species-name-display">—</p>
+
+          <!-- Wykres populacji -->
+          <div class="sparkline-box">
+            <span class="sparkline-label">Populacja w czasie</span>
+            <div id="sparkline" class="sparkline" aria-hidden="true"></div>
+          </div>
+
           <ul class="stats-list" id="stats-list"></ul>
           <div class="env-box">
             <h3 class="env-title">Środowisko następnej tury</h3>
@@ -89,13 +107,17 @@
           <button id="btn-simulate" class="btn btn-primary btn-block" type="button">
             Przeżyj turę →
           </button>
+          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled>
+            ↶ Cofnij (tryb nauczyciela)
+          </button>
         </aside>
 
         <!-- Panel adaptacji (drzewo cech) -->
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
           <h2 id="traits-panel-title" class="panel-title">Adaptacje — wydaj punkty ewolucji</h2>
           <p class="panel-hint">
-            Każda cecha ma koszt i kompromis. Cechy zależne odblokowują się po zdobyciu wymaganych.
+            Cechy dotyczą <strong>aktywnej linii</strong>. Każda ma koszt i kompromis;
+            cechy zależne odblokowują się po zdobyciu wymaganych.
           </p>
           <div id="traits-container" class="traits-container"></div>
         </div>
@@ -137,6 +159,21 @@
       </div>
       <p class="panel-hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
       <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Drzewo życia -->
+  <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="tree-title" class="modal-title">🌳 Drzewo życia</h2>
+        <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">
+        Historia Twoich linii rozwojowych. Rozgałęzienia to specjacje; wygaszone gałęzie to
+        linie, które wymarły. Kliknij żywą gałąź, aby uczynić ją aktywną.
+      </p>
+      <div id="tree-container" class="tree-container"></div>
     </div>
   </div>
 

@@ -160,6 +160,30 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .era-step.current { border-color: var(--accent); border-width: 2px; color: var(--ink); font-weight: 700; }
 .era-step .era-step-num { display: block; font-weight: 700; font-size: .85rem; }
 
+/* --- Pasek linii rozwojowych --- */
+.lineage-bar {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.lineage-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.lineage-chip {
+  font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+  border-radius: 20px; padding: 5px 12px; font-size: .85rem; font-weight: 600;
+}
+.lineage-chip:hover:not(:disabled) { border-color: var(--brand); }
+.lineage-chip.active { border-color: var(--accent); border-width: 2px; background: var(--bg-panel); }
+.lineage-chip.extinct { opacity: .55; text-decoration: line-through; cursor: default; }
+.lineage-chip-pop { font-size: .72rem; color: var(--ink-soft); background: var(--bg-panel); border-radius: 12px; padding: 1px 7px; }
+.lineage-actions { display: flex; gap: 8px; }
+
+/* --- Wykres populacji --- */
+.sparkline-box { margin-bottom: 14px; }
+.sparkline-label { display: block; font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.sparkline { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.sparkline svg { display: block; }
+
 /* --- Układ gry --- */
 .game-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
 .panel {
@@ -245,9 +269,19 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .knowledge-card h4 { margin: 0 0 4px; font-size: .95rem; color: var(--brand); }
 .knowledge-card p { margin: 0; font-size: .85rem; color: var(--ink); }
 
+.report-lineage { padding: 8px 0; }
+.report-lineage + .report-lineage { border-top: 2px solid var(--line); margin-top: 6px; }
+.report-lineage-head { font-weight: 700; color: var(--brand); margin-bottom: 4px; }
+.report-summary { margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--brand); }
+
 /* --- Kodeks --- */
 .codex-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .codex-empty { color: var(--ink-soft); font-style: italic; }
+
+/* --- Drzewo życia --- */
+.tree-container { margin-top: 12px; overflow-x: auto; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.tree-container svg { min-width: 480px; }
+.tree-container [data-lineage] text { user-select: none; }
 
 /* --- Ekran końcowy --- */
 .screen-end { display: flex; justify-content: center; padding-top: 4vh; }
