@@ -1,0 +1,10 @@
+# Zależności (instalowane lokalnie tylko do testów w przeglądarce)
+node_modules/
+package.json
+package-lock.json
+
+# Systemowe / edytory
+.DS_Store
+*.log
+.vscode/
+.idea/

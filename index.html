@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
+  <title>Ewolucja — gra edukacyjna</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Przejdź do treści</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🧬</span>
+      <span class="brand-name">Ewolucja</span>
+    </div>
+    <nav class="topbar-actions">
+      <button id="btn-codex" class="btn btn-ghost" type="button">Kodeks wiedzy</button>
+      <button id="btn-restart" class="btn btn-ghost" type="button">Nowa gra</button>
+    </nav>
+  </header>
+
+  <main id="main" class="main">
+
+    <!-- Ekran startowy -->
+    <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
+      <div class="card intro-card">
+        <h1 id="start-title">Ewolucja</h1>
+        <p class="lead">
+          Poprowadź linię rozwojową zwierząt przez paleozoik — od prostego organizmu
+          w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong>
+          na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa
+          <strong>dobór naturalny</strong>.
+        </p>
+        <div class="intro-goal" id="intro-goal"></div>
+        <form id="form-start" class="start-form">
+          <label for="species-name">Nazwij swój gatunek:</label>
+          <input id="species-name" name="species-name" type="text" maxlength="28"
+                 placeholder="np. Prazwierz morski" autocomplete="off" />
+          <button class="btn btn-primary" type="submit">Rozpocznij ewolucję</button>
+        </form>
+        <p class="edu-note">
+          Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
+          mechanizmów, nie odwzorowaniu konkretnych gatunków.
+        </p>
+      </div>
+    </section>
+
+    <!-- Ekran rozgrywki -->
+    <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
+      <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
+
+      <!-- Pasek stanu: EP, tura, populacja -->
+      <div class="status-bar">
+        <div class="status-item status-ep">
+          <span class="status-label">Punkty ewolucji</span>
+          <span class="status-value" id="ep-value">0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Populacja</span>
+          <span class="status-value" id="pop-value">0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Tura</span>
+          <span class="status-value" id="turn-value">0 / 0</span>
+        </div>
+        <div class="status-item status-goal">
+          <span class="status-label">Inteligencja (cel)</span>
+          <span class="status-value" id="intel-value">0 / 0</span>
+        </div>
+      </div>
+
+      <!-- Oś czasu ery -->
+      <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
+
+      <div class="game-grid">
+        <!-- Panel gatunku -->
+        <aside class="panel panel-species" aria-labelledby="species-panel-title">
+          <h2 id="species-panel-title" class="panel-title">Twój gatunek</h2>
+          <p class="species-name" id="species-name-display">—</p>
+          <ul class="stats-list" id="stats-list"></ul>
+          <div class="env-box">
+            <h3 class="env-title">Środowisko następnej tury</h3>
+            <p class="env-name" id="env-name">—</p>
+            <p class="env-note" id="env-note">—</p>
+            <ul class="env-stats" id="env-stats"></ul>
+          </div>
+          <button id="btn-simulate" class="btn btn-primary btn-block" type="button">
+            Przeżyj turę →
+          </button>
+        </aside>
+
+        <!-- Panel adaptacji (drzewo cech) -->
+        <div class="panel panel-traits" aria-labelledby="traits-panel-title">
+          <h2 id="traits-panel-title" class="panel-title">Adaptacje — wydaj punkty ewolucji</h2>
+          <p class="panel-hint">
+            Każda cecha ma koszt i kompromis. Cechy zależne odblokowują się po zdobyciu wymaganych.
+          </p>
+          <div id="traits-container" class="traits-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ekran końcowy -->
+    <section id="screen-end" class="screen screen-end" hidden aria-labelledby="end-title">
+      <div class="card end-card">
+        <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
+        <h1 id="end-title">Koniec ery</h1>
+        <p class="end-summary" id="end-summary"></p>
+        <ul class="end-stats" id="end-stats"></ul>
+        <div class="end-actions">
+          <button id="btn-play-again" class="btn btn-primary" type="button">Zagraj ponownie</button>
+          <button id="btn-open-codex-end" class="btn btn-ghost" type="button">Zobacz Kodeks</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: raport tury -->
+  <div id="modal-report" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div class="modal-box">
+      <h2 id="report-title" class="modal-title">Wynik tury</h2>
+      <div id="report-body" class="report-body"></div>
+      <div id="report-knowledge" class="report-knowledge"></div>
+      <button id="btn-report-close" class="btn btn-primary btn-block" type="button">Dalej</button>
+    </div>
+  </div>
+
+  <!-- Modal: Kodeks wiedzy -->
+  <div id="modal-codex" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="codex-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="codex-title" class="modal-title">Kodeks wiedzy</h2>
+        <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
+      <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
