@@ -69,20 +69,24 @@ przechodnia świadomą strategią.
 
 ## Funkcje
 
-- **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z narastającą trudnością
-  i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **22 cechy** w drzewie zależności z kosztami i kompromisami; ścieżka do
-  inteligencji oznaczona ⭐.
-- **Specjacja i drzewo życia** — rozdzielaj linię na gałęzie i śledź ich historię
-  na interaktywnym diagramie filogenetycznym (żywe i wymarłe gałęzie, oś er).
-- **Nisze ekologiczne (woda / ląd) i migracja** — różne nisze mają inne pokarmy
-  i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
-- **Katastrofy / wymierania masowe** (np. permskie, K–Pg) uderzające w wybrane nisze.
-- **Prognoza „co-jeśli"** — najedź na cechę, aby zobaczyć jej wpływ przed zakupem.
-- **Samouczek** pierwszych kroków oraz **tryb nauczyciela** (cofanie decyzji i tur).
-- **Wykres populacji** aktywnej linii w czasie (sparkline).
-- Warstwa edukacyjna: raporty „co się stało i dlaczego", **Kodeks wiedzy**
-  z powiązaniami do realnych organizmów kopalnych.
+- **Scenariusze i poziomy trudności** — trzy scenariusze (pełna ewolucja, podbój
+  lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
+- **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
+  geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
+- **24 cechy** (z ikonami) w drzewie zależności z kosztami i kompromisami; ścieżka
+  do inteligencji oznaczona ⭐.
+- **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
+  każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
+- **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny (żywe i
+  wymarłe gałęzie, oś er).
+- **Katastrofy / wymierania masowe** (permskie, K–Pg, zlodowacenia) oraz
+  **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
+- **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
+- **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
+  (skąd pochodzą punkty).
+- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
+- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
+- **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
   (klawiatura, kontrasty, `prefers-reduced-motion`).

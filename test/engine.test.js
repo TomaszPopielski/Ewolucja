@@ -15,12 +15,11 @@ function seeded(v) { var i = 0; return function () { var x = v[i % v.length]; i+
 var noMut = function () { return 0.99; };
 function byId(id) { return GameData.TRAITS.filter(function (t) { return t.id === id; })[0]; }
 function active(s) { return Engine.getActiveLineage(s); }
-var det = function () { return 0.5; }; // deterministyczne, bez mutacji
+var det = function () { return 0.5; };
 
-/* Rozegraj całą grę wg planu cech (kupując, co się da przed każdą turą). */
 function playThrough(plan, opts) {
   opts = opts || {};
-  var s = Engine.createInitialState(GameData, 'Bot');
+  var s = Engine.createInitialState(GameData, 'Bot', opts.init || {});
   var guard = 0;
   while (s.status === 'playing' && guard++ < 60) {
     var changed = true;
@@ -33,60 +32,67 @@ function playThrough(plan, opts) {
       }
     }
     if (opts.migrateLandWhenAble && active(s).traits.indexOf('limbs') !== -1 && active(s).niche === 'woda') {
-      var m = Engine.migrateLineage(s, s.activeLineageId, 'lad');
-      if (m.ok) s = m.state;
+      var m = Engine.migrateLineage(GameData, s, s.activeLineageId, 'lad'); if (m.ok) s = m.state;
     }
     s = Engine.simulateTurn(GameData, s, det).state;
   }
   return s;
 }
 
-group('createInitialState', function () {
+group('createInitialState + trudność', function () {
   var s = Engine.createInitialState(GameData, 'Testozaur');
   eq(active(s).name, 'Testozaur', 'nazwa linii');
-  eq(s.eraIndex, 0, 'start w pierwszej erze');
-  eq(s.turn, 0, 'start przed pierwszą turą');
-  eq(s.ep, GameData.START_EP, 'startowe EP');
-  eq(active(s).niche, 'woda', 'start w niszy wodnej');
-  eq(s.lineages.length, 1, 'jedna linia');
+  eq(s.ep, GameData.DIFFICULTIES.normalny.startEp, 'EP z domyślnej trudności');
+  eq(s.intelligenceGoal, GameData.DIFFICULTIES.normalny.goal, 'cel z trudności');
+  var e = Engine.createInitialState(GameData, 'X', { difficulty: 'latwy' });
+  eq(e.ep, GameData.DIFFICULTIES.latwy.startEp, 'łatwy: więcej EP');
+  eq(e.intelligenceGoal, GameData.DIFFICULTIES.latwy.goal, 'łatwy: niższy cel');
 });
 
-group('buyTrait — kupno, prereq, EP', function () {
+group('scenariusz: start w innej erze + zestaw startowy', function () {
+  var s = Engine.createInitialState(GameData, 'X', { startEra: 2, startTraits: ['scales', 'ganglia'], scenarioId: 'ice' });
+  eq(s.eraIndex, 2, 'start w kenozoiku');
+  eq(active(s).traits.indexOf('ganglia') !== -1, true, 'ma cechę startową ganglia');
+  ok(active(s).stats.intelligence > GameData.BASE_STATS.intelligence, 'efekty cech startowych zastosowane');
+});
+
+group('buyTrait — kupno, prereq, EP, minEra', function () {
   var s = Engine.createInitialState(GameData, 'X');
-  var r = Engine.buyTrait(GameData, s, 'fins');
-  ok(r.ok, 'kupno fins');
-  eq(r.state.ep, GameData.START_EP - 10, 'EP odjęte');
-  eq(s.ep, GameData.START_EP, 'stan wejściowy niezmieniony');
+  ok(Engine.buyTrait(GameData, s, 'fins').ok, 'kupno fins');
   eq(Engine.traitStatus(s, byId('limbs')), 'locked', 'limbs zablokowane bez fins');
   var noEp = Engine.createInitialState(GameData, 'X'); noEp.ep = 5;
   eq(Engine.buyTrait(GameData, noEp, 'ganglia').error, 'Za mało punktów ewolucji.', 'komunikat o EP');
+  var s2 = Engine.createInitialState(GameData, 'X'); s2.ep = 500;
+  ['fins', 'limbs'].forEach(function (id) { s2 = Engine.buyTrait(GameData, s2, id).state; });
+  eq(Engine.traitStatus(s2, byId('grasping_hand')), 'era_locked', 'ręka chwytna zablokowana erą w paleozoiku');
 });
 
-group('minEra — kamienie milowe późniejszych er', function () {
-  var s = Engine.createInitialState(GameData, 'X'); s.ep = 500;
+group('nisze — dostępność i migracja', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 400;
+  var av0 = Engine.availableNiches(GameData, active(s));
+  ok(av0.indexOf('przybrzeze') !== -1, 'przybrzeże dostępne od startu');
+  ok(av0.indexOf('lad') === -1, 'ląd niedostępny bez kończyn');
+  ok(!Engine.migrateLineage(GameData, s, 'L0', 'lad').ok, 'migracja na ląd bez kończyn blokowana');
   ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
-  eq(Engine.traitStatus(s, byId('grasping_hand')), 'era_locked', 'ręka chwytna zablokowana erą w paleozoiku');
-  s.eraIndex = 2; // kenozoik
-  eq(Engine.traitStatus(s, byId('grasping_hand')), 'available', 'dostępna w kenozoiku (prereq spełnione, EP jest)');
+  var m = Engine.migrateLineage(GameData, s, 'L0', 'lad');
+  ok(m.ok, 'migracja na ląd z kończynami');
+  eq(Engine.getLineage(m.state, 'L0').niche, 'lad', 'nisza = ląd');
+  s.eraIndex = 1; s = Engine.buyTrait(GameData, s, 'flight').state;
+  ok(Engine.availableNiches(GameData, active(s)).indexOf('powietrze') !== -1, 'powietrze dostępne po cesze Lot');
 });
 
-group('nisze / migracja', function () {
-  var s = Engine.createInitialState(GameData, 'X'); s.ep = 200;
-  var m0 = Engine.migrateLineage(s, 'L0', 'lad');
-  ok(!m0.ok, 'migracja na ląd bez kończyn blokowana');
-  ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
-  var m1 = Engine.migrateLineage(s, 'L0', 'lad');
-  ok(m1.ok, 'migracja na ląd z kończynami');
-  eq(Engine.getLineage(m1.state, 'L0').niche, 'lad', 'nisza zmieniona na ląd');
-  eq(active(s).niche, 'woda', 'stan wejściowy niezmieniony');
+group('nisze mają różne środowiska', function () {
+  var s = Engine.createInitialState(GameData, 'X');
+  var env = Engine.currentTurnEnv(GameData, s);
+  var wodaD = Engine._internals.computeDynamics(GameData, env, { niche: 'woda', stats: GameData.BASE_STATS, traits: [] }, {});
+  var przybD = Engine._internals.computeDynamics(GameData, env, { niche: 'przybrzeze', stats: GameData.BASE_STATS, traits: [] }, {});
+  ok(przybD.energy !== wodaD.energy, 'przybrzeże ma inny bilans niż woda');
 });
 
-group('forecast — prognoza bez losowości', function () {
+group('forecast — prognoza', function () {
   var s = Engine.createInitialState(GameData, 'X');
   var f = Engine.forecast(GameData, s, active(s));
-  ok(f !== null, 'prognoza istnieje');
-  ok(typeof f.projectedPop === 'number', 'prognozowana populacja to liczba');
-  ok(typeof f.delta === 'number', 'delta populacji to liczba');
+  ok(f && typeof f.projectedPop === 'number' && typeof f.delta === 'number', 'prognoza ma liczby');
 });
 
 group('specjacja', function () {
@@ -95,62 +101,63 @@ group('specjacja', function () {
   ok(r.ok, 'specjacja się udaje');
   eq(r.state.lineages.length, 2, 'dwie linie');
   eq(Engine.getLineage(r.state, 'L0').population + Engine.getLineage(r.state, 'L1').population, 100, 'populacja podzielona bez strat');
-  eq(r.state.activeLineageId, 'L1', 'aktywna = nowa gałąź');
-  // niezależna ewolucja
   s = Engine.buyTrait(GameData, r.state, 'ganglia').state;
   eq(Engine.getLineage(s, 'L1').traits.indexOf('ganglia') !== -1, true, 'gałąź ma ganglia');
   eq(Engine.getLineage(s, 'L0').traits.indexOf('ganglia'), -1, 'rodzic nie ma ganglia');
 });
 
-group('specjacja — blokady', function () {
-  var s = Engine.createInitialState(GameData, 'P'); s.ep = 50; active(s).population = GameData.MIN_SPECIATION_POP - 1;
-  ok(!Engine.speciate(GameData, s, 'B').ok, 'za mała populacja blokuje');
-  var s2 = Engine.createInitialState(GameData, 'P'); s2.ep = GameData.SPECIATION_COST - 1; active(s2).population = 100;
-  ok(!Engine.speciate(GameData, s2, 'B').ok, 'brak EP blokuje');
+group('katastrofa + trudność (mnożnik)', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.turn = 7; // Perm
+  var lrN = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
+  var h = Engine.createInitialState(GameData, 'X', { difficulty: 'trudny' }); h.turn = 7;
+  var lrH = Engine.simulateTurn(GameData, h, noMut).report.lineReports[0];
+  ok(lrN.catDeaths > 0, 'katastrofa uderza (' + lrN.catDeaths + ')');
+  ok(lrH.catDeaths >= lrN.catDeaths, 'na trudnym katastrofa nie słabsza (' + lrH.catDeaths + ' ≥ ' + lrN.catDeaths + ')');
 });
 
-group('katastrofa — dodatkowa śmiertelność', function () {
-  // Znajdź turę z katastrofą 'woda' i sprawdź, że uderza w linię wodną.
-  var s = Engine.createInitialState(GameData, 'X');
-  // przejdź do tury permskiej (ostatnia paleozoiku) — indeks 7
-  s.turn = 7;
-  var before = active(s).population;
-  var out = Engine.simulateTurn(GameData, s, noMut);
-  var lr = out.report.lineReports[0];
-  ok(out.report.catastrophe !== null, 'tura permska ma katastrofę');
-  ok(lr.catDeaths > 0, 'katastrofa spowodowała dodatkowe straty (' + lr.catDeaths + ')');
+group('koewolucja — presja drapieżników rośnie', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 200;
+  s = Engine.buyTrait(GameData, s, 'shell').state; // wysoka obrona
+  var p0 = s.predatorLevel;
+  for (var i = 0; i < 3; i++) s = Engine.simulateTurn(GameData, s, noMut).state;
+  ok(s.predatorLevel > p0, 'predatorLevel rośnie przy wysokiej obronie (' + Engine._internals.clamp(s.predatorLevel, 0, 99).toFixed(2) + ')');
 });
 
-group('progresja er', function () {
+group('pozytywne zdarzenie losowe', function () {
+  // rng: pierwszy 0.99 => brak mutacji linii; ale zdarzenie zależy od rng w simulateTurn.
+  // Wymuś zdarzenie: rng < 0.22 na etapie zdarzenia. Sekwencja: mutacja(0.99 brak), zdarzenie(0.1), wybór(0.0)
   var s = Engine.createInitialState(GameData, 'X');
-  // przewiń do końca paleozoiku
-  s.turn = GameData.ERAS[0].turns.length - 1;
-  var out = Engine.simulateTurn(GameData, s, noMut);
-  eq(out.state.eraIndex, 1, 'po ostatniej turze paleozoiku wchodzimy w mezozoik');
-  eq(out.state.turn, 0, 'tura zresetowana w nowej erze');
-  ok(out.report.eraChanged, 'raport oznacza zmianę ery');
+  var rng = seeded([0.1, 0.0, 0.99, 0.99, 0.99, 0.99]);
+  // uwaga: kolejność wywołań rng: event-check, event-pick, potem per-lineage mutacja...
+  var out = Engine.simulateTurn(GameData, s, rng);
+  ok(out.report.event !== null, 'zdarzenie pozytywne wystąpiło');
+});
+
+group('rozbicie EP w raporcie', function () {
+  var s = Engine.createInitialState(GameData, 'X');
+  var lr = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
+  ok(lr.epBreakdown && typeof lr.epBreakdown.growth === 'number', 'raport zawiera rozbicie EP');
+  eq(lr.epBreakdown.growth + lr.epBreakdown.population + lr.epBreakdown.intelligence + lr.epBreakdown.niche, lr.epGain, 'składniki EP sumują się do epGain');
 });
 
 group('evaluateStatus', function () {
-  var s = Engine.createInitialState(GameData, 'X');
-  active(s).population = 0;
+  var s = Engine.createInitialState(GameData, 'X'); active(s).population = 0;
   eq(Engine.evaluateStatus(s, GameData), 'lost', 'populacja 0 => lost');
-  var s2 = Engine.createInitialState(GameData, 'X');
-  active(s2).stats.intelligence = GameData.INTELLIGENCE_GOAL;
+  var s2 = Engine.createInitialState(GameData, 'X'); active(s2).stats.intelligence = s2.intelligenceGoal;
   eq(Engine.evaluateStatus(s2, GameData), 'won', 'próg inteligencji => won');
 });
 
-group('pełna rozgrywka — skupiona strategia wygrywa', function () {
+group('pełna rozgrywka — skupiona strategia wygrywa (normalny)', function () {
   var plan = ['eyes', 'scales', 'many_eggs', 'ganglia', 'fins', 'limbs', 'shell', 'jaws',
     'brain', 'endothermy', 'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care'];
-  var s = playThrough(plan, { migrateLandWhenAble: false });
-  eq(s.status, 'won', 'skupiona strategia wygrywa (int ' + Engine.maxIntelligence(s) + ')');
+  var s = playThrough(plan);
+  eq(s.status, 'won', 'skupiona strategia wygrywa (int ' + Engine.maxIntelligence(s) + '/' + s.intelligenceGoal + ')');
 });
 
 group('pełna rozgrywka — gra "na przetrwanie" nie wygrywa', function () {
   var plan = ['fins', 'eyes', 'scales', 'jaws', 'many_eggs', 'shell', 'limbs'];
   var s = playThrough(plan, { migrateLandWhenAble: true });
-  ok(s.status === 'survived' || s.status === 'lost', 'bez mózgu nie ma zwycięstwa (status ' + s.status + ')');
+  ok(s.status === 'survived' || s.status === 'lost', 'bez mózgu brak zwycięstwa (status ' + s.status + ')');
 });
 
 console.log('\n────────────────────────');

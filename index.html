@@ -38,8 +38,9 @@
           <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
                  data-i18n-ph="start.namePlaceholder" autocomplete="off" />
-          <button class="btn btn-primary" type="submit" data-i18n="start.button">Rozpocznij ewolucję</button>
         </form>
+        <h3 class="scenario-heading">Wybierz scenariusz:</h3>
+        <div id="scenario-cards" class="scenario-cards"></div>
         <p class="edu-note" data-i18n="start.eduNote"></p>
       </div>
     </section>
@@ -72,7 +73,7 @@
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
         <div class="lineage-actions">
-          <button id="btn-migrate" class="btn btn-ghost" type="button"></button>
+          <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
           <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
           <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
         </div>
@@ -125,6 +126,7 @@
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
+          <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
       </div>
@@ -136,6 +138,7 @@
     <div class="modal-box">
       <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
       <div id="report-era" class="report-era" hidden></div>
+      <div id="report-event" class="report-event-banner" hidden></div>
       <div id="report-body" class="report-body"></div>
       <div id="report-knowledge" class="report-knowledge"></div>
       <button id="btn-report-close" class="btn btn-primary btn-block" type="button" data-i18n="report.next">Dalej</button>
@@ -190,6 +193,22 @@
       <div class="modal-actions">
         <button class="btn btn-primary" type="button" id="btn-confirm-yes" data-i18n="common.yes">Tak</button>
         <button class="btn btn-ghost" type="button" id="btn-confirm-no" data-i18n="common.cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: podsumowanie gry (eksport) -->
+  <div id="modal-summary" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="summary-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
+        <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
+      <textarea id="summary-text" class="summary-text" readonly rows="14"></textarea>
+      <div class="modal-actions">
+        <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>
+        <button id="btn-summary-download" class="btn btn-ghost" type="button">Pobierz plik .txt</button>
       </div>
     </div>
   </div>
