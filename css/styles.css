@@ -205,6 +205,14 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 
 /* --- Układ gry --- */
 .game-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+/* Panel aktywnej linii „przykleja się”, by prognoza „co-jeśli” była widoczna
+   także przy najechaniu na cechy niżej na liście. */
+@media (min-width: 821px) {
+  .panel-species {
+    position: sticky; top: 64px;
+    max-height: calc(100vh - 80px); overflow-y: auto;
+  }
+}
 .panel {
   background: var(--bg-panel); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
