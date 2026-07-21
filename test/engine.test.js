@@ -140,6 +140,44 @@ group('rozbicie EP w raporcie', function () {
   eq(lr.epBreakdown.growth + lr.epBreakdown.population + lr.epBreakdown.intelligence + lr.epBreakdown.niche, lr.epGain, 'składniki EP sumują się do epGain');
 });
 
+group('zdarzenia z wyborem — decyzja gracza', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.turn = 4; // Dewon — wiek ryb (ma choice: wyspa)
+  var pc = Engine.pendingChoice(GameData, s);
+  ok(pc && pc.id === 'island', 'pendingChoice zwraca zdarzenie wyspy na turze 4');
+  var noChoiceTurn = Engine.createInitialState(GameData, 'X'); noChoiceTurn.turn = 0;
+  eq(Engine.pendingChoice(GameData, noChoiceTurn), null, 'brak decyzji na turze bez choice');
+
+  var bad = Engine.resolveChoice(GameData, s, 'nieznana-opcja');
+  eq(bad.ok, false, 'resolveChoice odrzuca nieznaną opcję');
+
+  var resolved = Engine.resolveChoice(GameData, s, 'colonize').state;
+  eq(Engine.pendingChoice(GameData, resolved), null, 'po rozstrzygnięciu decyzja znika');
+  var withChoice = Engine.simulateTurn(GameData, resolved, det).report;
+  eq(withChoice.choiceMade.label, 'Skolonizuj', 'raport zawiera podjętą decyzję');
+
+  var s2 = Engine.createInitialState(GameData, 'X'); s2.turn = 4;
+  var withoutChoice = Engine.simulateTurn(GameData, s2, det).report;
+  ok(withoutChoice.choiceMade !== null, 'gdy gracz nie zdecyduje, stosowana jest opcja domyślna');
+  eq(withoutChoice.choiceMade.label, 'Zostań na sprawdzonym terytorium', 'opcja domyślna to bezpieczny wybór');
+
+  var s3 = Engine.createInitialState(GameData, 'X'); s3.turn = 0;
+  var afterTurn = Engine.simulateTurn(GameData, s3, det).state;
+  eq(afterTurn.resolvedChoice, null, 'resolvedChoice czyszczony po turze');
+});
+
+group('markery wykresu populacji', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.turn = 7; // Perm — Wielkie Wymieranie
+  var out = Engine.simulateTurn(GameData, s, noMut).state;
+  var l = active(out);
+  eq(l.markers.length, l.popHistory.length, 'markers i popHistory tej samej długości');
+  eq(l.markers[l.markers.length - 1], 'catastrophe', 'znacznik katastrofy na ostatniej turze');
+
+  var sp = Engine.createInitialState(GameData, 'Pra'); sp.ep = 50; active(sp).population = 100;
+  var r = Engine.speciate(GameData, sp, 'B');
+  eq(Engine.getLineage(r.state, 'L0').markers[0], 'speciation', 'rodzic oznaczony speciation w punkcie podziału');
+  eq(Engine.getLineage(r.state, 'L1').markers[0], 'speciation', 'nowa gałąź oznaczona speciation przy narodzinach');
+});
+
 group('evaluateStatus', function () {
   var s = Engine.createInitialState(GameData, 'X'); active(s).population = 0;
   eq(Engine.evaluateStatus(s, GameData), 'lost', 'populacja 0 => lost');

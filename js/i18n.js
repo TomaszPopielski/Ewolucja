@@ -32,11 +32,8 @@
       'status.intelligence': 'Inteligencja (cel)',
       'status.era': 'Era',
 
-      'lineage.speciate': '🌿 Specjacja',
-      'lineage.tree': '🌳 Drzewo życia',
-      'lineage.migrateToLand': '🏝️ Migruj na ląd',
-      'lineage.migrateToWater': '🌊 Wróć do wody',
-
+      'lineage.speciate': 'Specjacja',
+      'lineage.tree': 'Drzewo życia',
       'species.title': 'Aktywna linia',
       'species.popOverTime': 'Populacja w czasie',
       'species.forecast': 'Prognoza następnej tury',
@@ -45,7 +42,7 @@
       'species.undo': '↶ Cofnij (tryb nauczyciela)',
 
       'traits.title': 'Adaptacje — wydaj punkty ewolucji',
-      'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. ⭐ oznacza drogę do inteligencji.',
+      'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. Gwiazdka oznacza drogę do inteligencji.',
 
       'report.title': 'Wynik tury',
       'report.next': 'Dalej',
@@ -53,12 +50,12 @@
 
       'codex.title': 'Kodeks wiedzy',
       'codex.hint': 'Zbiór odblokowanych pojęć. Odkrywasz je, grając.',
-      'codex.fossil': '🦴 Zapis kopalny: ',
+      'codex.fossil': 'Zapis kopalny: ',
 
-      'tree.title': '🌳 Drzewo życia',
+      'tree.title': 'Drzewo życia',
       'tree.hint': 'Historia Twoich linii rozwojowych. Rozgałęzienia to specjacje; wygaszone gałęzie to linie, które wymarły. Kliknij żywą gałąź, aby uczynić ją aktywną.',
 
-      'speciate.title': '🌿 Specjacja',
+      'speciate.title': 'Specjacja',
       'speciate.label': 'Nazwa nowej gałęzi:',
       'speciate.confirm': 'Rozdziel gatunek',
       'common.cancel': 'Anuluj',

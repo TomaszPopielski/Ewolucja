@@ -9,8 +9,11 @@
 
   var DATA = window.GameData;
   var Engine = window.Engine;
+  var Icons = window.Icons;
+  var Avatar = window.Avatar;
+  var Scene = window.Scene;
   var T = window.GameI18n.t;
-  var SAVE_KEY = 'ewolucja.save.v4';
+  var SAVE_KEY = 'ewolucja.save.v5';
   var TUTORIAL_KEY = 'ewolucja.tutorialDone';
 
   var state = null;
@@ -27,8 +30,10 @@
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
     speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
+    speciesAvatar: $('species-avatar'), rivalBadge: $('rival-badge'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
+    envScene: $('env-scene'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
     traits: $('traits-container'),
     btnSimulate: $('btn-simulate'), btnUndo: $('btn-undo'),
@@ -38,6 +43,7 @@
     modalTree: $('modal-tree'), treeContainer: $('tree-container'), btnTreeClose: $('btn-tree-close'),
     modalSpeciate: $('modal-speciate'), formSpeciate: $('form-speciate'),
     speciateName: $('speciate-name'), speciateHint: $('speciate-hint'), btnSpeciateCancel: $('btn-speciate-cancel'),
+    modalChoice: $('modal-choice'), choiceTitle: $('choice-title'), choiceDesc: $('choice-desc'), choiceOptions: $('choice-options'),
     modalConfirm: $('modal-confirm'), confirmMessage: $('confirm-message'),
     btnConfirmYes: $('btn-confirm-yes'), btnConfirmNo: $('btn-confirm-no'),
     endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
@@ -62,14 +68,14 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 4 && s.status === 'playing') ? s : null;
+      return (s && s.version === 5 && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 
   // ===================== Cofanie =====================
   function pushUndo() { undoStack.push(JSON.stringify(state)); if (undoStack.length > UNDO_LIMIT) undoStack.shift(); }
-  function onUndo() { if (!undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); }
+  function onUndo() { if (!undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); maybeShowChoice(); }
   function updateUndoButton() {
     el.btnUndo.disabled = (undoStack.length === 0);
     el.btnUndo.textContent = '↶ Cofnij' + (undoStack.length ? ' (' + undoStack.length + ')' : '') + ' — tryb nauczyciela';
@@ -87,6 +93,7 @@
     save();
     showScreen('game');
     renderAll();
+    maybeShowChoice();
     maybeStartTutorial();
   }
 
@@ -140,14 +147,14 @@
       if (i === state.turn) step.classList.add('current');
       if (t.catastrophe) step.classList.add('catastrophe');
       step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '');
-      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? '☄️' : '') + '</span>' +
+      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? Icons.span('meteor', { size: 12 }) : '') + '</span>' +
         t.title.split(' — ')[0];
       el.timeline.appendChild(step);
     });
   }
 
   // ===================== Render — linie / nisze =====================
-  function nicheIcon(n) { return (DATA.NICHES[n] && DATA.NICHES[n].icon) || '🌊'; }
+  function nicheIcon(n) { return Icons.nicheSpan(n, { size: 14 }); }
   function nicheLabel(n) { return (DATA.NICHES[n] && DATA.NICHES[n].label) || n; }
   function renderLineageBar() {
     el.lineageChips.innerHTML = '';
@@ -158,7 +165,8 @@
       if (!l.alive) chip.classList.add('extinct');
       if (l.id === state.activeLineageId) chip.classList.add('active');
       chip.disabled = !l.alive;
-      chip.innerHTML = (l.alive ? nicheIcon(l.niche) + ' ' : '🦴 ') + escapeHtml(l.name) +
+      var miniAvatar = '<span class="lineage-chip-avatar">' + Avatar.svg(l, { size: 26, mini: true }) + '</span>';
+      chip.innerHTML = miniAvatar + escapeHtml(l.name) +
         '<span class="lineage-chip-pop">' + (l.alive ? l.population : 'wymarła') + '</span>';
       if (l.alive) chip.addEventListener('click', function () { onSelectLineage(l.id); });
       el.lineageChips.appendChild(chip);
@@ -179,7 +187,7 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'niche-btn' + (a.niche === key ? ' current' : '');
-      btn.innerHTML = cfg.icon + ' ' + cfg.label;
+      btn.innerHTML = Icons.nicheSpan(key, { size: 14 }) + ' ' + cfg.label;
       if (a.niche === key) {
         btn.disabled = true; btn.title = 'Aktualna nisza';
       } else {
@@ -206,10 +214,23 @@
   // ===================== Render — aktywna linia =====================
   function renderActiveLineage() {
     var l = Engine.getActiveLineage(state);
+    el.speciesAvatar.innerHTML = Avatar.svg(l, { size: 116 });
     el.speciesName.textContent = l.name;
     el.speciesNiche.innerHTML = 'Nisza: <strong>' + nicheIcon(l.niche) + ' ' + nicheLabel(l.niche) + '</strong>';
+    renderRivalBadge();
     renderStats(l);
     renderSparkline(l);
+  }
+  // Nazwany „rywal ewolucyjny" — czytelna reprezentacja koewolucji (predatorLevel).
+  function renderRivalBadge() {
+    var l = Engine.getActiveLineage(state);
+    var lvl = state.predatorLevel || 0;
+    if (lvl < 1.2) { el.rivalBadge.hidden = true; return; }
+    var rival = DATA.rivalFor(l.niche, lvl);
+    el.rivalBadge.hidden = false;
+    el.rivalBadge.className = 'rival-badge tier-' + rival.tier;
+    el.rivalBadge.innerHTML = Icons.span('predator') + ' Rywal: <strong>' + escapeHtml(rival.name) + '</strong>';
+    el.rivalBadge.title = 'Presja drapieżników rośnie razem z Twoją obroną — to koewolucja (wyścig zbrojeń).';
   }
   function renderStats(lineage) {
     el.statsList.innerHTML = '';
@@ -226,8 +247,15 @@
   }
 
   // ===================== Render — wykres populacji =====================
+  var MARKER_STYLE = {
+    catastrophe: { color: 'var(--danger)', r: 4, label: 'Katastrofa' },
+    mutation_good: { color: 'var(--good)', r: 3, label: 'Korzystna mutacja' },
+    mutation_bad: { color: 'var(--accent)', r: 3, label: 'Szkodliwa mutacja' },
+    speciation: { color: 'var(--ep)', r: 3.4, label: 'Specjacja' },
+    extinct: { color: 'var(--ink-soft)', r: 4, label: 'Wymarcie' }
+  };
   function renderSparkline(lineage) {
-    var d = lineage.popHistory, w = 260, h = 46, pad = 4;
+    var d = lineage.popHistory, marks = lineage.markers || [], w = 260, h = 52, pad = 4, top = 6;
     if (!d || d.length < 2) {
       el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h +
         '"><line x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) +
@@ -236,14 +264,23 @@
     }
     var max = Math.max.apply(null, d), min = Math.min.apply(null, d), range = Math.max(1, max - min);
     var stepX = (w - 2 * pad) / (d.length - 1);
-    var pts = d.map(function (v, i) {
-      return Math.round(pad + i * stepX) + ',' + Math.round((h - pad) - ((v - min) / range) * (h - 2 * pad));
+    var xy = d.map(function (v, i) {
+      return [Math.round(pad + i * stepX), Math.round(top + (h - top - pad) - ((v - min) / range) * (h - top - 2 * pad))];
     });
-    var last = pts[pts.length - 1].split(',');
+    var pts = xy.map(function (p) { return p[0] + ',' + p[1]; });
+    var last = xy[xy.length - 1];
     var area = 'M' + pad + ',' + (h - pad) + ' L' + pts.join(' L') + ' L' + (w - pad) + ',' + (h - pad) + ' Z';
+    var markersSvg = '';
+    xy.forEach(function (p, i) {
+      var m = MARKER_STYLE[marks[i]];
+      if (!m) return;
+      markersSvg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + m.r + '" fill="' + m.color +
+        '" stroke="var(--bg-elev)" stroke-width="1"><title>' + m.label + ' — tura ' + (i + 1) + '</title></circle>';
+    });
     el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
       '<path d="' + area + '" fill="var(--brand)" opacity="0.12"/>' +
       '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      markersSvg +
       '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="var(--brand)"/></svg>';
   }
 
@@ -270,7 +307,7 @@
     }
 
     if (base.catastrophe) {
-      html += '<div class="forecast-warn">☄️ Uwaga: nadchodzi katastrofa (' +
+      html += '<div class="forecast-warn">' + Icons.span('meteor') + ' Uwaga: nadchodzi katastrofa (' +
         escapeHtml(base.catastrophe.name) + ') — uderzy w niszę ' +
         (base.catastrophe.niche === 'all' ? 'wszystkich' : nicheLabel(base.catastrophe.niche)) + '.</div>';
     }
@@ -280,28 +317,32 @@
   // ===================== Render — środowisko =====================
   function renderEnv() {
     var env = Engine.currentTurnEnv(DATA, state);
+    var a = Engine.getActiveLineage(state);
     if (!env) {
       el.envName.textContent = 'Era dobiega końca';
       el.envNote.textContent = ''; el.envStats.innerHTML = ''; el.envCatastrophe.hidden = true;
+      el.envScene.innerHTML = '';
       return;
     }
+    el.envScene.innerHTML = Scene.svg(env, a.niche);
     el.envName.textContent = env.title;
     el.envNote.textContent = env.note;
-    var a = Engine.getActiveLineage(state);
     var cfg = DATA.NICHES[a.niche];
     var nicheEnv = cfg.land ? env.land
       : { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
-    el.envStats.innerHTML = chip('Klimat: ' + climateLabel(env.climate)) + chip('Tlen: ' + env.oxygen) +
-      chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food)) +
-      chip('Drapieżniki: ' + Math.round(nicheEnv.predators));
+    el.envStats.innerHTML = chip(climateIcon(env.climate), climateLabel(env.climate)) +
+      chip(Icons.span('droplet', { size: 14 }), 'Tlen: ' + env.oxygen) +
+      chip(Icons.span('fork', { size: 14 }), 'Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food)) +
+      chip(Icons.span('predator', { size: 14 }), 'Drapieżniki: ' + Math.round(nicheEnv.predators));
     if (env.catastrophe) {
       el.envCatastrophe.hidden = false;
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
-      el.envCatastrophe.textContent = '☄️ ' + env.catastrophe.name + ' — niszczy niszę ' + cn + '!';
+      el.envCatastrophe.innerHTML = Icons.span('meteor') + ' ' + escapeHtml(env.catastrophe.name) + ' — niszczy niszę ' + cn + '!';
     } else el.envCatastrophe.hidden = true;
   }
-  function chip(t) { return '<li>' + t + '</li>'; }
-  function climateLabel(c) { return c === 'zimno' ? '❄️ zimno' : (c === 'cieplo' ? '☀️ ciepło' : '⛅ umiarkowanie'); }
+  function chip(iconHtml, t) { return '<li>' + iconHtml + ' ' + t + '</li>'; }
+  function climateIcon(c) { return Icons.span(c === 'zimno' ? 'snow' : 'sun', { size: 14 }); }
+  function climateLabel(c) { return c === 'zimno' ? 'zimno' : (c === 'cieplo' ? 'ciepło' : 'umiarkowanie'); }
 
   // ===================== Render — drzewo cech =====================
   function renderTraits() {
@@ -313,7 +354,7 @@
       var section = document.createElement('div');
       section.className = 'trait-category';
       var h3 = document.createElement('h3');
-      h3.textContent = (DATA.CATEGORY_ICONS[catKey] ? DATA.CATEGORY_ICONS[catKey] + ' ' : '') + DATA.CATEGORIES[catKey];
+      h3.innerHTML = Icons.categorySpan(catKey, { size: 15 }) + ' ' + DATA.CATEGORIES[catKey];
       section.appendChild(h3);
       var grid = document.createElement('div'); grid.className = 'trait-grid';
       inCat.forEach(function (trait) { grid.appendChild(renderTraitCard(trait, lineage)); });
@@ -330,30 +371,30 @@
     btn.disabled = (status !== 'available') || state.status !== 'playing';
 
     var costLabel;
-    if (status === 'owned') costLabel = '✓ zdobyta';
-    else if (status === 'locked') costLabel = '🔒 zablokowana';
-    else if (status === 'era_locked') costLabel = '⏳ ' + DATA.ERAS[trait.minEra].name;
+    if (status === 'owned') costLabel = Icons.span('check') + ' zdobyta';
+    else if (status === 'locked') costLabel = Icons.span('lock') + ' zablokowana';
+    else if (status === 'era_locked') costLabel = Icons.span('hourglass') + ' ' + DATA.ERAS[trait.minEra].name;
     else costLabel = trait.cost + ' EP';
 
     var extra = '';
     if (status === 'locked') {
       var missing = trait.requires.filter(function (id) { return lineage.traits.indexOf(id) === -1; });
-      extra = '<div class="trait-req">🔒 Najpierw zdobądź: <strong>' + reqNames(missing) +
+      extra = '<div class="trait-req">' + Icons.span('lock') + ' Najpierw zdobądź: <strong>' + reqNames(missing) +
         '</strong> (koszt: ' + trait.cost + ' EP)</div>';
     } else if (status === 'era_locked') {
-      extra = '<div class="trait-req">⏳ Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
+      extra = '<div class="trait-req">' + Icons.span('hourglass') + ' Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
         '</strong> (koszt: ' + trait.cost + ' EP)</div>';
     } else if (status === 'too_expensive') {
       extra = '<div class="trait-req warn">Brakuje ' + (trait.cost - state.ep) + ' EP</div>';
     }
 
-    var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">⭐</span> ' : '';
-    var ico = trait.icon ? trait.icon + ' ' : '';
+    var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">' + Icons.span('star') + '</span> ' : '';
+    var ico = Icons.traitSpan(trait.id, { size: 16 }) + ' ';
     btn.innerHTML = '<div class="trait-head"><span class="trait-name">' + star + ico + trait.name + '</span>' +
       '<span class="trait-cost">' + costLabel + '</span></div>' +
       '<div class="trait-desc">' + trait.desc + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
-      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + extra;
+      '<div class="trait-tradeoff">' + Icons.span('balance') + ' ' + trait.tradeoff + '</div>' + extra;
 
     if (status === 'available' && state.status === 'playing') {
       btn.addEventListener('click', function () { onBuyTrait(trait.id); });
@@ -411,19 +452,50 @@
     el.btnSimulate.disabled = (state.status !== 'playing');
   }
 
+  // ===================== Zdarzenia z wyborem (decyzje o ryzyku) =====================
+  // Wywoływane osobno (nie z renderAll) — decyzja nie może wyskoczyć nad
+  // raportem poprzedniej tury; pokazujemy ją dopiero po zamknięciu raportu.
+  function maybeShowChoice() {
+    var pc = Engine.pendingChoice(DATA, state);
+    if (pc && state.status === 'playing') { el.btnSimulate.disabled = true; showChoice(pc); }
+  }
+  function showChoice(choiceDef) {
+    el.choiceDesc.textContent = choiceDef.desc;
+    el.choiceOptions.innerHTML = '';
+    choiceDef.options.forEach(function (opt) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-ghost choice-option';
+      b.innerHTML = '<strong>' + escapeHtml(opt.label) + '</strong><span class="choice-option-desc">' + escapeHtml(opt.desc) + '</span>';
+      b.addEventListener('click', function () { onResolveChoice(opt.id); });
+      el.choiceOptions.appendChild(b);
+    });
+    openModal(el.modalChoice);
+  }
+  function onResolveChoice(optionId) {
+    var res = Engine.resolveChoice(DATA, state, optionId);
+    closeModal(el.modalChoice);
+    if (!res.ok) return;
+    pushUndo(); state = res.state; save();
+    el.btnSimulate.disabled = (state.status !== 'playing');
+  }
+
   // ===================== Raport tury =====================
   function showReport(report) {
     // Baner zmiany ery.
     if (report.eraChanged) {
       el.reportEra.hidden = false;
-      el.reportEra.innerHTML = '🏛️ Nowa era: <strong>' + report.newEraName + '</strong><br>' +
+      el.reportEra.innerHTML = Icons.span('landmark') + ' Nowa era: <strong>' + report.newEraName + '</strong><br>' +
         '<span class="report-era-milestone">' + eraMilestone(report.newEraName) + '</span>';
     } else el.reportEra.hidden = true;
 
-    // Baner pozytywnego zdarzenia.
+    // Baner pozytywnego zdarzenia lub podjętej decyzji.
     if (report.event) {
       el.reportEvent.hidden = false;
-      el.reportEvent.textContent = '🍀 ' + report.event.name + ' — ' + report.event.desc;
+      el.reportEvent.innerHTML = Icons.span('clover') + ' ' + escapeHtml(report.event.name) + ' — ' + escapeHtml(report.event.desc);
+    } else if (report.choiceMade) {
+      el.reportEvent.hidden = false;
+      el.reportEvent.innerHTML = Icons.span('compass') + ' Twoja decyzja (' + escapeHtml(report.choiceMade.name) +
+        '): <strong>' + escapeHtml(report.choiceMade.label) + '</strong>';
     } else el.reportEvent.hidden = true;
 
     el.reportBody.innerHTML = '';
@@ -432,7 +504,7 @@
       var block = document.createElement('div'); block.className = 'report-lineage';
       if (multi) {
         var head = document.createElement('div'); head.className = 'report-lineage-head';
-        head.textContent = (lr.alive ? nicheIcon(lr.niche) + ' ' : '🦴 ') + lr.name;
+        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) : Icons.span('bone')) + ' ' + escapeHtml(lr.name);
         block.appendChild(head);
       }
       lr.events.forEach(function (txt) {
@@ -466,7 +538,9 @@
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
     if (report.predatorLevel > 2) {
-      sum.appendChild(line('Presja drapieżników (koewolucja)', '↑ ' + report.predatorLevel, 'neg'));
+      var activeNiche = Engine.getActiveLineage(state).niche;
+      var rivalNow = DATA.rivalFor(activeNiche, report.predatorLevel);
+      sum.appendChild(line('Presja drapieżników — ' + rivalNow.name, '↑ ' + report.predatorLevel, 'neg'));
     }
     el.reportBody.appendChild(sum);
 
@@ -474,8 +548,8 @@
     report.knowledge.forEach(function (key) {
       var k = DATA.KNOWLEDGE[key]; if (!k) return;
       var card = document.createElement('div'); card.className = 'knowledge-card';
-      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
-        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
+      card.innerHTML = '<h4>' + Icons.span('bulb') + ' ' + k.title + '</h4><p>' + k.body + '</p>' +
+        (k.fossil ? '<p class="knowledge-fossil">' + Icons.span('bone') + ' ' + T('codex.fossil') + k.fossil + '</p>' : '');
       el.reportKnowledge.appendChild(card);
     });
 
@@ -492,7 +566,11 @@
     d.innerHTML = '<span>' + label + '</span><span class="' + cls + '">' + value + '</span>';
     return d;
   }
-  function onReportClose() { closeModal(el.modalReport); if (state.status !== 'playing') showEnd(); }
+  function onReportClose() {
+    closeModal(el.modalReport);
+    if (state.status !== 'playing') { showEnd(); return; }
+    maybeShowChoice();
+  }
 
   // ===================== Drzewo życia =====================
   function showTree() {
@@ -541,10 +619,13 @@
       }
       svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
         '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
-      svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
-        '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
-        '<text x="' + (xEnd + 10) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
-        escapeHtml(l.name) + (l.alive ? ' ' + nicheIcon(l.niche) + ' (' + l.population + ')' : ' †') + '</text></g>';
+      // Mini awatar zamiast gołego kółka — węzeł drzewa pokazuje sylwetkę gatunku.
+      var avSize = isActive ? 30 : 24, avScale = avSize / 108;
+      svg += '<g data-lineage="' + l.id + '">' +
+        '<g transform="translate(' + (xEnd - avSize * 0.42) + ',' + (y - avSize * 0.36) + ') scale(' + avScale + ')">' +
+        Avatar.svg(l, { size: 108, mini: true }) + '</g>' +
+        '<text x="' + (xEnd + avSize * 0.62) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
+        escapeHtml(l.name) + (l.alive ? ' (' + l.population + ')' : ' †') + '</text></g>';
     });
     return svg + '</svg>';
   }
@@ -553,14 +634,14 @@
   function showEnd() {
     clearSave();
     var s = state.status;
-    el.endEmblem.textContent = s === 'won' ? '🧠' : (s === 'survived' ? '🐾' : '🦴');
+    el.endEmblem.innerHTML = Icons.span(s === 'won' ? 'brain' : (s === 'survived' ? 'paw' : 'bone'), { size: 56 });
     el.endTitle.textContent = s === 'won' ? 'Narodziny inteligencji!' :
       (s === 'survived' ? 'Gatunek przetrwał wszystkie ery' : 'Wszystkie linie wygasły');
     el.endSummary.textContent =
       s === 'won'
         ? 'Jedna z Twoich linii osiągnęła próg inteligencji — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
         : s === 'survived'
-        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
+        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce oznaczonej gwiazdką w drzewie cech.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
@@ -637,8 +718,8 @@
       if (unlocked.indexOf(key) === -1) return; any = true;
       var k = DATA.KNOWLEDGE[key];
       var card = document.createElement('div'); card.className = 'knowledge-card';
-      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
-        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
+      card.innerHTML = '<h4>' + Icons.span('bulb') + ' ' + k.title + '</h4><p>' + k.body + '</p>' +
+        (k.fossil ? '<p class="knowledge-fossil">' + Icons.span('bone') + ' ' + T('codex.fossil') + k.fossil + '</p>' : '');
       el.codexBody.appendChild(card);
     });
     if (!any) el.codexBody.innerHTML = '<p class="codex-empty">Kodeks jest jeszcze pusty — graj, aby odkrywać pojęcia.</p>';
@@ -650,8 +731,8 @@
     { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + DATA.INTELLIGENCE_GOAL + ' w ciągu trzech er.' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️.' }
+    { title: 'Droga do celu', text: 'Cechy oznaczone gwiazdką prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: woda, przybrzeże, ląd (wymaga kończyn), powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe.' }
   ];
   var tutorialIdx = 0;
   function maybeStartTutorial() {
@@ -681,6 +762,7 @@
   function closeModal(m) { m.hidden = true; if (lastFocused && lastFocused.focus) lastFocused.focus(); }
   function flash(msg) { var p = el.btnSimulate.textContent; el.btnSimulate.textContent = msg; setTimeout(function () { el.btnSimulate.textContent = p; }, 1500); }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function prependIcon(node, name) { if (node) node.innerHTML = Icons.span(name) + ' ' + node.textContent; }
 
   var confirmCallback = null;
   function openConfirm(msg, cb) { el.confirmMessage.textContent = msg; confirmCallback = cb; openModal(el.modalConfirm); }
@@ -689,10 +771,17 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
-    el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
+    el.introGoal.innerHTML = Icons.span('compass') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
       'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
-      'Rozwijaj układ nerwowy (⭐), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
+      'Rozwijaj układ nerwowy (' + Icons.span('star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
+    prependIcon(el.btnSpeciate, 'branch');
+    prependIcon(el.btnTree, 'tree');
+    prependIcon($('speciate-title'), 'branch');
+    prependIcon($('tree-title'), 'tree');
+    prependIcon(el.btnSummary, 'book');
+    prependIcon($('summary-title'), 'book');
+    prependIcon($('choice-title'), 'compass');
 
     renderScenarios();
     // Enter w polu nazwy startuje domyślny scenariusz (pełna ewolucja).

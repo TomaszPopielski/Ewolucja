@@ -139,6 +139,57 @@
 
   function land(food, predators) { return { food: food, predators: predators }; }
 
+  /*
+   * Zdarzenia decyzyjne — gracz musi wybrać jedną z opcji, zanim tura zostanie
+   * rozliczona. W przeciwieństwie do POSITIVE_EVENTS (automatyczne), tu decyzja
+   * należy do gracza i ma realny kompromis (ryzyko vs bezpieczeństwo).
+   * `default:true` oznacza opcję stosowaną automatycznie, gdy silnik jest
+   * wywoływany bez UI (testy, symulacje wsadowe) — musi być neutralna (bez bonusów).
+   */
+  function choice(id, name, desc, options, knowledge) {
+    return { id: id, name: name, desc: desc, options: options, knowledge: knowledge || 'choice' };
+  }
+
+  var CHOICE_EVENT_ISLAND = choice('island', 'Kusząca, nieznana wyspa',
+    'Zwiadowcy Twojej linii natrafiają na nieznany, bogaty w pokarm skrawek lądu — ale nikt nie wie, jakie zagrożenia tam czekają.',
+    [
+      { id: 'colonize', label: 'Skolonizuj', desc: 'Ryzykowna migracja: więcej pokarmu, ale też nieznani drapieżnicy.', foodBonus: 4, predBonus: 2 },
+      { id: 'stay', label: 'Zostań na sprawdzonym terytorium', desc: 'Bezpieczniej — bez zmian w tej turze.', foodBonus: 0, predBonus: 0, default: true }
+    ]);
+  var CHOICE_EVENT_STORM = choice('storm', 'Nadciąga gwałtowna burza',
+    'Można się ukryć w bezpiecznym zakątku (mniej pokarmu) albo ryzykować żerowanie w niepogodzie.',
+    [
+      { id: 'shelter', label: 'Schroń się', desc: 'Bezpiecznie, ale mniej pokarmu w tej turze.', foodBonus: -2, predBonus: -3 },
+      { id: 'forage', label: 'Żeruj mimo burzy', desc: 'Więcej pokarmu, ale drapieżniki też polują w chaosie.', foodBonus: 3, predBonus: 3 }
+    ], 'events');
+  var CHOICE_EVENT_RIVALS = choice('rival_territory', 'Sporne terytorium żerowania',
+    'Sąsiednia grupa Twojego gatunku broni bogatego żerowiska. Można je przegonić albo ustąpić.',
+    [
+      { id: 'confront', label: 'Broń swojego miejsca', desc: 'Starcie kosztuje energię, ale wygrana daje dodatkowy pokarm.', foodBonus: 3, predBonus: 1 },
+      { id: 'yield', label: 'Ustąp i szukaj gdzie indziej', desc: 'Bez ryzyka starcia, ale mniej pokarmu.', foodBonus: -1, predBonus: -1, default: true }
+    ], 'events');
+
+  var CHOICE_EVENTS = [CHOICE_EVENT_ISLAND, CHOICE_EVENT_STORM, CHOICE_EVENT_RIVALS];
+
+  /*
+   * Nazwany „rywal ewolucyjny" — czysto prezentacyjna warstwa nad predatorLevel
+   * (koewolucja, engine.js). Zamienia abstrakcyjną liczbę w konkretną postać,
+   * która rośnie razem z obroną gracza — wzmacnia narrację „wyścigu zbrojeń".
+   * Progi: [maxPredatorLevel, nazwa, ikona].
+   */
+  var RIVAL_TIERS = {
+    woda:       [[2, 'Drobny oportunista'], [5, 'Zwinny łowca raf'], [9, 'Wielki drapieżnik głębin'], [99, 'Apeksowy potwór mórz']],
+    przybrzeze: [[2, 'Padlinożerny krab'], [5, 'Nadbrzeżny łowca'], [9, 'Opancerzony drapieżnik'], [99, 'Władca przypływów']],
+    lad:        [[2, 'Mały drapieżny oportunista'], [5, 'Sprawny łowca sfory'], [9, 'Wielki drapieżny gad'], [99, 'Szczytowy drapieżnik lądu']],
+    powietrze:  [[2, 'Młody drapieżny ptak'], [5, 'Zwinny łowca powietrzny'], [9, 'Wielki latający drapieżnik'], [99, 'Władca przestworzy']]
+  };
+  // Zwraca { name, tier } — tier (0-3) steruje ikoną/intensywnością w UI (im wyżej, tym groźniejszy rywal).
+  function rivalFor(niche, predatorLevel) {
+    var tiers = RIVAL_TIERS[niche] || RIVAL_TIERS.woda;
+    for (var i = 0; i < tiers.length; i++) if (predatorLevel <= tiers[i][0]) return { name: tiers[i][1], tier: i };
+    return { name: tiers[tiers.length - 1][1], tier: tiers.length - 1 };
+  }
+
   var ERAS = [
     {
       id: 'paleozoik', name: 'Paleozoik', dates: '541–252 mln lat temu',
@@ -156,7 +207,7 @@
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
           note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
         { title: 'Dewon — wiek ryb', oxygen: 11, food: 9, predators: 10, climate: 'umiarkowanie', land: land(9, 3),
-          note: 'Wielkie drapieżne ryby dominują w wodzie — na lądzie spokojniej.' },
+          note: 'Wielkie drapieżne ryby dominują w wodzie — na lądzie spokojniej.', choice: CHOICE_EVENT_ISLAND },
         { title: 'Dewon — brzeg lądu', oxygen: 11, food: 8, predators: 8, climate: 'cieplo', land: land(11, 3),
           note: 'Ląd stoi otworem: z kończynami warto migrować.' },
         { title: 'Karbon — bujne lasy', oxygen: 15, food: 10, predators: 7, climate: 'cieplo', land: land(14, 4),
@@ -175,7 +226,7 @@
         { title: 'Trias — po katastrofie', oxygen: 10, food: 9, predators: 6, climate: 'cieplo', land: land(10, 6),
           note: 'Świat odradza się po wymieraniu — wiele nisz stoi otworem.' },
         { title: 'Trias — pierwsze dinozaury', oxygen: 11, food: 10, predators: 9, climate: 'cieplo', land: land(11, 9),
-          note: 'Na lądzie rosną w siłę nowi, sprawni drapieżcy.' },
+          note: 'Na lądzie rosną w siłę nowi, sprawni drapieżcy.', choice: CHOICE_EVENT_RIVALS },
         { title: 'Jura — giganty', oxygen: 13, food: 12, predators: 12, climate: 'cieplo', land: land(13, 12),
           note: 'Wielkie dinozaury dominują ląd — przetrwa obrona, prędkość lub spryt.' },
         { title: 'Jura — chłodniejsze noce', oxygen: 12, food: 9, predators: 11, climate: 'umiarkowanie', land: land(10, 11),
@@ -198,7 +249,7 @@
         { title: 'Paleogen — pierwsze naczelne', oxygen: 11, food: 11, predators: 8, climate: 'umiarkowanie', land: land(12, 8),
           note: 'Życie na drzewach premiuje wzrok, chwyt i większy mózg.' },
         { title: 'Neogen — sawanny', oxygen: 11, food: 9, predators: 9, climate: 'umiarkowanie', land: land(10, 9),
-          note: 'Otwarte przestrzenie sprzyjają współpracy i sprytnym łowom.' },
+          note: 'Otwarte przestrzenie sprzyjają współpracy i sprytnym łowom.', choice: CHOICE_EVENT_STORM },
         { title: 'Neogen — ochłodzenie', oxygen: 10, food: 8, predators: 9, climate: 'zimno', land: land(8, 9),
           note: 'Chłód premiuje izolację, zapasy i inteligencję.' },
         { title: 'Plejstocen — epoki lodowcowe', oxygen: 10, food: 7, predators: 8, climate: 'zimno', land: land(8, 8),
@@ -274,14 +325,19 @@
       fossil: 'Wymieranie permskie (~252 mln lat temu) zgładziło ok. 90% gatunków morskich.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
-        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
+        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' },
+    choice: { icon: '🧭', title: 'Decyzje w obliczu niepewności',
+      body: 'Zwierzęta (i gatunki) nieustannie „decydują" — ryzykować dla większego zysku, czy grać bezpiecznie? ' +
+        'Naturalna selekcja premiuje strategie, które średnio w długim czasie się opłacają, nawet jeśli ' +
+        'pojedyncza decyzja czasem zawiedzie.' }
   };
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
     SPECIATION_COST: SPECIATION_COST, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
-    TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
+    TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, CHOICE_EVENTS: CHOICE_EVENTS,
+    SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE, RIVAL_TIERS: RIVAL_TIERS, rivalFor: rivalFor,
     // Zgodność wsteczna:
     INTELLIGENCE_GOAL: DIFFICULTIES.normalny.goal, START_EP: DIFFICULTIES.normalny.startEp
   };

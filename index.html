@@ -74,16 +74,18 @@
         <div class="lineage-chips" id="lineage-chips"></div>
         <div class="lineage-actions">
           <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
-          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
-          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
+          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">Specjacja</button>
+          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">Drzewo życia</button>
         </div>
       </div>
 
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
           <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
+          <div class="species-avatar" id="species-avatar" aria-hidden="true"></div>
           <p class="species-name" id="species-name-display">—</p>
           <p class="species-niche" id="species-niche">—</p>
+          <p class="rival-badge" id="rival-badge" hidden></p>
 
           <div class="sparkline-box">
             <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
@@ -98,6 +100,7 @@
           <ul class="stats-list" id="stats-list"></ul>
 
           <div class="env-box">
+            <div class="env-scene" id="env-scene" aria-hidden="true"></div>
             <h3 class="env-title" data-i18n="species.envTitle">Środowisko następnej tury</h3>
             <p class="env-name" id="env-name">—</p>
             <p class="env-note" id="env-note">—</p>
@@ -120,13 +123,13 @@
     <!-- Ekran końcowy -->
     <section id="screen-end" class="screen screen-end" hidden aria-labelledby="end-title">
       <div class="card end-card">
-        <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
+        <div class="end-emblem" id="end-emblem" aria-hidden="true"></div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
-          <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
+          <button id="btn-summary" class="btn btn-ghost" type="button">Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
       </div>
@@ -161,7 +164,7 @@
   <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">🌳 Drzewo życia</h2>
+        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">Drzewo życia</h2>
         <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
       <p class="panel-hint" data-i18n="tree.hint"></p>
@@ -172,7 +175,7 @@
   <!-- Modal: specjacja -->
   <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
     <div class="modal-box">
-      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">🌿 Specjacja</h2>
+      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">Specjacja</h2>
       <p class="panel-hint" id="speciate-hint"></p>
       <form id="form-speciate">
         <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
@@ -182,6 +185,15 @@
           <button class="btn btn-ghost" type="button" id="btn-speciate-cancel" data-i18n="common.cancel">Anuluj</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: zdarzenie z wyborem (decyzja o ryzyku) -->
+  <div id="modal-choice" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="choice-title">
+    <div class="modal-box">
+      <h2 id="choice-title" class="modal-title">Decyzja</h2>
+      <p class="panel-hint" id="choice-desc"></p>
+      <div id="choice-options" class="choice-options"></div>
     </div>
   </div>
 
@@ -201,7 +213,7 @@
   <div id="modal-summary" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="summary-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
+        <h2 id="summary-title" class="modal-title">Podsumowanie gry</h2>
         <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
       <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
@@ -229,6 +241,9 @@
   <script src="js/i18n.js"></script>
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/avatar.js"></script>
+  <script src="js/scene.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

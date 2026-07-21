@@ -47,6 +47,10 @@ index.html         — struktura strony i ekranów
 css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, dostępność)
 js/data.js         — dane gry: cechy, era, karty wiedzy (konfiguracja)
 js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
+js/i18n.js         — stringi interfejsu (warstwa i18n)
+js/icons.js        — spójny zestaw ikon SVG (zamiast emoji)
+js/avatar.js       — proceduralny SVG awatar gatunku z cech i niszy
+js/scene.js        — proceduralne, ilustracyjne tło środowiska tury
 js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
 test/engine.test.js — testy silnika
 ```
@@ -81,24 +85,31 @@ przechodnia świadomą strategią.
   wymarłe gałęzie, oś er).
 - **Katastrofy / wymierania masowe** (permskie, K–Pg, zlodowacenia) oraz
   **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
-- **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
+- **Koewolucja z nazwanym rywalem** — presja drapieżników „dogania” dobrze
+  bronione linie (wyścig zbrojeń) i pojawia się w UI jako konkretny, rosnący
+  w siłę przeciwnik, nie tylko liczba.
+- **Zdarzenia z wyborem** — rzadkie decyzje o realnym ryzyku (np. „kolonizować
+  nieznaną wyspę?”), które gracz rozstrzyga przed rozliczeniem tury.
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
-- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
+- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres
+  populacji z oznaczonymi zdarzeniami** (katastrofy, mutacje, specjacje).
 - **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
-- **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
+- **Kodeks wiedzy** w stylu atlasu przyrodniczego, z powiązaniami do realnych
+  organizmów kopalnych.
+- **Proceduralny awatar gatunku** — sylwetka SVG budowana z posiadanych cech
+  (widoczna w panelu gatunku, na chipach linii i w drzewie życia) i ilustrowane
+  tło środowiska zależne od ery/niszy/klimatu.
+- **Spójny zestaw ikon SVG** zamiast emoji (kategorie cech, nisze, status,
+  zdarzenia) — czytelne niezależnie od systemu/przeglądarki, w tym na tablicy
+  multimedialnej.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
   (klawiatura, kontrasty, `prefers-reduced-motion`).
 
-## Struktura projektu (uzupełnienie)
-
-```
-js/i18n.js  — stringi interfejsu (warstwa i18n)
-```
-
 ## Status
 
 Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
-tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+katastrofy, zdarzenia z wyborem, nazwanego rywala ewolucyjnego, proceduralny
+awatar gatunku, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po
+erze, tryb offline (PWA), tryb wieloosobowy, kolejne języki.

@@ -27,7 +27,10 @@
       population: population, peakPopulation: population,
       stats: clone(stats), traits: traits.slice(), niche: niche || 'woda',
       alive: true, bornEra: bornEra, bornTurn: bornTurn, extinctGlobalTurn: null,
-      popHistory: [population]
+      popHistory: [population],
+      // Znaczniki wyrównane z popHistory — zasilają wykres populacji (markery
+      // katastrof/mutacji/specjacji) bez potrzeby przeliczania historii od zera.
+      markers: [parentId ? 'speciation' : null]
     };
   }
 
@@ -60,7 +63,7 @@
     }
 
     return {
-      version: 4,
+      version: 5,
       difficulty: diffKey,
       scenario: opts.scenarioId || 'full',
       eraIndex: startEra,
@@ -74,6 +77,7 @@
       nextLineageNum: 1,
       unlockedKnowledge: ['intro'],
       status: 'playing',
+      resolvedChoice: null,      // decyzja gracza dla bieżącej tury (zdarzenie z wyborem)
       history: []
     };
   }
@@ -187,12 +191,41 @@
     var n = clone(state); var parent = getActiveLineage(n);
     var childPop = Math.floor(parent.population / 2);
     parent.population -= childPop; parent.popHistory[parent.popHistory.length - 1] = parent.population;
+    parent.markers[parent.markers.length - 1] = 'speciation';
     var childId = 'L' + n.nextLineageNum; n.nextLineageNum += 1;
     var child = makeLineage(childId, newName || (parent.name + ' II'), parent.id,
       childPop, parent.stats, parent.traits, parent.niche, n.eraIndex, n.turn);
     n.lineages.push(child); n.ep -= data.SPECIATION_COST; n.activeLineageId = childId;
     unlockKnowledge(n, 'speciation');
     return { ok: true, state: n, error: null };
+  }
+
+  // ---------- Zdarzenia z wyborem (decyzje o ryzyku) ----------
+  /* Zwraca opis decyzji do podjęcia w bieżącej turze, albo null, gdy jej nie ma
+     lub gracz już ją rozstrzygnął. */
+  function pendingChoice(data, state) {
+    var env = currentTurnEnv(data, state);
+    if (!env || !env.choice) return null;
+    var gt = globalTurn(data, state.eraIndex, state.turn);
+    if (state.resolvedChoice && state.resolvedChoice.turn === gt) return null;
+    return env.choice;
+  }
+  function resolveChoice(data, state, optionId) {
+    var env = currentTurnEnv(data, state);
+    if (!env || !env.choice) return { ok: false, state: state, error: 'Brak decyzji do podjęcia w tej turze.' };
+    var opt = null;
+    for (var i = 0; i < env.choice.options.length; i++) if (env.choice.options[i].id === optionId) opt = env.choice.options[i];
+    if (!opt) return { ok: false, state: state, error: 'Nieznana opcja.' };
+    var n = clone(state);
+    n.resolvedChoice = {
+      turn: globalTurn(data, n.eraIndex, n.turn), optionId: opt.id, label: opt.label,
+      foodBonus: opt.foodBonus || 0, predBonus: opt.predBonus || 0
+    };
+    return { ok: true, state: n, error: null };
+  }
+  function defaultChoiceOption(choiceDef) {
+    for (var i = 0; i < choiceDef.options.length; i++) if (choiceDef.options[i].default) return choiceDef.options[i];
+    return choiceDef.options[0];
   }
 
   // ---------- Mutacja ----------
@@ -276,7 +309,26 @@
       event = data.POSITIVE_EVENTS[Math.floor(rng() * data.POSITIVE_EVENTS.length)];
       knowledge.push(event.knowledge || 'events');
     }
-    var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
+
+    // Zdarzenie z wyborem — użyj decyzji gracza, jeśli podjęta w tej turze;
+    // w przeciwnym razie (np. symulacja wsadowa bez UI) zastosuj opcję domyślną.
+    var choiceMade = null;
+    if (env.choice) {
+      var gt = globalTurn(data, n.eraIndex, n.turn);
+      var resolved = (state.resolvedChoice && state.resolvedChoice.turn === gt) ? state.resolvedChoice : null;
+      var opt = resolved || defaultChoiceOption(env.choice);
+      choiceMade = { name: env.choice.name, label: opt.label, foodBonus: opt.foodBonus || 0, predBonus: opt.predBonus || 0 };
+      knowledge.push(env.choice.knowledge || 'choice');
+    }
+    n.resolvedChoice = null;
+
+    var ctxExtra = null;
+    if (event || choiceMade) {
+      ctxExtra = {
+        foodBonus: (event ? (event.foodBonus || 0) : 0) + (choiceMade ? choiceMade.foodBonus : 0),
+        predBonus: (event ? (event.predBonus || 0) : 0) + (choiceMade ? choiceMade.predBonus : 0)
+      };
+    }
     var ctx = contextFor(data, n, ctxExtra);
 
     aliveLineages(n).forEach(function (l) {
@@ -308,6 +360,7 @@
       envTitle: env.title, envNote: env.note, climate: env.climate,
       catastrophe: env.catastrophe || null,
       event: event ? { name: event.name, desc: event.desc } : null,
+      choiceMade: choiceMade,
       lineReports: lineReports, epGain: totalEp, epBase: anyAlive ? 12 : 0,
       predatorLevel: round1(n.predatorLevel),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
@@ -345,6 +398,13 @@
     l.population = pop; l.popHistory.push(pop);
     if (pop > l.peakPopulation) l.peakPopulation = pop;
 
+    // Znacznik tej tury na wykresie populacji — najważniejsze zdarzenie wygrywa.
+    var marker = null;
+    if (catDeaths > 0) marker = 'catastrophe';
+    else if (mut && mut.beneficial) marker = 'mutation_good';
+    else if (mut && !mut.beneficial) marker = 'mutation_bad';
+    l.markers.push(marker);
+
     if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
     if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
     if (env.climate === 'zimno') knowledge.push('cold');
@@ -352,6 +412,7 @@
 
     if (pop <= 0 && l.alive) {
       l.alive = false; l.extinctGlobalTurn = globalTurn(data, n.eraIndex, n.turn) + 1;
+      l.markers[l.markers.length - 1] = 'extinct';
       events.push('Ta linia wymarła.');
     }
 
@@ -397,6 +458,7 @@
     availableNiches: availableNiches, canMigrate: canMigrate, migrateLineage: migrateLineage,
     traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
+    pendingChoice: pendingChoice, resolveChoice: resolveChoice,
     forecast: forecast, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, clamp: clamp, computeDynamics: computeDynamics }
   };

@@ -20,6 +20,27 @@
   --radius: 14px;
   --shadow: 0 2px 10px rgba(31, 42, 36, 0.08);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Awatar gatunku (avatar.js) — kolor tułowia zależny od niszy. */
+  --creature-woda: #6fb3c7;
+  --creature-przybrzeze: #c9a35f;
+  --creature-lad: #7fa363;
+  --creature-powietrze: #a9c6dd;
+  --creature-shade: #4f6a72;
+  --creature-line: #2f3d38;
+
+  /* Ilustrowana scena środowiska (scene.js). */
+  --scene-sky-cold-1: #dbe8ef; --scene-sky-cold-2: #b9d3e0;
+  --scene-sky-warm-1: #ffe7c2; --scene-sky-warm-2: #ffd39a;
+  --scene-sky-mild-1: #e4eee0; --scene-sky-mild-2: #cfe0d6;
+  --scene-sun: #f2a83e;
+  --scene-water: #6fa8c9; --scene-water-deep: #4f88ab; --scene-bubble: #eaf6fb;
+  --scene-sand: #e2c48a;
+  --scene-ground: #8fae6c; --scene-trunk: #6b4a30; --scene-foliage: #567f43;
+  --scene-cloud: #ffffff;
+  --scene-ice: #eaf4f8;
+  --scene-meteor: #b23b3b;
+  --scene-danger-tint: #b23b3b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,6 +58,25 @@
     --good: #4fb383;
     --ep: #a891e0;
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+
+    --creature-woda: #3f7086;
+    --creature-przybrzeze: #8a6f3c;
+    --creature-lad: #4c6b3a;
+    --creature-powietrze: #5f7f97;
+    --creature-shade: #263238;
+    --creature-line: #cfe0d6;
+
+    --scene-sky-cold-1: #202b30; --scene-sky-cold-2: #2b3a41;
+    --scene-sky-warm-1: #3a2c1e; --scene-sky-warm-2: #4a3623;
+    --scene-sky-mild-1: #22291f; --scene-sky-mild-2: #2b3527;
+    --scene-sun: #e0954f;
+    --scene-water: #2e5064; --scene-water-deep: #223c4c; --scene-bubble: #bcdcea;
+    --scene-sand: #6b5836;
+    --scene-ground: #3c4f2e; --scene-trunk: #4a3320; --scene-foliage: #35492a;
+    --scene-cloud: #4a5257;
+    --scene-ice: #35454b;
+    --scene-meteor: #e07a7a;
+    --scene-danger-tint: #e07a7a;
   }
 }
 
@@ -388,6 +428,64 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
   .card { padding: 20px; }
   .trait-grid { grid-template-columns: 1fr; }
 }
+
+/* --- Ikony (icons.js) — spójny zestaw SVG zamiast emoji --- */
+.icon { display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px; }
+.icon-svg { display: block; }
+
+/* --- Awatar gatunku (avatar.js) --- */
+.species-avatar { display: flex; justify-content: center; padding: 6px 0 10px; }
+.avatar-svg { display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15)); }
+.avatar-extinct { filter: grayscale(1) opacity(0.8); }
+.lineage-chip-avatar { display: inline-flex; vertical-align: -7px; margin-right: 2px; }
+.lineage-chip-avatar .avatar-svg { filter: none; }
+
+/* --- Rywal ewolucyjny (koewolucja) --- */
+.rival-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: .82rem;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 20px;
+  padding: 3px 10px 3px 8px; margin: 0 0 10px; color: var(--ink-soft); width: fit-content;
+  animation: fadeInUp .3s ease;
+}
+.rival-badge.tier-2, .rival-badge.tier-3 { color: var(--danger); border-color: var(--danger); }
+.rival-badge strong { color: inherit; }
+
+/* --- Scena środowiska (scene.js) — ilustrowany baner nad opisem tury --- */
+.env-scene { margin: -12px -12px 10px; border-radius: 10px 10px 0 0; overflow: hidden; line-height: 0; }
+.env-scene-svg { display: block; width: 100%; height: 92px; }
+
+/* --- Modal: zdarzenie z wyborem --- */
+.choice-options { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.choice-option {
+  text-align: left; display: flex; flex-direction: column; gap: 3px;
+  padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg-elev); color: var(--ink); cursor: pointer; font: inherit;
+}
+.choice-option:hover { border-color: var(--brand); box-shadow: var(--shadow); }
+.choice-option strong { color: var(--brand); }
+.choice-option-desc { font-size: .82rem; color: var(--ink-soft); }
+
+/* --- Kodeks — styl „atlasu przyrodniczego" --- */
+.knowledge-card {
+  position: relative;
+  background:
+    linear-gradient(var(--bg-elev), var(--bg-elev)),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(127, 127, 127, 0.025) 3px, rgba(127, 127, 127, 0.025) 4px);
+}
+.knowledge-card::before {
+  content: ''; position: absolute; inset: 4px; border: 1px solid var(--line);
+  border-radius: 5px; pointer-events: none; opacity: .5;
+}
+.knowledge-card h4 { font-family: Georgia, "Times New Roman", serif; letter-spacing: .2px; }
+.knowledge-card { animation: fadeInUp .3s ease; }
+
+/* --- Mikroanimacje zdarzeń --- */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 rgba(201, 119, 43, 0); } 50% { box-shadow: 0 0 0 4px rgba(201, 119, 43, 0.15); } }
+.report-event-banner { animation: fadeInUp .3s ease; }
+.report-era { animation: fadeInUp .35s ease, pulseGlow 1.6s ease 1; }
+.env-catastrophe { animation: fadeInUp .3s ease; }
+.trait.available:hover:not(:disabled) { animation: pulseGlow 1.2s ease infinite; }
 
 /* --- Samouczek --- */
 .tutorial {
