@@ -79,11 +79,23 @@
         </div>
       </div>
 
+      <!-- Scena ekosystemu: wizualizacja świata i populacji aktywnej linii -->
+      <section class="scene-panel" aria-label="Scena ekosystemu">
+        <canvas id="ecosystem-canvas" class="ecosystem-canvas"></canvas>
+        <div class="scene-overlay" id="scene-overlay" aria-hidden="true"></div>
+        <p id="scene-alt" class="visually-hidden" aria-live="polite"></p>
+      </section>
+
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
           <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
           <p class="species-name" id="species-name-display">—</p>
           <p class="species-niche" id="species-niche">—</p>
+
+          <div class="creature-box">
+            <div class="creature-portrait" id="creature-portrait" aria-hidden="true"></div>
+            <span class="creature-caption" data-i18n="species.avatar">Twój gatunek — sylwetka rośnie z cech</span>
+          </div>
 
           <div class="sparkline-box">
             <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
@@ -229,6 +241,7 @@
   <script src="js/i18n.js"></script>
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>
