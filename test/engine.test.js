@@ -160,6 +160,92 @@ group('pełna rozgrywka — gra "na przetrwanie" nie wygrywa', function () {
   ok(s.status === 'survived' || s.status === 'lost', 'bez mózgu brak zwycięstwa (status ' + s.status + ')');
 });
 
+group('ścieżka społeczna (mowa) też wygrywa', function () {
+  var plan = ['eyes', 'scales', 'many_eggs', 'ganglia', 'fins', 'limbs', 'jaws',
+    'brain', 'endothermy', 'big_brain', 'social', 'parental_care', 'language'];
+  var s = playThrough(plan);
+  eq(s.status, 'won', 'droga „społeczna” (mowa) prowadzi do celu (int ' + Engine.maxIntelligence(s) + '/' + s.intelligenceGoal + ')');
+});
+
+group('premia niszy jest jednorazowa (odkrycie), nie co-turowa', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 100;
+  ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  s = Engine.migrateLineage(GameData, s, 'L0', 'lad').state;
+  var r1 = Engine.simulateTurn(GameData, s, noMut);
+  eq(r1.report.lineReports[0].epBreakdown.niche, GameData.NICHES.lad.discoveryBonus, 'pierwsza tura w niszy = premia odkrycia');
+  var r2 = Engine.simulateTurn(GameData, r1.state, noMut);
+  eq(r2.report.lineReports[0].epBreakdown.niche, 0, 'kolejna tura w tej samej niszy = brak premii');
+});
+
+group('EP z inteligencji liczone z jednej (najlepszej) linii', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 100;
+  ['ganglia', 'brain'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  var expected = Math.floor(active(s).stats.intelligence / 2);
+  s = Engine.speciate(GameData, s, 'B').state; // dziecko dziedziczy tę samą inteligencję
+  var lrs = Engine.simulateTurn(GameData, s, noMut).report.lineReports;
+  var sumInt = lrs.reduce(function (a, lr) { return a + lr.epBreakdown.intelligence; }, 0);
+  eq(sumInt, expected, 'specjacja nie mnoży EP z inteligencji (' + sumInt + ' = ' + expected + ')');
+});
+
+group('migracja ma koszt aklimatyzacji', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 100;
+  ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  var m = Engine.migrateLineage(GameData, s, 'L0', 'lad');
+  eq(Engine.getLineage(m.state, 'L0').acclimatizeTurns, 1, 'po migracji ustawiona kara aklimatyzacji');
+  var after = Engine.simulateTurn(GameData, m.state, noMut).state;
+  eq(Engine.getLineage(after, 'L0').acclimatizeTurns, 0, 'kara zużywa się po jednej turze');
+});
+
+group('refugium — mała populacja przeżywa pierwszy kryzys głodu', function () {
+  var s = Engine.createInitialState(GameData, 'X');
+  var l = active(s); l.population = 12; l.stats.feeding = 0; l.stats.metabolism = 20; l.stats.defense = 20;
+  var after = Engine.simulateTurn(GameData, s, noMut).state;
+  var a = Engine.getLineage(after, 'L0');
+  ok(a.alive && a.population >= 12, 'refugium chroni przed śmiercią w pierwszej turze deficytu (pop ' + a.population + ')');
+  eq(a.deficitStreak, 1, 'licznik deficytu = 1');
+});
+
+group('synergia cech (warm_coat) stosowana raz', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 200; s.eraIndex = 1; // izolacja od mezozoiku
+  ['scales', 'endothermy', 'insulation'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  ok(active(s).appliedSynergies.indexOf('warm_coat') !== -1, 'synergia warm_coat skompletowana');
+  ok(s.unlockedKnowledge.indexOf('synergy') !== -1, 'odblokowano wiedzę o synergii');
+});
+
+group('premia za dywersyfikację przy katastrofie niszowej', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 100;
+  ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  s = Engine.speciate(GameData, s, 'Ladowa').state;      // L1 aktywna
+  s = Engine.migrateLineage(GameData, s, 'L1', 'lad').state;
+  s.turn = 7; // Perm — katastrofa w niszy „woda”
+  var rep = Engine.simulateTurn(GameData, s, noMut).report;
+  eq(rep.diversifyBonus, 8, 'rozproszenie linii między nisze daje premię przy katastrofie');
+});
+
+group('osiągnięcia — zdobycie lądu', function () {
+  var s = Engine.createInitialState(GameData, 'X'); s.ep = 100;
+  ['fins', 'limbs'].forEach(function (id) { s = Engine.buyTrait(GameData, s, id).state; });
+  s = Engine.migrateLineage(GameData, s, 'L0', 'lad').state;
+  var after = Engine.simulateTurn(GameData, s, noMut).state;
+  ok(after.achievements.indexOf('landfall') !== -1, 'osiągnięcie „Pionier lądu” zdobyte');
+});
+
+group('deterministyczny RNG (ziarno) jest powtarzalny', function () {
+  var r1 = Engine.makeRng(42), r2 = Engine.makeRng(42);
+  var a = [r1(), r1(), r1()], b = [r2(), r2(), r2()];
+  ok(a[0] === b[0] && a[1] === b[1] && a[2] === b[2], 'ten sam seed → ta sama sekwencja');
+  ok(a[0] !== a[1], 'kolejne wywołania są różne');
+});
+
+group('gra z ziarnem jest w pełni powtarzalna', function () {
+  function run() {
+    var s = Engine.createInitialState(GameData, 'X', { seed: 777 });
+    for (var i = 0; i < 5; i++) { s = Engine.simulateTurn(GameData, s, Engine.rngForTurn(s)).state; }
+    return Engine.totalPopulation(s) + ':' + Engine.maxIntelligence(s);
+  }
+  eq(run(), run(), 'dwie partie z tym samym ziarnem dają identyczny wynik');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

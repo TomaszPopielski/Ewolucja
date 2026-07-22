@@ -10,8 +10,9 @@
   var DATA = window.GameData;
   var Engine = window.Engine;
   var T = window.GameI18n.t;
-  var SAVE_KEY = 'ewolucja.save.v4';
+  var SAVE_KEY = 'ewolucja.save.v5';
   var TUTORIAL_KEY = 'ewolucja.tutorialDone';
+  var SAVE_VERSION = 5;
 
   var state = null;
   var undoStack = [];
@@ -20,8 +21,12 @@
   var $ = function (id) { return document.getElementById(id); };
   var el = {
     screenStart: $('screen-start'), screenGame: $('screen-game'), screenEnd: $('screen-end'),
-    formStart: $('form-start'), speciesInput: $('species-name'), introGoal: $('intro-goal'),
+    formStart: $('form-start'), speciesInput: $('species-name'), seedInput: $('seed-input'), introGoal: $('intro-goal'),
     scenarioCards: $('scenario-cards'),
+    goalTracker: $('goal-tracker'), lineageOverview: $('lineage-overview'), turnToast: $('turn-toast'),
+    endAchievements: $('end-achievements'),
+    modalQuiz: $('modal-quiz'), quizQuestion: $('quiz-question'), quizOptions: $('quiz-options'),
+    quizExplain: $('quiz-explain'), btnQuizSkip: $('btn-quiz-skip'), btnQuizContinue: $('btn-quiz-continue'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
     timeline: $('era-timeline'),
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
@@ -62,7 +67,7 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 4 && s.status === 'playing') ? s : null;
+      return (s && s.version === SAVE_VERSION && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -90,9 +95,17 @@
     maybeStartTutorial();
   }
 
+  function readSeed() {
+    var raw = (el.seedInput && el.seedInput.value || '').trim();
+    if (!raw) return null;
+    // Ziarno liczbowe; dowolny tekst zamieniamy na liczbę (hash), by też działał.
+    if (/^\d+$/.test(raw)) return parseInt(raw, 10) >>> 0;
+    var h = 2166136261; for (var i = 0; i < raw.length; i++) { h ^= raw.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
   function scenarioOpts(sc) {
     return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp,
-      goal: sc.goal, startTraits: sc.startTraits, scenarioId: sc.id };
+      goal: sc.goal, startTraits: sc.startTraits, scenarioId: sc.id, seed: readSeed() };
   }
   function renderScenarios() {
     el.scenarioCards.innerHTML = '';
@@ -194,13 +207,15 @@
   function onSelectLineage(id) {
     state = Engine.setActiveLineage(state, id); save();
     renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv();
+    renderGoalTracker(); renderLineageOverview();
   }
   function onMigrateTo(niche) {
     var a = Engine.getActiveLineage(state);
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); updateUndoButton();
+    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv();
+    renderGoalTracker(); renderLineageOverview(); updateUndoButton();
   }
 
   // ===================== Render — aktywna linia =====================
@@ -381,7 +396,11 @@
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast();
+    renderGoalTracker(); renderLineageOverview(); updateUndoButton();
+    if (res.synergies && res.synergies.length) {
+      flashToast('🔗 Synergia: ' + res.synergies.map(function (s) { return s.name; }).join(', '));
+    }
   }
   function onSpeciate() {
     var can = Engine.canSpeciate(DATA, state);
@@ -401,14 +420,108 @@
     pushUndo(); state = res.state; save(); renderAll();
   }
   function onSimulate() {
-    var res = Engine.simulateTurn(DATA, state);
+    var rng = (state.seed != null) ? Engine.rngForTurn(state) : Math.random;
+    var res = Engine.simulateTurn(DATA, state, rng);
     if (!res.report) return;
-    pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
+    pushUndo(); state = res.state; save(); renderAll();
+    if (isSignificant(res.report)) showReport(res.report);
+    else showQuickResult(res.report);
+  }
+  // Pełny raport pokazujemy tylko przy istotnych zdarzeniach — spokojne tury
+  // rozliczamy lekkim „toastem”, by ograniczyć powtarzalność (P2-E).
+  function isSignificant(r) {
+    if (r.catastrophe || r.event || r.eraChanged || r.status !== 'playing') return true;
+    if (r.diversifyBonus) return true;
+    if (r.newAchievements && r.newAchievements.length) return true;
+    return r.lineReports.some(function (lr) { return lr.events && lr.events.length; });
+  }
+  function showQuickResult(r) {
+    var popDelta = r.lineReports.reduce(function (a, lr) { return a + (lr.popAfter - lr.popBefore); }, 0);
+    var pd = (popDelta >= 0 ? '+' : '') + popDelta;
+    var cls = popDelta >= 0 ? 'tt-pos' : 'tt-neg';
+    flashToast('Tura rozliczona · <span class="tt-ep">+' + r.epGain + ' EP</span> · populacja <span class="' + cls + '">' + pd + '</span>');
+    if (state.status !== 'playing') showEnd();
+  }
+  var toastTimer = null;
+  function flashToast(html, ms) {
+    el.turnToast.innerHTML = html; el.turnToast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.turnToast.hidden = true; }, ms || 2800);
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
-    renderActiveLineage(); renderForecast(); renderEnv(); renderTraits(); updateUndoButton();
+    renderActiveLineage(); renderForecast(); renderEnv(); renderTraits();
+    renderGoalTracker(); renderLineageOverview(); updateUndoButton();
     el.btnSimulate.disabled = (state.status !== 'playing');
+  }
+
+  // ===================== Postęp do celu (inteligencja) =====================
+  function turnsLeft() {
+    return Math.max(0, Engine.totalTurns(DATA) - Engine.globalTurn(DATA, state.eraIndex, state.turn));
+  }
+  function nextIntelStep() {
+    var l = Engine.getActiveLineage(state);
+    if (!l) return null;
+    var candidates = DATA.TRAITS.filter(function (t) {
+      return t.path === 'intelligence' && l.traits.indexOf(t.id) === -1;
+    });
+    // Preferuj cechy już dostępne (spełnione prereq i era), najtańsze pierwsze.
+    var avail = candidates.filter(function (t) { return Engine.traitStatus(state, t) === 'available' || Engine.traitStatus(state, t) === 'too_expensive'; });
+    var pool = avail.length ? avail : candidates;
+    pool.sort(function (a, b) { return a.cost - b.cost; });
+    return pool[0] || null;
+  }
+  function renderGoalTracker() {
+    var cur = Engine.maxIntelligence(state), goal = state.intelligenceGoal;
+    var pct = Math.max(0, Math.min(100, (cur / goal) * 100));
+    var left = turnsLeft();
+    var html = '<div class="goal-tracker-head"><span class="goal-label">🎯 Droga do inteligencji</span>' +
+      '<span class="goal-num">' + cur + ' / ' + goal + '</span></div>' +
+      '<div class="goal-bar"><span class="goal-fill" style="width:' + pct + '%"></span></div>';
+    if (cur >= goal) {
+      html += '<div class="goal-done">✓ Próg inteligencji osiągnięty!</div>';
+    } else {
+      var step = nextIntelStep();
+      if (step) {
+        var owned = Engine.traitStatus(state, step);
+        var hint = owned === 'available' ? 'dostępna teraz' :
+          (owned === 'too_expensive' ? 'brakuje ' + (step.cost - state.ep) + ' EP' :
+           (owned === 'era_locked' ? 'od ery ' + DATA.ERAS[step.minEra].name : 'wymaga wcześniejszych cech'));
+        html += '<div class="goal-next">⭐ Następny krok: <span class="goal-step">' + escapeHtml(step.name) +
+          '</span> — ' + step.cost + ' EP <span class="lo-meta">(' + hint + ')</span></div>';
+      }
+      // Ostrzeżenie o czasie: brakuje inteligencji, a tur mało.
+      var remaining = goal - cur;
+      if (state.status === 'playing' && left <= 4 && remaining > left) {
+        html += '<div class="goal-warn">⏳ Zostało tur: ' + left + ', a do celu brakuje ' + remaining +
+          '. Priorytetyzuj ścieżkę ⭐ i stabilną energię!</div>';
+      }
+    }
+    el.goalTracker.innerHTML = html;
+  }
+
+  // ===================== Przegląd wszystkich linii =====================
+  function renderLineageOverview() {
+    var alive = Engine.aliveLineages(state);
+    if (alive.length < 2) { el.lineageOverview.hidden = true; el.lineageOverview.innerHTML = ''; return; }
+    el.lineageOverview.hidden = false;
+    el.lineageOverview.innerHTML = '';
+    alive.forEach(function (l) {
+      var f = Engine.forecast(DATA, state, l);
+      var delta = f ? f.delta : 0;
+      var risk = f && (f.energy < 0 || delta < 0);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'lo-card' + (l.id === state.activeLineageId ? ' active' : '') + (risk ? ' risk' : '');
+      var deltaCls = delta >= 0 ? 'pos' : 'neg';
+      btn.innerHTML = '<div class="lo-head"><span>' + nicheIcon(l.niche) + ' ' + escapeHtml(l.name) + '</span>' +
+        '<span class="lo-delta ' + deltaCls + '">' + (delta >= 0 ? '+' : '') + delta + '</span></div>' +
+        '<div class="lo-meta">Pop. ' + l.population + ' · int. ' + l.stats.intelligence +
+        (f && f.energy < 0 ? ' · <span class="lo-flag">głód ⚠️</span>' : '') +
+        (f && f.catastrophe ? ' · <span class="lo-flag">katastrofa ☄️</span>' : '') + '</div>';
+      btn.addEventListener('click', function () { onSelectLineage(l.id); });
+      el.lineageOverview.appendChild(btn);
+    });
   }
 
   // ===================== Raport tury =====================
@@ -464,11 +577,32 @@
     var sum = document.createElement('div'); sum.className = 'report-summary';
     sum.appendChild(line('Łączna populacja', report.totalPopulation, 'plain'));
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
+    if (report.diversifyBonus) sum.appendChild(line('Premia za dywersyfikację (różne nisze)', '+' + report.diversifyBonus, 'pos'));
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
     if (report.predatorLevel > 2) {
       sum.appendChild(line('Presja drapieżników (koewolucja)', '↑ ' + report.predatorLevel, 'neg'));
     }
     el.reportBody.appendChild(sum);
+
+    // Nowo zdobyte osiągnięcia.
+    if (report.newAchievements && report.newAchievements.length) {
+      report.newAchievements.forEach(function (id) {
+        var a = achById(id); if (!a) return;
+        var d = document.createElement('div'); d.className = 'report-achievement';
+        d.textContent = '🏅 Osiągnięcie: ' + a.icon + ' ' + a.name + ' — ' + a.desc;
+        el.reportBody.appendChild(d);
+      });
+    }
+
+    // Po ukończeniu ery — przygotuj mini-quiz (pokazany po zamknięciu raportu).
+    // Dotyczy też ostatniej ery, gdy gra kończy się przetrwaniem (brak eraChanged).
+    pendingQuiz = null;
+    var finishedEra = report.eraChanged || report.status === 'survived';
+    if (finishedEra) {
+      var eid = eraIdByName(report.completedEraName);
+      var q = DATA.QUIZZES[eid];
+      if (q && (!state.quizzesDone || state.quizzesDone.indexOf(eid) === -1)) pendingQuiz = { eraId: eid, quiz: q };
+    }
 
     el.reportKnowledge.innerHTML = '';
     report.knowledge.forEach(function (key) {
@@ -492,7 +626,62 @@
     d.innerHTML = '<span>' + label + '</span><span class="' + cls + '">' + value + '</span>';
     return d;
   }
-  function onReportClose() { closeModal(el.modalReport); if (state.status !== 'playing') showEnd(); }
+  function onReportClose() {
+    closeModal(el.modalReport);
+    if (pendingQuiz) { var q = pendingQuiz; pendingQuiz = null; showQuiz(q); return; }
+    if (state.status !== 'playing') showEnd();
+  }
+
+  // ===================== Mini-quiz po erze =====================
+  var pendingQuiz = null;
+  var currentQuiz = null;
+  function eraIdByName(name) {
+    var e = DATA.ERAS.filter(function (x) { return x.name === name; })[0];
+    return e ? e.id : null;
+  }
+  function achById(id) { return DATA.ACHIEVEMENTS.filter(function (a) { return a.id === id; })[0]; }
+  function markQuizDone(eraId) {
+    if (!state.quizzesDone) state.quizzesDone = [];
+    if (state.quizzesDone.indexOf(eraId) === -1) state.quizzesDone.push(eraId);
+    save();
+  }
+  function showQuiz(pending) {
+    currentQuiz = pending;
+    var q = pending.quiz;
+    el.quizQuestion.textContent = q.q;
+    el.quizExplain.hidden = true; el.quizExplain.textContent = '';
+    el.btnQuizContinue.hidden = true; el.btnQuizSkip.hidden = false;
+    el.quizOptions.innerHTML = '';
+    q.options.forEach(function (opt, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'quiz-option'; b.textContent = opt;
+      b.addEventListener('click', function () { answerQuiz(pending, i, b); });
+      el.quizOptions.appendChild(b);
+    });
+    openModal(el.modalQuiz);
+  }
+  function answerQuiz(pending, choice, btn) {
+    var q = pending.quiz;
+    var opts = el.quizOptions.querySelectorAll('.quiz-option');
+    Array.prototype.forEach.call(opts, function (o, i) {
+      o.disabled = true;
+      if (i === q.answer) o.classList.add('correct');
+      else if (i === choice) o.classList.add('wrong');
+    });
+    var correct = (choice === q.answer);
+    var reward = correct ? (q.reward || 0) : 0;
+    if (correct && reward) { state.ep += reward; renderStatus(); renderTraits(); renderGoalTracker(); }
+    markQuizDone(pending.eraId);
+    el.quizExplain.hidden = false;
+    el.quizExplain.innerHTML = (correct ? '✓ Dobrze! <span class="tt-ep">+' + reward + ' EP</span><br>' : '✗ Niezupełnie.<br>') + q.explain;
+    el.btnQuizSkip.hidden = true; el.btnQuizContinue.hidden = false;
+    el.btnQuizContinue.focus();
+  }
+  function closeQuiz() {
+    currentQuiz = null;
+    closeModal(el.modalQuiz);
+    if (state.status !== 'playing') showEnd();
+  }
 
   // ===================== Drzewo życia =====================
   function showTree() {
@@ -568,7 +757,23 @@
     endStat('Szczytowa łączna populacja', state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0));
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
+    renderEndAchievements();
     showScreen('end');
+  }
+  function renderEndAchievements() {
+    el.endAchievements.innerHTML = '';
+    var got = state.achievements || [];
+    if (!got.length) { el.endAchievements.innerHTML = '<p class="lo-meta">Brak zdobytych osiągnięć — spróbuj innej strategii następnym razem.</p>'; return; }
+    var head = document.createElement('p'); head.className = 'lo-meta';
+    head.textContent = 'Osiągnięcia (' + got.length + '/' + DATA.ACHIEVEMENTS.length + '):';
+    el.endAchievements.appendChild(head);
+    got.forEach(function (id) {
+      var a = achById(id); if (!a) return;
+      var span = document.createElement('span'); span.className = 'ach-badge';
+      span.innerHTML = '<span class="ach-ico">' + a.icon + '</span>' + escapeHtml(a.name);
+      span.title = a.desc;
+      el.endAchievements.appendChild(span);
+    });
   }
   function endStat(label, value) {
     var li = document.createElement('li'); li.innerHTML = '<span>' + label + '</span><strong>' + value + '</strong>';
@@ -595,6 +800,9 @@
         ', inteligencja: ' + l.stats.intelligence +
         ', cechy: ' + (l.traits.length ? l.traits.map(traitName).join(', ') : 'brak'));
     });
+    var got = state.achievements || [];
+    L.push('', 'Osiągnięcia (' + got.length + '/' + DATA.ACHIEVEMENTS.length + '): ' +
+      (got.length ? got.map(function (id) { var a = achById(id); return a ? a.name : id; }).join('; ') : 'brak'));
     L.push('', 'Odkryte pojęcia: ' + state.unlockedKnowledge.map(function (k) {
       return DATA.KNOWLEDGE[k] ? DATA.KNOWLEDGE[k].title : k;
     }).join('; '));
@@ -719,6 +927,8 @@
     el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
     el.btnTutorialNext.addEventListener('click', tutorialNext);
     el.btnTutorialSkip.addEventListener('click', endTutorial);
+    el.btnQuizSkip.addEventListener('click', function () { if (currentQuiz) markQuizDone(currentQuiz.eraId); closeQuiz(); });
+    el.btnQuizContinue.addEventListener('click', closeQuiz);
 
     function doRestart() { clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
     el.btnRestart.addEventListener('click', function () {
@@ -729,7 +939,8 @@
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
-      if (!el.modalCodex.hidden) closeModal(el.modalCodex);
+      if (!el.modalQuiz.hidden) { if (currentQuiz) markQuizDone(currentQuiz.eraId); closeQuiz(); }
+      else if (!el.modalCodex.hidden) closeModal(el.modalCodex);
       else if (!el.modalTree.hidden) closeModal(el.modalTree);
       else if (!el.modalSummary.hidden) closeModal(el.modalSummary);
       else if (!el.modalSpeciate.hidden) closeModal(el.modalSpeciate);

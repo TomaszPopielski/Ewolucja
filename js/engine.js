@@ -22,12 +22,28 @@
   function traitsById(data) { var m = {}; data.TRAITS.forEach(function (t) { m[t.id] = t; }); return m; }
 
   function makeLineage(id, name, parentId, population, stats, traits, niche, bornEra, bornTurn) {
+    niche = niche || 'woda';
     return {
       id: id, name: name, parentId: parentId,
       population: population, peakPopulation: population,
-      stats: clone(stats), traits: traits.slice(), niche: niche || 'woda',
+      stats: clone(stats), traits: traits.slice(), niche: niche,
       alive: true, bornEra: bornEra, bornTurn: bornTurn, extinctGlobalTurn: null,
-      popHistory: [population]
+      popHistory: [population],
+      discoveredNiches: [niche],   // nisze już „odkryte” przez tę linię (jednorazowa premia)
+      appliedSynergies: [],        // skompletowane synergie (efekt zastosowany raz)
+      deficitStreak: 0,            // ile tur z rzędu ujemny bilans (refugium przeciw spirali)
+      acclimatizeTurns: 0          // tury kary aklimatyzacyjnej po migracji
+    };
+  }
+
+  /* Deterministyczny generator (mulberry32) — powtarzalne partie w trybie nauczyciela. */
+  function makeRng(seed) {
+    var a = (seed >>> 0) || 1;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
 
@@ -57,10 +73,11 @@
         var t = byId[id];
         if (t && root.traits.indexOf(id) === -1) { root.traits.push(id); applyEffects(root, t.effects); }
       });
+      applySynergies(data, root); // efekty combo z zestawu startowego
     }
 
     return {
-      version: 4,
+      version: 5,
       difficulty: diffKey,
       scenario: opts.scenarioId || 'full',
       eraIndex: startEra,
@@ -69,13 +86,21 @@
       ep: ep,
       intelligenceGoal: goal,
       predatorLevel: 0,          // koewolucja: adaptacyjna presja drapieżników
+      seed: (opts.seed != null ? (opts.seed >>> 0) : null), // opcjonalne ziarno (powtarzalność)
       lineages: [root],
       activeLineageId: 'L0',
       nextLineageNum: 1,
       unlockedKnowledge: ['intro'],
+      achievements: [],
       status: 'playing',
       history: []
     };
+  }
+
+  /* Ziarno bieżącej tury (deterministyczne strumienie na turę), gdy podano seed. */
+  function rngForTurn(state) {
+    if (state.seed == null) return Math.random;
+    return makeRng((state.seed >>> 0) + state.eraIndex * 101 + state.turn * 7 + 1);
   }
 
   // ---------- Ery / środowisko ----------
@@ -101,6 +126,26 @@
   }
   function maxDefense(state) {
     var m = 0; state.lineages.forEach(function (l) { if (l.alive && l.stats.defense > m) m = l.stats.defense; }); return m;
+  }
+  // Id żywej linii o najwyższej inteligencji (pierwsza przy remisie) — do premii EP.
+  function bestIntelligenceLineageId(state) {
+    var best = null, bv = -Infinity;
+    state.lineages.forEach(function (l) { if (l.alive && l.stats.intelligence > bv) { bv = l.stats.intelligence; best = l.id; } });
+    return best;
+  }
+  // Sprawdza osiągnięcia; dopisuje nowo zdobyte do state.achievements i je zwraca.
+  function checkAchievements(data, state) {
+    if (!state.achievements) state.achievements = [];
+    var ctx = { state: state, data: data,
+      engine: { aliveLineages: aliveLineages, maxIntelligence: maxIntelligence,
+        totalPopulation: totalPopulation, maxDefense: maxDefense } };
+    var fresh = [];
+    (data.ACHIEVEMENTS || []).forEach(function (a) {
+      if (state.achievements.indexOf(a.id) !== -1) return;
+      var ok = false; try { ok = a.test(ctx); } catch (e) { ok = false; }
+      if (ok) { state.achievements.push(a.id); fresh.push(a.id); }
+    });
+    return fresh;
   }
   function lstat(l, k) { return Math.max(0, l.stats[k]); }
 
@@ -132,7 +177,10 @@
     if (!l) return { ok: false, state: state, error: 'Nieznana linia.' };
     var can = canMigrate(data, state, l, niche);
     if (!can.ok) return { ok: false, state: state, error: can.error };
-    var n = clone(state); getLineage(n, lineageId).niche = niche; return { ok: true, state: n, error: null };
+    var n = clone(state); var m = getLineage(n, lineageId);
+    m.niche = niche;
+    m.acclimatizeTurns = 1; // koszt/ryzyko migracji: jedna tura obniżonego rozrodu i ochrony
+    return { ok: true, state: n, error: null };
   }
 
   // ---------- Cechy ----------
@@ -161,10 +209,23 @@
     if (state.ep < trait.cost) return { ok: false, state: state, error: 'Za mało punktów ewolucji.' };
     var n = clone(state); var l = getActiveLineage(n);
     n.ep -= trait.cost; l.traits.push(traitId); applyEffects(l, trait.effects); unlockKnowledgeForTrait(n, trait);
-    return { ok: true, state: n, error: null };
+    var newSyn = applySynergies(data, l);
+    if (newSyn.length) unlockKnowledge(n, 'synergy');
+    return { ok: true, state: n, error: null, synergies: newSyn };
   }
   function applyEffects(l, effects) {
     for (var k in effects) if (Object.prototype.hasOwnProperty.call(effects, k)) l.stats[k] = (l.stats[k] || 0) + effects[k];
+  }
+  /* Sprawdza i stosuje jednorazowo efekty synergii, gdy linia ma komplet cech pary. */
+  function applySynergies(data, l) {
+    var applied = [];
+    if (!l.appliedSynergies) l.appliedSynergies = [];
+    (data.SYNERGIES || []).forEach(function (syn) {
+      if (l.appliedSynergies.indexOf(syn.id) !== -1) return;
+      var has = syn.traits.every(function (t) { return l.traits.indexOf(t) !== -1; });
+      if (has) { applyEffects(l, syn.effects); l.appliedSynergies.push(syn.id); applied.push(syn); }
+    });
+    return applied;
   }
   function unlockKnowledge(state, key) { if (state.unlockedKnowledge.indexOf(key) === -1) state.unlockedKnowledge.push(key); }
   function unlockKnowledgeForTrait(state, trait) {
@@ -190,6 +251,9 @@
     var childId = 'L' + n.nextLineageNum; n.nextLineageNum += 1;
     var child = makeLineage(childId, newName || (parent.name + ' II'), parent.id,
       childPop, parent.stats, parent.traits, parent.niche, n.eraIndex, n.turn);
+    // Dziecko dziedziczy „pamięć” rodzica — nie farmi ponownie premii odkrycia/synergii.
+    child.discoveredNiches = (parent.discoveredNiches || [parent.niche]).slice();
+    child.appliedSynergies = (parent.appliedSynergies || []).slice();
     n.lineages.push(child); n.ep -= data.SPECIATION_COST; n.activeLineageId = childId;
     unlockKnowledge(n, 'speciation');
     return { ok: true, state: n, error: null };
@@ -223,16 +287,20 @@
     if (env.climate === 'zimno' && lineage.traits.indexOf('endothermy') !== -1) climateMod = 1.0;
     var oxygenMod = clamp(1 + (10 - env.oxygen) * 0.04, 0.7, 1.4);
 
+    // Migracja to koszt: przez turę aklimatyzacji słabszy rozród i mniejsza osłona ruchem.
+    var acclim = (lineage.acclimatizeTurns && lineage.acclimatizeTurns > 0);
+
     var foodIntake = lstat(lineage, 'feeding') * (food / 10) * climateMod;
     var upkeep = lstat(lineage, 'metabolism') * oxygenMod;
     var energy = foodIntake - upkeep;
-    var mobilityShield = lstat(lineage, 'mobility') * 0.4;
+    var mobilityShield = lstat(lineage, 'mobility') * (acclim ? 0.25 : 0.4);
     var predationPressure = Math.max(0, predators - lstat(lineage, 'defense') - mobilityShield);
     var predationLossRate = clamp(predationPressure * 0.035, 0, 0.45);
     var starvationLossRate = energy < 0 ? clamp(-energy * 0.03, 0, 0.5) : 0;
     var birthRate = energy >= 0 ? clamp(0.03 * lstat(lineage, 'reproduction') * (1 + energy * 0.05), 0, 0.6) : 0;
+    if (acclim) birthRate *= 0.5;
     return { energy: energy, predationPressure: predationPressure,
-      predationLossRate: predationLossRate, starvationLossRate: starvationLossRate, birthRate: birthRate };
+      predationLossRate: predationLossRate, starvationLossRate: starvationLossRate, birthRate: birthRate, acclim: acclim };
   }
   function contextFor(data, state, extra) {
     var diff = difficultyOf(data, state);
@@ -278,12 +346,28 @@
     }
     var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
     var ctx = contextFor(data, n, ctxExtra);
+    // EP z inteligencji liczymy tylko z NAJLEPSZEJ linii — specjacja rozkłada ryzyko,
+    // a nie mnoży dochodu (dziecko dziedziczy tę samą inteligencję co rodzic).
+    ctx.bestIntId = bestIntelligenceLineageId(n);
 
     aliveLineages(n).forEach(function (l) {
       var r = simulateLineage(data, n, l, env, rng, knowledge, ctx, diff);
       lineReports.push(r); totalEp += r.epGain; if (l.alive) anyAlive = true;
     });
     if (anyAlive) totalEp += 12;
+
+    // Premia za DYWERSYFIKACJĘ: gdy katastrofa niszowa nie zgładza gatunku, bo linie
+    // były rozproszone po różnych niszach (nagradzamy rozłożenie ryzyka, nie ucieczkę).
+    var diversifyBonus = 0;
+    n._survivedCatastrophe = false;
+    if (env.catastrophe) {
+      var aliveNow = aliveLineages(n);
+      var niches = {}; aliveNow.forEach(function (l) { niches[l.niche] = 1; });
+      if (aliveNow.length >= 2) n._survivedCatastrophe = true;
+      if (env.catastrophe.niche !== 'all' && aliveNow.length >= 1 && Object.keys(niches).length >= 2) {
+        diversifyBonus = 8; totalEp += diversifyBonus; knowledge.push('diversify');
+      }
+    }
     n.ep += totalEp;
 
     // Koewolucja: presja drapieżników „dogania” dobrze bronione linie.
@@ -293,6 +377,9 @@
 
     if (env.catastrophe) knowledge.push(env.catastrophe.knowledge || 'extinction');
     knowledge.forEach(function (k) { unlockKnowledge(n, k); });
+
+    // Osiągnięcia (cele opcjonalne) — sprawdzane co turę, dopisywane raz.
+    var newAchievements = checkAchievements(data, n);
 
     var prevEraIndex = n.eraIndex;
     n.turn += 1;
@@ -309,10 +396,13 @@
       catastrophe: env.catastrophe || null,
       event: event ? { name: event.name, desc: event.desc } : null,
       lineReports: lineReports, epGain: totalEp, epBase: anyAlive ? 12 : 0,
+      diversifyBonus: diversifyBonus,
       predatorLevel: round1(n.predatorLevel),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
       intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
       newEraName: eraChanged ? data.ERAS[n.eraIndex].name : null,
+      completedEraName: era.name,
+      newAchievements: newAchievements,
       knowledge: dedupe(knowledge), status: n.status
     };
     n.history.push(report);
@@ -326,12 +416,26 @@
       events.push((mut.beneficial ? 'Korzystna' : 'Szkodliwa') + ' mutacja: ' + statLabel(mut.key) + ' ' + (mut.delta > 0 ? '+1' : '-1') + '.');
       knowledge.push(mut.knowledge);
     }
+    if (l.acclimatizeTurns && l.acclimatizeTurns > 0) events.push('Aklimatyzacja po migracji — chwilowo słabszy rozród i ochrona.');
     var popBefore = l.population;
     var d = computeDynamics(data, env, l, ctx);
     var births = Math.round(popBefore * d.birthRate);
     var predationDeaths = Math.round(popBefore * d.predationLossRate);
     var starvationDeaths = Math.round(popBefore * d.starvationLossRate);
+
+    // Refugium: pojedyncze załamanie głodowe nie zabija małej populacji od razu —
+    // daje turę na korektę (obniż metabolizm, zmień niszę). Utrzymujący się deficyt już tak.
+    l.deficitStreak = (d.starvationLossRate > 0) ? ((l.deficitStreak || 0) + 1) : 0;
     var pop = popBefore + births - predationDeaths - starvationDeaths;
+    var FLOOR = 15;
+    if (d.starvationLossRate > 0 && l.deficitStreak < 2 && pop < FLOOR && popBefore > 0) {
+      var rescued = Math.min(starvationDeaths, FLOOR - Math.max(0, pop));
+      if (rescued > 0) {
+        starvationDeaths -= rescued; pop += rescued;
+        events.push('Refugium: mała populacja przetrwała kryzys głodowy — masz turę na korektę.');
+        knowledge.push('torpor');
+      }
+    }
 
     var catDeaths = 0;
     if (env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === l.niche)) {
@@ -355,16 +459,31 @@
       events.push('Ta linia wymarła.');
     }
 
-    // Rozbicie EP (P1) — czytelne, skąd pochodzą punkty.
+    // Jednorazowa premia za odkrycie niszy (pierwsze wejście tej linii) — nagroda za
+    // ekspansję zamiast co-turowego dochodu z „parkowania” w niszy premiowej.
+    var discovery = 0;
+    var nicheCfg = data.NICHES[l.niche];
+    if (pop > 0 && nicheCfg && nicheCfg.discoveryBonus && l.discoveredNiches.indexOf(l.niche) === -1) {
+      discovery = nicheCfg.discoveryBonus;
+      l.discoveredNiches.push(l.niche);
+      events.push('Odkrycie niszy: ' + nicheCfg.label + ' — jednorazowa premia +' + discovery + ' EP.');
+    }
+
+    // EP z inteligencji tylko dla najlepszej linii (anty-farmienie przez specjację).
+    var isBestInt = (ctx && ctx.bestIntId) ? (l.id === ctx.bestIntId) : true;
+
+    // Rozbicie EP — czytelne, skąd pochodzą punkty.
     var growth = pop - popBefore;
-    var nicheBonus = (pop > 0) ? (data.NICHES[l.niche].epBonus || 0) : 0;
     var bd = {
       growth: pop > 0 ? Math.max(0, Math.floor(growth / 15)) : 0,
       population: pop > 0 ? Math.floor(pop / 150) : 0,
-      intelligence: pop > 0 ? Math.floor(lstat(l, 'intelligence') / 2) : 0,
-      niche: nicheBonus
+      intelligence: (pop > 0 && isBestInt) ? Math.floor(lstat(l, 'intelligence') / 2) : 0,
+      niche: discovery
     };
     var epGain = bd.growth + bd.population + bd.intelligence + bd.niche;
+
+    // Koniec obsługi migracji: zużywamy jedną turę kary aklimatyzacyjnej.
+    if (l.acclimatizeTurns && l.acclimatizeTurns > 0) l.acclimatizeTurns -= 1;
 
     return {
       lineageId: l.id, name: l.name, niche: l.niche,
@@ -388,15 +507,17 @@
   }
 
   return {
-    createInitialState: createInitialState,
+    createInitialState: createInitialState, makeRng: makeRng, rngForTurn: rngForTurn,
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
     difficultyOf: difficultyOf,
     getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,
     totalPopulation: totalPopulation, maxIntelligence: maxIntelligence, maxDefense: maxDefense,
+    bestIntelligenceLineageId: bestIntelligenceLineageId,
     setActiveLineage: setActiveLineage,
     availableNiches: availableNiches, canMigrate: canMigrate, migrateLineage: migrateLineage,
     traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
-    buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
+    buyTrait: buyTrait, applySynergies: applySynergies, canSpeciate: canSpeciate, speciate: speciate,
+    checkAchievements: checkAchievements,
     forecast: forecast, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, clamp: clamp, computeDynamics: computeDynamics }
   };

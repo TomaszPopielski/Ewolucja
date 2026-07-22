@@ -376,6 +376,77 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .end-stats li { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-elev); border-radius: 8px; }
 .end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+/* --- Pole ziarna na starcie --- */
+.seed-label { font-weight: 600; font-size: .82rem; color: var(--ink-soft); margin-top: 6px; }
+#seed-input {
+  font: inherit; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+}
+
+/* --- Wskaźnik postępu do celu (inteligencja) --- */
+.goal-tracker {
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 14px;
+}
+.goal-tracker-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .8rem; margin-bottom: 6px; }
+.goal-tracker-head .goal-label { color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; font-size: .72rem; }
+.goal-tracker-head .goal-num { font-weight: 700; color: var(--brand); }
+.goal-bar { height: 8px; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.goal-fill { height: 100%; background: var(--ep); border-radius: 6px; transition: width .3s ease; }
+.goal-next { font-size: .8rem; margin-top: 8px; }
+.goal-next .goal-step { font-weight: 700; color: var(--ep); }
+.goal-warn { font-size: .78rem; color: var(--danger); font-weight: 600; margin-top: 6px; }
+.goal-done { font-size: .82rem; color: var(--good); font-weight: 700; margin-top: 6px; }
+
+/* --- Przegląd wszystkich linii --- */
+.lineage-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.lo-card {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+  font-size: .8rem; cursor: pointer; text-align: left; color: var(--ink); font: inherit;
+}
+.lo-card:hover { border-color: var(--brand); }
+.lo-card.active { border-color: var(--accent); border-width: 2px; }
+.lo-card.risk { border-left: 3px solid var(--danger); }
+.lo-head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 3px; }
+.lo-meta { color: var(--ink-soft); }
+.lo-delta.pos { color: var(--good); font-weight: 700; }
+.lo-delta.neg { color: var(--danger); font-weight: 700; }
+.lo-flag { color: var(--danger); font-weight: 600; }
+
+/* --- Toast szybkiej tury --- */
+.turn-toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  background: var(--bg-panel); border: 1px solid var(--line); border-left: 4px solid var(--brand);
+  box-shadow: 0 6px 22px rgba(0,0,0,.22); border-radius: 12px; padding: 10px 16px; z-index: 45;
+  font-size: .9rem; max-width: 90vw; animation: toastIn .2s ease;
+}
+.turn-toast .tt-ep { color: var(--ep); font-weight: 700; }
+.turn-toast .tt-pos { color: var(--good); font-weight: 700; }
+.turn-toast .tt-neg { color: var(--danger); font-weight: 700; }
+@keyframes toastIn { from { transform: translate(-50%, 10px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+/* --- Mini-quiz --- */
+.quiz-question { font-weight: 700; font-size: 1.02rem; margin: 12px 0; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-option {
+  font: inherit; text-align: left; cursor: pointer; color: var(--ink);
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--brand); }
+.quiz-option.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--bg-elev)); }
+.quiz-option.wrong { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, var(--bg-elev)); }
+.quiz-explain { margin-top: 12px; font-size: .86rem; background: var(--bg-elev); border-left: 4px solid var(--brand); border-radius: 8px; padding: 10px 12px; }
+
+/* --- Osiągnięcia --- */
+.report-achievement { background: var(--bg-elev); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 6px; font-size: .88rem; font-weight: 600; }
+.end-achievements { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 8px 0 18px; }
+.ach-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600;
+  background: var(--bg-elev); border: 1px solid var(--accent); color: var(--ink);
+  border-radius: 20px; padding: 5px 12px;
+}
+.ach-badge .ach-ico { font-size: 1rem; }
+
 /* --- Responsywność (tablet / telefon) --- */
 @media (max-width: 820px) {
   .game-grid { grid-template-columns: 1fr; }

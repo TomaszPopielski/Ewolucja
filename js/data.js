@@ -33,11 +33,16 @@
    * tury. `requires` — cecha potrzebna, by zająć niszę. `land:true` — używa
    * jawnych wartości turn.land.
    */
+  /*
+   * `discoveryBonus` — JEDNORAZOWA premia EP za pierwsze wejście danej linii do
+   * niszy (nagroda za ekspansję, nie za „parkowanie” linii dla stałego dochodu).
+   * Zastępuje dawny co-turowy `epBonus`, który premiował farmienie specjacją.
+   */
   var NICHES = {
-    woda:       { label: 'Woda',       icon: '🌊', requires: null,    foodMult: 1.0, predMult: 1.0, epBonus: 0 },
-    przybrzeze: { label: 'Przybrzeże', icon: '🪸', requires: null,    foodMult: 1.2, predMult: 1.25, epBonus: 1 },
-    lad:        { label: 'Ląd',        icon: '🏝️', requires: 'limbs', land: true,                    epBonus: 3 },
-    powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3,  epBonus: 2 }
+    woda:       { label: 'Woda',       icon: '🌊', requires: null,    foodMult: 1.0, predMult: 1.0,  discoveryBonus: 0 },
+    przybrzeze: { label: 'Przybrzeże', icon: '🪸', requires: null,    foodMult: 1.2, predMult: 1.25, discoveryBonus: 4 },
+    lad:        { label: 'Ląd',        icon: '🏝️', requires: 'limbs', land: true,                    discoveryBonus: 8 },
+    powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3, discoveryBonus: 6 }
   };
 
   var CATEGORIES = {
@@ -115,6 +120,9 @@
     { id: 'insulation', name: 'Izolacja (pióra/futro)', icon: '🪶', category: 'termoregulacja', cost: 18, requires: ['endothermy'], minEra: 1,
       effects: { defense: 1, metabolism: -1 }, tradeoff: 'Zmniejsza koszt stałocieplności, ale to kolejna inwestycja.',
       desc: 'Warstwa izolująca ogranicza utratę ciepła — obniża koszt metabolizmu.' },
+    { id: 'torpor', name: 'Spowolniony metabolizm', icon: '💤', category: 'termoregulacja', cost: 8, requires: [],
+      effects: { metabolism: -2, reproduction: -1 }, tradeoff: 'Tania odpowiedź na kryzys energetyczny — kosztem tempa rozrodu.',
+      desc: 'Zdolność do uśpienia (torpor/hibernacja) obniża zapotrzebowanie energetyczne w chudych czasach.' },
 
     // --- Układ nerwowy (droga do inteligencji) ---
     { id: 'ganglia', name: 'Zwoje nerwowe', icon: '🕸️', category: 'uklad_nerwowy', cost: 15, requires: [], path: 'intelligence',
@@ -133,8 +141,27 @@
       effects: { intelligence: 2, defense: 1, metabolism: 1 }, tradeoff: 'Życie w grupie wymaga komunikacji i koordynacji.',
       desc: 'Współpraca i uczenie się od innych przyspieszają rozwój poznawczy.' },
     { id: 'tool_use', name: 'Używanie narzędzi', icon: '🪓', category: 'uklad_nerwowy', cost: 34, requires: ['big_brain', 'social', 'grasping_hand'], path: 'intelligence', minEra: 2,
-      effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja: wymaga mózgu, życia społecznego i ręki chwytnej.',
-      desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' }
+      effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja ścieżki narzędziowej: wymaga mózgu, życia społecznego i ręki chwytnej.',
+      desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' },
+    { id: 'language', name: 'Mowa i język', icon: '🗣️', category: 'uklad_nerwowy', cost: 32, requires: ['big_brain', 'social'], path: 'intelligence', minEra: 2,
+      effects: { intelligence: 3, defense: 1, metabolism: 1 }, tradeoff: 'Alternatywna kulminacja — droga „społeczna” do rozumu, bez ręki chwytnej.',
+      desc: 'Złożona komunikacja pozwala przekazywać wiedzę między pokoleniami — druga droga do progu kultury.' }
+  ];
+
+  /*
+   * Synergie (combo) — premia, gdy współwystępują dobrane cechy. Nagradza
+   * „budowanie zestawu” i pokazuje, że adaptacje działają w kontekście
+   * (ZALOZENIA 4.3). Efekty stosowane jednorazowo przy skompletowaniu pary.
+   */
+  var SYNERGIES = [
+    { id: 'pack_social', traits: ['pack_hunting', 'social'], effects: { feeding: 1, intelligence: 1 },
+      name: 'Kultura łowów', desc: 'Polowanie w grupie + zachowania społeczne — skoordynowane, uczące się stado.' },
+    { id: 'warm_coat', traits: ['endothermy', 'insulation'], effects: { metabolism: -1, defense: 1 },
+      name: 'Ciepłokrwisty płaszcz', desc: 'Stałocieplność + izolacja — sprawna termoregulacja niskim kosztem.' },
+    { id: 'toolmaker', traits: ['grasping_hand', 'brain'], effects: { intelligence: 1, feeding: 1 },
+      name: 'Zręczny umysł', desc: 'Ręka chwytna + mózg — koordynacja ręka–oko otwiera manipulację przedmiotami.' },
+    { id: 'caring_mind', traits: ['parental_care', 'big_brain'], effects: { intelligence: 1, reproduction: 1 },
+      name: 'Uczenie młodych', desc: 'Opieka nad potomstwem + duży mózg — dłuższe dzieciństwo sprzyja nauce.' }
   ];
 
   function land(food, predators) { return { food: food, predators: predators }; }
@@ -274,14 +301,62 @@
       fossil: 'Wymieranie permskie (~252 mln lat temu) zgładziło ok. 90% gatunków morskich.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
-        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
+        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' },
+    synergy: { icon: '🔗', title: 'Synergia cech',
+      body: 'Adaptacje rzadko działają w pojedynkę. Dobrane cechy wzmacniają się nawzajem (np. mózg ' +
+        'i ręka chwytna, stałocieplność i izolacja) — całość daje więcej niż suma części.' },
+    diversify: { icon: '🌈', title: 'Dywersyfikacja ratuje przed wymarciem',
+      body: 'Gdy Twoje linie zajmują różne nisze, katastrofa uderzająca w jedną z nich nie kończy ' +
+        'gatunku — inne gałęzie przetrwają. To przewaga rozproszenia ryzyka nad ucieczką całością.' },
+    torpor: { icon: '💤', title: 'Przetrwać chudy czas',
+      body: 'Gdy pokarmu brak, obniżenie tempa metabolizmu (torpor, hibernacja) pozwala przeczekać ' +
+        'kryzys. To strategia oszczędzania energii, nie porażka — mała populacja może się odbić.' }
   };
+
+  // Mini-quizy po erze (ZALOZENIA 6 — nagroda za naukę). `answer` = indeks poprawnej opcji.
+  var QUIZZES = {
+    paleozoik: { knowledge: 'extinction', reward: 6,
+      q: 'Czym jest wymieranie masowe?',
+      options: ['Powolnym zanikaniem jednego gatunku', 'Gwałtownym zanikiem wielu gatunków w krótkim czasie', 'Migracją zwierząt na inny kontynent'],
+      answer: 1, explain: 'Wymieranie masowe to gwałtowny (geologicznie) zanik wielu gatunków — np. permskie zgładziło ~90% gatunków morskich.' },
+    mezozoik: { knowledge: 'cold', reward: 6,
+      q: 'Jaka jest główna korzyść ze stałocieplności?',
+      options: ['Zmniejsza zapotrzebowanie na pokarm', 'Pozwala działać w chłodzie niezależnie od pogody', 'Chroni przed drapieżnikami'],
+      answer: 1, explain: 'Stałocieplność utrzymuje stałą temperaturę ciała — kosztem energii — dając aktywność w chłodzie.' },
+    kenozoik: { knowledge: 'intelligence', reward: 8,
+      q: 'Dlaczego duży mózg nie ewoluuje u każdego gatunku?',
+      options: ['Bo jest zbyt ciężki', 'Bo zużywa dużo energii i opłaca się tylko, gdy daje przewagę', 'Bo pojawił się dopiero niedawno'],
+      answer: 1, explain: 'Duży mózg jest kosztowny energetycznie — rozwija się tam, gdzie przewaga (uczenie, współpraca) rekompensuje koszt.' }
+  };
+
+  /*
+   * Osiągnięcia — cele opcjonalne (retencja i rejogralność). `test(ctx)` bada
+   * stan gry; ctx = { state, engine, data }. Warunki monotoniczne (raz spełnione,
+   * pozostają), sprawdzane co turę w silniku.
+   */
+  var ACHIEVEMENTS = [
+    { id: 'landfall', icon: '🦶', name: 'Pionier lądu', desc: 'Któraś linia zajęła niszę lądową.',
+      test: function (c) { return c.state.lineages.some(function (l) { return l.niche === 'lad'; }); } },
+    { id: 'aviator', icon: '🕊️', name: 'Zdobywca nieba', desc: 'Któraś linia zajęła niszę powietrzną.',
+      test: function (c) { return c.state.lineages.some(function (l) { return l.niche === 'powietrze'; }); } },
+    { id: 'radiation', icon: '🌱', name: 'Radiacja adaptacyjna', desc: 'Prowadzisz jednocześnie 3+ żywe linie.',
+      test: function (c) { return c.engine.aliveLineages(c.state).length >= 3; } },
+    { id: 'diversified', icon: '🌈', name: 'Rozproszone ryzyko', desc: 'Żywe linie zajmują 3+ różne nisze naraz.',
+      test: function (c) {
+        var s = {}; c.engine.aliveLineages(c.state).forEach(function (l) { s[l.niche] = 1; });
+        return Object.keys(s).length >= 3; } },
+    { id: 'thinker', icon: '🧠', name: 'Przebłysk rozumu', desc: 'Osiągnięto inteligencję co najmniej 8.',
+      test: function (c) { return c.engine.maxIntelligence(c.state) >= 8; } },
+    { id: 'survivor', icon: '☄️', name: 'Ocalały', desc: 'Przetrwano katastrofę mając 2+ żywe linie.',
+      test: function (c) { return !!c.state._survivedCatastrophe; } }
+  ];
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
     SPECIATION_COST: SPECIATION_COST, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
-    TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
+    TRAITS: TRAITS, SYNERGIES: SYNERGIES, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS,
+    KNOWLEDGE: KNOWLEDGE, QUIZZES: QUIZZES, ACHIEVEMENTS: ACHIEVEMENTS,
     // Zgodność wsteczna:
     INTELLIGENCE_GOAL: DIFFICULTIES.normalny.goal, START_EP: DIFFICULTIES.normalny.startEp
   };

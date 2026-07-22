@@ -73,8 +73,8 @@ przechodnia świadomą strategią.
   lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
   geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **24 cechy** (z ikonami) w drzewie zależności z kosztami i kompromisami; ścieżka
-  do inteligencji oznaczona ⭐.
+- **26 cech** (z ikonami) w drzewie zależności z kosztami i kompromisami; ścieżka
+  do inteligencji oznaczona ⭐ (z dwiema drogami do rozumu i cechami synergicznymi).
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
   każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
 - **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny (żywe i
@@ -84,6 +84,18 @@ przechodnia świadomą strategią.
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
+- **Wskaźnik postępu do inteligencji** z podpowiedzią „następny krok ⭐" i ostrzeżeniem
+  o kończącym się czasie — prowadzi do celu i ogranicza pułapkę „przetrwania bez rozumu".
+- **Synergie cech** (combo, np. mózg + ręka chwytna) i **dwie drogi do rozumu**
+  (narzędziowa: *narzędzia*, społeczna: *mowa i język*).
+- **Szybka tura**: pełny raport tylko przy istotnych zdarzeniach, spokojne tury rozliczane
+  lekkim komunikatem (mniej powtarzalności).
+- **Mini-quizy po erze** z bonusem EP (pomijalne) oraz **osiągnięcia** (cele opcjonalne).
+- **Przegląd wszystkich linii** (populacja, prognoza, sygnał ryzyka bez przełączania).
+- **Tryb nauczyciela z ziarnem losowości** — powtarzalne, identyczne partie na lekcji.
+- **Zabezpieczenie przed spiralą śmierci** (refugium małej populacji, cecha *spowolniony
+  metabolizm*) i **koszt migracji** (aklimatyzacja) — katastrofy premiują dywersyfikację,
+  nie ucieczkę całością.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
 - **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
@@ -100,5 +112,8 @@ js/i18n.js  — stringi interfejsu (warstwa i18n)
 ## Status
 
 Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
+katastrofy, samouczek, tryb nauczyciela (z ziarnem losowości), mini-quizy po erze,
+osiągnięcia, synergie cech i wskaźnik postępu do celu. Dalsze możliwe kroki:
 tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+
+Pełny opis wprowadzonych modyfikacji rozgrywki: [`PROPOZYCJA-GAMEPLAY.md`](./PROPOZYCJA-GAMEPLAY.md).

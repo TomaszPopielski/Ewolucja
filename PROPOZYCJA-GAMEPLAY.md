@@ -1,5 +1,13 @@
 # Propozycja modyfikacji gameplayu — poprawa doświadczenia z gry
 
+> **✅ Status: WDROŻONE.** Wszystkie 10 propozycji z tego dokumentu zostało
+> zaimplementowanych w `js/engine.js`, `js/data.js`, `js/ui.js`, `index.html`,
+> `css/styles.css` oraz pokrytych testami (`test/engine.test.js` — 50 testów, wszystkie
+> zielone). Balans zweryfikowany symulacyjnie na trzech scenariuszach: strategia
+> rozwoju mózgu wygrywa (inteligencja 13–15), a gra „na przetrwanie” kończy się
+> `survived` bez rozumności — przekaz edukacyjny zachowany. Dokument pozostaje jako opis
+> projektowy i uzasadnienie zmian.
+
 Dokument roboczy. Cel: wskazać **konkretne, uzasadnione zmiany** rozgrywki, które
 podniosą satysfakcję, głębię decyzji i wartość edukacyjną gry *Ewolucja*, bez
 zrywania z jej filozofią (lekka symulacja populacji, logika oddzielona od UI,
