@@ -1,0 +1,2200 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
+  <title>Ewolucja — gra edukacyjna</title>
+  <style>
+/*
+ * styles.css — warstwa prezentacji.
+ * Styl "naukowo-ilustracyjny": przyjazny, czytelny, dostępny.
+ * Wsparcie trybu jasnego i ciemnego (prefers-color-scheme).
+ */
+
+:root {
+  --bg: #f4f1e9;
+  --bg-panel: #ffffff;
+  --bg-elev: #fbfaf6;
+  --ink: #1f2a24;
+  --ink-soft: #5a6660;
+  --line: #d9d3c4;
+  --brand: #2f7d5b;
+  --brand-dark: #235e44;
+  --accent: #c9772b;
+  --danger: #b23b3b;
+  --good: #2f7d5b;
+  --ep: #7a5cc0;
+  --radius: 14px;
+  --shadow: 0 2px 10px rgba(31, 42, 36, 0.08);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181a;
+    --bg-panel: #1e2427;
+    --bg-elev: #262d31;
+    --ink: #e8ede9;
+    --ink-soft: #a3b0aa;
+    --line: #333d41;
+    --brand: #4fb383;
+    --brand-dark: #3d9169;
+    --accent: #e0954f;
+    --danger: #e07a7a;
+    --good: #4fb383;
+    --ep: #a891e0;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Atrybut hidden ma zawsze wygrywać — inaczej reguły display:flex na ekranach
+   i modalach nadpisują go i pokazują ukryte elementy. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
+
+.visually-hidden,
+.skip-link:not(:focus) {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: absolute; left: 8px; top: 8px; z-index: 100;
+  background: var(--brand); color: #fff; padding: 8px 14px; border-radius: 8px;
+}
+
+/* --- Fokus widoczny dla dostępności --- */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Topbar --- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.brand-mark { font-size: 1.5rem; }
+.brand-name { font-size: 1.2rem; letter-spacing: 0.5px; }
+.topbar-actions { display: flex; gap: 8px; }
+
+.main { max-width: 1080px; margin: 0 auto; padding: 20px; }
+
+/* --- Przyciski --- */
+.btn {
+  font: inherit; font-weight: 600;
+  border: 1px solid transparent; border-radius: 10px;
+  padding: 10px 16px; cursor: pointer;
+  transition: transform .05s ease, background .15s ease, box-shadow .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { background: var(--bg-elev); }
+.btn-block { display: block; width: 100%; margin-top: 14px; }
+.btn-icon { padding: 6px 10px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* --- Karty --- */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+/* --- Ekran startowy --- */
+.screen-start { display: flex; justify-content: center; padding-top: 4vh; }
+.intro-card { max-width: 620px; }
+.intro-card h1 { font-size: 2.4rem; color: var(--brand); }
+.lead { font-size: 1.08rem; color: var(--ink); }
+.intro-goal {
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px 14px; margin: 16px 0; font-size: .95rem;
+}
+.start-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.start-form label { font-weight: 600; }
+.start-form input {
+  font: inherit; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+}
+.edu-note { font-size: .82rem; color: var(--ink-soft); margin-top: 18px; }
+
+/* Scenariusze na ekranie startowym */
+.scenario-heading { font-size: .95rem; margin: 18px 0 10px; }
+.scenario-cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.scenario-card {
+  font: inherit; text-align: left; cursor: pointer; color: var(--ink);
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  column-gap: 12px; align-items: center;
+}
+.scenario-card:hover { border-color: var(--brand); box-shadow: var(--shadow); }
+.scenario-icon { grid-row: 1 / 3; font-size: 1.8rem; }
+.scenario-name { font-weight: 700; }
+.scenario-diff { font-size: .74rem; color: var(--ep); font-weight: 600; }
+.scenario-intro { grid-column: 2; font-size: .82rem; color: var(--ink-soft); margin-top: 4px; }
+
+/* Przyciski nisz */
+.niche-buttons { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.niche-btn {
+  font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; color: var(--ink);
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 20px; padding: 5px 10px;
+}
+.niche-btn:hover:not(:disabled) { border-color: var(--brand); }
+.niche-btn.current { background: var(--brand); color: #fff; border-color: var(--brand); }
+.niche-btn:disabled:not(.current) { opacity: .45; cursor: not-allowed; }
+
+/* Zdarzenie i rozbicie EP w raporcie */
+.report-event-banner { background: var(--good); color: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: .9rem; font-weight: 600; }
+.report-epbreak { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; color: var(--ink-soft); padding: 4px 0; }
+.report-epparts { color: var(--ep); }
+
+/* Podsumowanie */
+.summary-text { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem;
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--bg-elev); color: var(--ink);
+  resize: vertical; margin-top: 10px; }
+
+/* --- Pasek stanu --- */
+.status-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-bottom: 16px;
+}
+.status-item {
+  background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px; text-align: center;
+}
+.status-label { display: block; font-size: .74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; }
+.status-value { display: block; font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
+.status-ep .status-value { color: var(--ep); }
+.status-goal .status-value { color: var(--brand); }
+.status-era .status-value { font-size: 1.05rem; }
+.status-value.flash { animation: valueFlash .5s ease; }
+@keyframes valueFlash { 0% { transform: scale(1); } 40% { transform: scale(1.18); color: var(--accent); } 100% { transform: scale(1); } }
+
+/* --- Oś czasu --- */
+.era-timeline { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+.era-step {
+  flex: 1 1 0; min-width: 60px;
+  padding: 6px 4px; border-radius: 8px; text-align: center;
+  font-size: .7rem; border: 1px solid var(--line); background: var(--bg-panel);
+  color: var(--ink-soft);
+}
+.era-step.done { background: var(--brand); color: #fff; border-color: var(--brand); }
+.era-step.current { border-color: var(--accent); border-width: 2px; color: var(--ink); font-weight: 700; }
+.era-step.catastrophe { border-color: var(--danger); }
+.era-step .era-step-num { display: block; font-weight: 700; font-size: .85rem; }
+
+/* Nisza i prognoza */
+.species-niche { font-size: .85rem; color: var(--ink-soft); margin: -6px 0 12px; }
+.forecast-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+/* Stała minimalna wysokość — podgląd „co-jeśli” nie przesuwa przycisków. */
+.forecast-body { min-height: 74px; }
+.forecast-label { display: block; font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.forecast-row { display: flex; justify-content: space-between; font-size: .85rem; padding: 2px 0; }
+.forecast-row .fc { font-weight: 700; }
+.fc.pos { color: var(--good); }
+.fc.neg { color: var(--danger); }
+.forecast-preview { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: .82rem; }
+.forecast-warn { margin-top: 6px; font-size: .8rem; color: var(--danger); font-weight: 600; }
+.forecast-none { font-size: .82rem; color: var(--ink-soft); }
+.env-catastrophe { background: var(--danger); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: .82rem; font-weight: 600; margin: 6px 0; }
+
+/* --- Pasek linii rozwojowych --- */
+.lineage-bar {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.lineage-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.lineage-chip {
+  font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+  border-radius: 20px; padding: 5px 12px; font-size: .85rem; font-weight: 600;
+}
+.lineage-chip:hover:not(:disabled) { border-color: var(--brand); }
+.lineage-chip.active { border-color: var(--accent); border-width: 2px; background: var(--bg-panel); }
+.lineage-chip.extinct { opacity: .55; text-decoration: line-through; cursor: default; }
+.lineage-chip-pop { font-size: .72rem; color: var(--ink-soft); background: var(--bg-panel); border-radius: 12px; padding: 1px 7px; }
+.lineage-actions { display: flex; gap: 8px; }
+
+/* --- Wykres populacji --- */
+.sparkline-box { margin-bottom: 14px; }
+.sparkline-label { display: block; font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.sparkline { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.sparkline svg { display: block; }
+
+/* --- Układ gry --- */
+.game-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+/* Panel aktywnej linii „przykleja się”, by prognoza „co-jeśli” była widoczna
+   także przy najechaniu na cechy niżej na liście. */
+@media (min-width: 821px) {
+  .panel-species {
+    position: sticky; top: 64px;
+    max-height: calc(100vh - 80px); overflow-y: auto;
+  }
+}
+.panel {
+  background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+}
+.panel-title { font-size: 1.1rem; }
+.panel-hint { font-size: .85rem; color: var(--ink-soft); margin: -4px 0 14px; }
+.species-name { font-size: 1.15rem; font-weight: 700; color: var(--brand); margin: 0 0 12px; }
+
+/* --- Statystyki gatunku --- */
+.stats-list { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.stat-row { display: grid; grid-template-columns: 92px 1fr 28px; align-items: center; gap: 8px; font-size: .88rem; }
+.stat-name { color: var(--ink-soft); }
+.stat-bar { height: 8px; background: var(--bg-elev); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.stat-fill { height: 100%; background: var(--brand); border-radius: 6px; transition: width .3s ease; }
+.stat-fill.metabolism { background: var(--accent); }
+.stat-fill.intelligence { background: var(--ep); }
+.stat-num { text-align: right; font-weight: 700; }
+
+/* --- Skrzynka środowiska --- */
+.env-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.env-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-soft); margin: 0 0 6px; }
+.env-name { font-weight: 700; margin: 0 0 4px; }
+.env-note { font-size: .85rem; color: var(--ink-soft); margin: 0 0 8px; }
+.env-stats { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.env-stats li { font-size: .78rem; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 20px; padding: 2px 10px; }
+
+/* --- Drzewo cech --- */
+.traits-container { display: flex; flex-direction: column; gap: 18px; }
+.trait-category h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); margin: 0 0 8px; }
+.trait-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.trait {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  background: var(--bg-elev); display: flex; flex-direction: column; gap: 6px;
+  text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.trait:hover:not(:disabled) { border-color: var(--brand); box-shadow: var(--shadow); }
+.trait:disabled { cursor: not-allowed; }
+.trait-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.trait-name { font-weight: 700; font-size: .95rem; }
+.trait-cost { font-size: .82rem; font-weight: 700; color: var(--ep); white-space: nowrap; }
+.trait-desc { font-size: .8rem; color: var(--ink-soft); }
+.trait-effects { display: flex; flex-wrap: wrap; gap: 4px; }
+.effect-chip { font-size: .72rem; padding: 1px 8px; border-radius: 20px; border: 1px solid var(--line); background: var(--bg-panel); }
+.effect-chip.up { color: var(--good); border-color: var(--good); }
+.effect-chip.down { color: var(--danger); border-color: var(--danger); }
+.trait-tradeoff { font-size: .74rem; color: var(--accent); font-style: italic; }
+.trait-req { font-size: .72rem; color: var(--ink-soft); }
+.trait-req.warn { color: var(--danger); }
+.trait.locked .trait-cost { color: var(--ink-soft); }
+.trait.locked .trait-req { color: var(--accent); }
+
+/* Akcje w oknach modalnych */
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.modal-actions .btn { flex: 1; }
+.speciate-label { display: block; font-weight: 600; margin: 10px 0 6px; }
+#speciate-name {
+  font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
+}
+
+.trait.owned { background: var(--bg-panel); border-color: var(--brand); opacity: .85; }
+.trait.owned .trait-cost { color: var(--good); }
+.trait.locked { opacity: .55; }
+.trait.era_locked { opacity: .6; }
+.trait.era_locked .trait-cost { color: var(--accent); }
+.trait.too_expensive .trait-cost { color: var(--danger); }
+.trait.path-intel { border-left: 3px solid var(--ep); }
+.trait-star { font-size: .8rem; }
+
+/* Baner ery i katastrofy w raporcie */
+.report-era { background: var(--brand); color: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; text-align: center; }
+.report-era-milestone { font-size: .82rem; opacity: .92; }
+.report-event.danger { border-left-color: var(--danger); color: var(--danger); font-weight: 600; }
+.knowledge-fossil { margin-top: 6px !important; font-size: .8rem !important; color: var(--accent) !important; font-style: italic; }
+
+/* --- Modale --- */
+.modal {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(15, 20, 18, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+/* Atrybut hidden musi wygrać z display:flex — inaczej niewidoczny modal
+   przechwytuje kliknięcia i blokuje interfejs. */
+.modal[hidden] { display: none; }
+.modal-box {
+  background: var(--bg-panel); border-radius: var(--radius);
+  border: 1px solid var(--line); box-shadow: 0 12px 40px rgba(0,0,0,.3);
+  padding: 24px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto;
+}
+.modal-box-wide { max-width: 720px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; }
+.modal-title { font-size: 1.3rem; }
+
+.report-body { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.report-line { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: .92rem; }
+.report-line .num { font-weight: 700; }
+.report-line .num.pos { color: var(--good); }
+.report-line .num.neg { color: var(--danger); }
+.report-event { background: var(--bg-elev); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 6px; font-size: .88rem; }
+.report-knowledge { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.knowledge-card { background: var(--bg-elev); border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 8px; padding: 12px 14px; }
+.knowledge-card h4 { margin: 0 0 4px; font-size: .95rem; color: var(--brand); }
+.knowledge-card p { margin: 0; font-size: .85rem; color: var(--ink); }
+
+.report-lineage { padding: 8px 0; }
+.report-lineage + .report-lineage { border-top: 2px solid var(--line); margin-top: 6px; }
+.report-lineage-head { font-weight: 700; color: var(--brand); margin-bottom: 4px; }
+.report-summary { margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--brand); }
+
+/* --- Kodeks --- */
+.codex-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.codex-empty { color: var(--ink-soft); font-style: italic; }
+
+/* --- Drzewo życia --- */
+.tree-container { margin-top: 12px; overflow-x: auto; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.tree-container svg { min-width: 480px; }
+.tree-container [data-lineage] text { user-select: none; }
+
+/* --- Ekran końcowy --- */
+.screen-end { display: flex; justify-content: center; padding-top: 4vh; }
+.end-card { max-width: 560px; text-align: center; }
+.end-emblem { font-size: 3.5rem; margin-bottom: 8px; }
+.end-summary { font-size: 1.05rem; }
+.end-stats { list-style: none; padding: 0; margin: 18px 0; display: flex; flex-direction: column; gap: 6px; }
+.end-stats li { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-elev); border-radius: 8px; }
+.end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* --- Responsywność (tablet / telefon) --- */
+@media (max-width: 820px) {
+  .game-grid { grid-template-columns: 1fr; }
+  .status-bar { grid-template-columns: repeat(2, 1fr); }
+  .era-step { min-width: 44px; font-size: 0; padding: 8px 2px; }
+  .era-step .era-step-num { font-size: .8rem; }
+}
+@media (max-width: 480px) {
+  .main { padding: 14px; }
+  .card { padding: 20px; }
+  .trait-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Samouczek --- */
+.tutorial {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(15, 20, 18, 0.6);
+  display: flex; align-items: flex-end; justify-content: center; padding: 24px;
+}
+.tutorial[hidden] { display: none !important; }
+.tutorial-box {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35); padding: 22px; max-width: 480px; width: 100%;
+  animation: tutorialIn .25s ease;
+}
+@keyframes tutorialIn { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.tutorial-progress { font-size: .75rem; color: var(--ink-soft); font-weight: 700; margin-bottom: 6px; }
+.tutorial-title { font-size: 1.2rem; color: var(--brand); }
+.tutorial-text { font-size: .95rem; }
+.tutorial-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+
+/* Animacja wejścia modali */
+.modal-box { animation: modalIn .2s ease; }
+@keyframes modalIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* --- Ograniczenie animacji (dostępność) --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+</style>
+  <meta name="generator" content="Ewolucja build.js — samowystarczalny plik" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Przejdź do treści</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🧬</span>
+      <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
+    </div>
+    <nav class="topbar-actions">
+      <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex">Kodeks wiedzy</button>
+      <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
+    </nav>
+  </header>
+
+  <main id="main" class="main">
+
+    <!-- Ekran startowy -->
+    <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
+      <div class="card intro-card">
+        <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
+        <p class="lead">
+          Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
+          aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
+          zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
+          <strong>dobór naturalny</strong>.
+        </p>
+        <div class="intro-goal" id="intro-goal"></div>
+        <form id="form-start" class="start-form">
+          <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
+          <input id="species-name" name="species-name" type="text" maxlength="28"
+                 data-i18n-ph="start.namePlaceholder" autocomplete="off" />
+        </form>
+        <h3 class="scenario-heading">Wybierz scenariusz:</h3>
+        <div id="scenario-cards" class="scenario-cards"></div>
+        <p class="edu-note" data-i18n="start.eduNote"></p>
+      </div>
+    </section>
+
+    <!-- Ekran rozgrywki -->
+    <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
+      <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
+
+      <div class="status-bar">
+        <div class="status-item status-ep">
+          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
+          <span class="status-value" id="ep-value">0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label" data-i18n="status.population">Populacja</span>
+          <span class="status-value" id="pop-value">0</span>
+        </div>
+        <div class="status-item status-era">
+          <span class="status-label" data-i18n="status.era">Era</span>
+          <span class="status-value" id="era-value">—</span>
+        </div>
+        <div class="status-item status-goal">
+          <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
+          <span class="status-value" id="intel-value">0 / 0</span>
+        </div>
+      </div>
+
+      <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
+
+      <div class="lineage-bar" aria-label="Linie rozwojowe">
+        <div class="lineage-chips" id="lineage-chips"></div>
+        <div class="lineage-actions">
+          <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
+          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
+          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
+        </div>
+      </div>
+
+      <div class="game-grid">
+        <aside class="panel panel-species" aria-labelledby="species-panel-title">
+          <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
+          <p class="species-name" id="species-name-display">—</p>
+          <p class="species-niche" id="species-niche">—</p>
+
+          <div class="sparkline-box">
+            <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
+            <div id="sparkline" class="sparkline" aria-hidden="true"></div>
+          </div>
+
+          <div class="forecast-box" id="forecast-box">
+            <span class="forecast-label" data-i18n="species.forecast">Prognoza następnej tury</span>
+            <div id="forecast-body" class="forecast-body"></div>
+          </div>
+
+          <ul class="stats-list" id="stats-list"></ul>
+
+          <div class="env-box">
+            <h3 class="env-title" data-i18n="species.envTitle">Środowisko następnej tury</h3>
+            <p class="env-name" id="env-name">—</p>
+            <p class="env-note" id="env-note">—</p>
+            <div class="env-catastrophe" id="env-catastrophe" hidden></div>
+            <ul class="env-stats" id="env-stats"></ul>
+          </div>
+
+          <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
+          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
+        </aside>
+
+        <div class="panel panel-traits" aria-labelledby="traits-panel-title">
+          <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
+          <p class="panel-hint" data-i18n="traits.hint"></p>
+          <div id="traits-container" class="traits-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ekran końcowy -->
+    <section id="screen-end" class="screen screen-end" hidden aria-labelledby="end-title">
+      <div class="card end-card">
+        <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
+        <h1 id="end-title">Koniec gry</h1>
+        <p class="end-summary" id="end-summary"></p>
+        <ul class="end-stats" id="end-stats"></ul>
+        <div class="end-actions">
+          <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
+          <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
+          <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: raport tury -->
+  <div id="modal-report" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div class="modal-box">
+      <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
+      <div id="report-era" class="report-era" hidden></div>
+      <div id="report-event" class="report-event-banner" hidden></div>
+      <div id="report-body" class="report-body"></div>
+      <div id="report-knowledge" class="report-knowledge"></div>
+      <button id="btn-report-close" class="btn btn-primary btn-block" type="button" data-i18n="report.next">Dalej</button>
+    </div>
+  </div>
+
+  <!-- Modal: Kodeks wiedzy -->
+  <div id="modal-codex" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="codex-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="codex-title" class="modal-title" data-i18n="codex.title">Kodeks wiedzy</h2>
+        <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint" data-i18n="codex.hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
+      <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Drzewo życia -->
+  <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">🌳 Drzewo życia</h2>
+        <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint" data-i18n="tree.hint"></p>
+      <div id="tree-container" class="tree-container"></div>
+    </div>
+  </div>
+
+  <!-- Modal: specjacja -->
+  <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
+    <div class="modal-box">
+      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">🌿 Specjacja</h2>
+      <p class="panel-hint" id="speciate-hint"></p>
+      <form id="form-speciate">
+        <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
+        <input id="speciate-name" type="text" maxlength="28" autocomplete="off" />
+        <div class="modal-actions">
+          <button class="btn btn-primary" type="submit" data-i18n="speciate.confirm">Rozdziel gatunek</button>
+          <button class="btn btn-ghost" type="button" id="btn-speciate-cancel" data-i18n="common.cancel">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: potwierdzenie -->
+  <div id="modal-confirm" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-box">
+      <h2 id="confirm-title" class="modal-title" data-i18n="confirm.title">Potwierdź</h2>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="button" id="btn-confirm-yes" data-i18n="common.yes">Tak</button>
+        <button class="btn btn-ghost" type="button" id="btn-confirm-no" data-i18n="common.cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: podsumowanie gry (eksport) -->
+  <div id="modal-summary" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="summary-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
+        <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
+      <textarea id="summary-text" class="summary-text" readonly rows="14"></textarea>
+      <div class="modal-actions">
+        <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>
+        <button id="btn-summary-download" class="btn btn-ghost" type="button">Pobierz plik .txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Samouczek -->
+  <div id="tutorial" class="tutorial" hidden role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+    <div class="tutorial-box">
+      <div class="tutorial-progress" id="tutorial-progress"></div>
+      <h2 id="tutorial-title" class="tutorial-title">—</h2>
+      <p id="tutorial-text" class="tutorial-text">—</p>
+      <div class="tutorial-actions">
+        <button id="btn-tutorial-skip" class="btn btn-ghost" type="button" data-i18n="tutorial.skip">Pomiń samouczek</button>
+        <button id="btn-tutorial-next" class="btn btn-primary" type="button" data-i18n="tutorial.next">Dalej</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+/*
+ * i18n.js — warstwa internacjonalizacji interfejsu.
+ *
+ * Stringi CHROME interfejsu trzymamy tu, pod kluczami. Treść merytoryczna gry
+ * (cechy, ery, karty wiedzy) jest w data.js — to ona jest jednostką tłumaczenia
+ * treści. Aby dodać język: dopisz zestaw stringów obok `pl` i ustaw `lang`.
+ *
+ * Elementy statyczne HTML z atrybutem data-i18n="klucz" są wypełniane przez
+ * applyStatic(); dynamiczne teksty pobiera się przez t('klucz', params).
+ */
+(function (root, factory) {
+  var i18n = factory();
+  if (typeof module === 'object' && module.exports) module.exports = i18n;
+  else root.GameI18n = i18n;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var STRINGS = {
+    pl: {
+      'brand.name': 'Ewolucja',
+      'nav.codex': 'Kodeks wiedzy',
+      'nav.newgame': 'Nowa gra',
+
+      'start.title': 'Ewolucja',
+      'start.nameLabel': 'Nazwij swój gatunek:',
+      'start.namePlaceholder': 'np. Prazwierz morski',
+      'start.button': 'Rozpocznij ewolucję',
+      'start.eduNote': 'Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu mechanizmów, nie odwzorowaniu konkretnych gatunków.',
+
+      'status.ep': 'Punkty ewolucji',
+      'status.population': 'Populacja',
+      'status.intelligence': 'Inteligencja (cel)',
+      'status.era': 'Era',
+
+      'lineage.speciate': '🌿 Specjacja',
+      'lineage.tree': '🌳 Drzewo życia',
+      'lineage.migrateToLand': '🏝️ Migruj na ląd',
+      'lineage.migrateToWater': '🌊 Wróć do wody',
+
+      'species.title': 'Aktywna linia',
+      'species.popOverTime': 'Populacja w czasie',
+      'species.forecast': 'Prognoza następnej tury',
+      'species.envTitle': 'Środowisko następnej tury',
+      'species.simulate': 'Przeżyj turę →',
+      'species.undo': '↶ Cofnij (tryb nauczyciela)',
+
+      'traits.title': 'Adaptacje — wydaj punkty ewolucji',
+      'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. ⭐ oznacza drogę do inteligencji.',
+
+      'report.title': 'Wynik tury',
+      'report.next': 'Dalej',
+      'report.summary': 'Zobacz podsumowanie',
+
+      'codex.title': 'Kodeks wiedzy',
+      'codex.hint': 'Zbiór odblokowanych pojęć. Odkrywasz je, grając.',
+      'codex.fossil': '🦴 Zapis kopalny: ',
+
+      'tree.title': '🌳 Drzewo życia',
+      'tree.hint': 'Historia Twoich linii rozwojowych. Rozgałęzienia to specjacje; wygaszone gałęzie to linie, które wymarły. Kliknij żywą gałąź, aby uczynić ją aktywną.',
+
+      'speciate.title': '🌿 Specjacja',
+      'speciate.label': 'Nazwa nowej gałęzi:',
+      'speciate.confirm': 'Rozdziel gatunek',
+      'common.cancel': 'Anuluj',
+      'common.yes': 'Tak',
+      'confirm.title': 'Potwierdź',
+
+      'end.playAgain': 'Zagraj ponownie',
+      'end.seeCodex': 'Zobacz Kodeks',
+
+      'tutorial.skip': 'Pomiń samouczek',
+      'tutorial.next': 'Dalej',
+      'tutorial.done': 'Zaczynajmy!'
+    }
+  };
+
+  var lang = 'pl';
+
+  function t(key, params) {
+    var s = (STRINGS[lang] && STRINGS[lang][key]) || key;
+    if (params) for (var p in params) s = s.replace(new RegExp('\\{' + p + '\\}', 'g'), params[p]);
+    return s;
+  }
+
+  function applyStatic(rootEl) {
+    var nodes = (rootEl || document).querySelectorAll('[data-i18n]');
+    Array.prototype.forEach.call(nodes, function (n) {
+      var key = n.getAttribute('data-i18n');
+      n.textContent = t(key);
+    });
+    var ph = (rootEl || document).querySelectorAll('[data-i18n-ph]');
+    Array.prototype.forEach.call(ph, function (n) {
+      n.setAttribute('placeholder', t(n.getAttribute('data-i18n-ph')));
+    });
+  }
+
+  return { t: t, applyStatic: applyStatic, setLang: function (l) { lang = l; }, getLang: function () { return lang; } };
+});
+
+</script>
+  <script>
+/*
+ * data.js — dane gry (konfiguracja).
+ *
+ * ZALOZENIA.md sekcja 9: cechy, ery, karty wiedzy jako dane oddzielone od
+ * logiki i UI. Plik jest zarazem jednostką tłumaczenia treści (i18n dla UI:
+ * js/i18n.js). Działa w przeglądarce (GameData) i w Node (module.exports).
+ */
+(function (root, factory) {
+  var data = factory();
+  if (typeof module === 'object' && module.exports) module.exports = data;
+  else root.GameData = data;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var BASE_STATS = {
+    feeding: 5, defense: 3, reproduction: 5, mobility: 3, metabolism: 5, intelligence: 1
+  };
+
+  var START_POPULATION = 120;
+
+  var SPECIATION_COST = 12;
+  var MIN_SPECIATION_POP = 60;
+
+  // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
+  var DIFFICULTIES = {
+    latwy:    { label: 'Łatwy',    startEp: 50, goal: 12, catMult: 0.6, predMult: 0.8, coevo: 0.5 },
+    normalny: { label: 'Normalny', startEp: 35, goal: 14, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
+    trudny:   { label: 'Trudny',   startEp: 30, goal: 15, catMult: 1.2, predMult: 1.1, coevo: 1.2 }
+  };
+
+  /*
+   * Nisze ekologiczne z modyfikatorami względem wartości bazowych (woda) danej
+   * tury. `requires` — cecha potrzebna, by zająć niszę. `land:true` — używa
+   * jawnych wartości turn.land.
+   */
+  var NICHES = {
+    woda:       { label: 'Woda',       icon: '🌊', requires: null,    foodMult: 1.0, predMult: 1.0, epBonus: 0 },
+    przybrzeze: { label: 'Przybrzeże', icon: '🪸', requires: null,    foodMult: 1.2, predMult: 1.25, epBonus: 1 },
+    lad:        { label: 'Ląd',        icon: '🏝️', requires: 'limbs', land: true,                    epBonus: 3 },
+    powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3,  epBonus: 2 }
+  };
+
+  var CATEGORIES = {
+    pokarm: 'Pokarm', lokomocja: 'Lokomocja', obrona: 'Obrona', zmysly: 'Zmysły',
+    rozrod: 'Rozród', termoregulacja: 'Termoregulacja', uklad_nerwowy: 'Układ nerwowy'
+  };
+  var CATEGORY_ICONS = {
+    pokarm: '🍽️', lokomocja: '🦿', obrona: '🛡️', zmysly: '👁️',
+    rozrod: '🥚', termoregulacja: '🌡️', uklad_nerwowy: '🧠'
+  };
+
+  var TRAITS = [
+    // --- Pokarm ---
+    { id: 'filter_feeding', name: 'Filtrowanie pokarmu', icon: '💧', category: 'pokarm', cost: 10, requires: [],
+      effects: { feeding: 2 }, tradeoff: 'Skuteczne tylko przy dużej ilości planktonu.',
+      desc: 'Odcedzanie drobnych cząstek pokarmu z wody — tania strategia odżywiania.' },
+    { id: 'jaws', name: 'Szczęki', icon: '🦷', category: 'pokarm', cost: 16, requires: [],
+      effects: { feeding: 3, metabolism: 1 }, tradeoff: 'Więcej pokarmu, ale wyższy metabolizm.',
+      desc: 'Ruchome szczęki otwierają dostęp do większej i twardszej zdobyczy.' },
+    { id: 'omnivory', name: 'Wszystkożerność', icon: '🍖', category: 'pokarm', cost: 22, requires: ['jaws'],
+      effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Elastyczna dieta kosztuje energię.',
+      desc: 'Jedzenie i roślin, i zwierząt uniezależnia od jednego źródła pokarmu.' },
+
+    // --- Lokomocja ---
+    { id: 'fins', name: 'Płetwy', icon: '🐟', category: 'lokomocja', cost: 10, requires: [],
+      effects: { mobility: 2 }, tradeoff: 'Sprawne w wodzie, bezużyteczne na lądzie.',
+      desc: 'Płetwy poprawiają manewrowość i ucieczkę przed drapieżnikami.' },
+    { id: 'fast_muscle', name: 'Szybkie mięśnie', icon: '⚡', category: 'lokomocja', cost: 15, requires: ['fins'],
+      effects: { mobility: 2, defense: 1, metabolism: 2 }, tradeoff: 'Zrywy prędkości są energochłonne.',
+      desc: 'Włókna szybkokurczliwe pozwalają na gwałtowne uniki i pościgi.' },
+    { id: 'limbs', name: 'Kończyny', icon: '🦎', category: 'lokomocja', cost: 22, requires: ['fins'],
+      effects: { mobility: 3, metabolism: 1 }, tradeoff: 'Otwiera niszę lądową, ale wymaga przebudowy szkieletu.',
+      desc: 'Przekształcenie płetw w kończyny umożliwia migrację na ląd.' },
+    { id: 'flight', name: 'Lot', icon: '🦅', category: 'lokomocja', cost: 26, requires: ['limbs'], minEra: 1,
+      effects: { mobility: 3, metabolism: 2 }, tradeoff: 'Otwiera niszę powietrzną, ale to ogromny koszt energii.',
+      desc: 'Skrzydła pozwalają zająć bezpieczną, choć uboższą niszę powietrzną.' },
+    { id: 'grasping_hand', name: 'Ręka chwytna', icon: '✋', category: 'lokomocja', cost: 20, requires: ['limbs'], minEra: 2,
+      effects: { feeding: 1, intelligence: 1 }, tradeoff: 'Precyzyjny chwyt wymaga rozwiniętej koordynacji.',
+      desc: 'Chwytna dłoń pozwala manipulować przedmiotami — podstawa używania narzędzi.' },
+
+    // --- Obrona ---
+    { id: 'scales', name: 'Łuski', icon: '🐍', category: 'obrona', cost: 10, requires: [],
+      effects: { defense: 2 }, tradeoff: 'Lekka ochrona, ogranicza wymianę gazową przez skórę.',
+      desc: 'Zrogowaciała skóra chroni przed urazami i wysychaniem.' },
+    { id: 'shell', name: 'Pancerz', icon: '🐢', category: 'obrona', cost: 16, requires: [],
+      effects: { defense: 4, mobility: -1, metabolism: 2 }, tradeoff: 'Świetna obrona kosztem ruchu i energii.',
+      desc: 'Twardy pancerz zniechęca większość drapieżników.' },
+    { id: 'camouflage', name: 'Kamuflaż', icon: '🦎', category: 'obrona', cost: 14, requires: ['eyes'],
+      effects: { defense: 3 }, tradeoff: 'Zawodzi, gdy trzeba się aktywnie poruszać.',
+      desc: 'Ubarwienie zlewające się z otoczeniem to obrona bez kosztu ruchu.' },
+
+    // --- Zmysły ---
+    { id: 'eyes', name: 'Oczy', icon: '👁️', category: 'zmysly', cost: 12, requires: [],
+      effects: { feeding: 1, defense: 1 }, tradeoff: 'Rozwój narządu wymaga stabilnego pokarmu.',
+      desc: 'Wzrok ułatwia zdobywanie pokarmu i wczesne wykrycie zagrożeń.' },
+    { id: 'lateral_line', name: 'Linia boczna', icon: '〰️', category: 'zmysly', cost: 10, requires: [],
+      effects: { defense: 1, mobility: 1 }, tradeoff: 'Działa wyłącznie w środowisku wodnym.',
+      desc: 'Narząd czuciowy wykrywa drgania wody — ostrzega przed drapieżnikiem.' },
+
+    // --- Rozród ---
+    { id: 'many_eggs', name: 'Liczne jaja', icon: '🥚', category: 'rozrod', cost: 12, requires: [],
+      effects: { reproduction: 3 }, tradeoff: 'Ilość zamiast jakości — duża śmiertelność potomstwa.',
+      desc: 'Składanie wielu jaj zwiększa szansę, że część przetrwa.' },
+    { id: 'amniotic_egg', name: 'Jajo lądowe', icon: '🐣', category: 'rozrod', cost: 20, requires: ['scales'],
+      effects: { reproduction: 2, defense: 1 }, tradeoff: 'Uniezależnia rozród od wody, ale kosztowne.',
+      desc: 'Jajo z błonami i skorupą można składać na lądzie.' },
+    { id: 'parental_care', name: 'Opieka nad potomstwem', icon: '🐧', category: 'rozrod', cost: 24, requires: ['many_eggs'],
+      effects: { reproduction: 2, intelligence: 1, metabolism: 1 }, tradeoff: 'Mniej potomstwa, lepiej chronionego.',
+      desc: 'Ochrona młodych podnosi ich przeżywalność i sprzyja uczeniu się.' },
+
+    // --- Termoregulacja ---
+    { id: 'endothermy', name: 'Stałocieplność', icon: '🔥', category: 'termoregulacja', cost: 22, requires: ['scales'],
+      effects: { feeding: 1, defense: 1, metabolism: 3 }, tradeoff: 'Aktywność niezależna od pogody, ale ogromny koszt energii.',
+      desc: 'Utrzymywanie stałej temperatury ciała pozwala działać w chłodzie.' },
+    { id: 'insulation', name: 'Izolacja (pióra/futro)', icon: '🪶', category: 'termoregulacja', cost: 18, requires: ['endothermy'], minEra: 1,
+      effects: { defense: 1, metabolism: -1 }, tradeoff: 'Zmniejsza koszt stałocieplności, ale to kolejna inwestycja.',
+      desc: 'Warstwa izolująca ogranicza utratę ciepła — obniża koszt metabolizmu.' },
+
+    // --- Układ nerwowy (droga do inteligencji) ---
+    { id: 'ganglia', name: 'Zwoje nerwowe', icon: '🕸️', category: 'uklad_nerwowy', cost: 15, requires: [], path: 'intelligence',
+      effects: { intelligence: 2, defense: 1 }, tradeoff: 'Szybsze reakcje, lekko wyższy metabolizm.',
+      desc: 'Skupiska komórek nerwowych przyspieszają przetwarzanie bodźców.' },
+    { id: 'brain', name: 'Mózg', icon: '🧠', category: 'uklad_nerwowy', cost: 22, requires: ['ganglia'], path: 'intelligence',
+      effects: { intelligence: 3, feeding: 1, metabolism: 2 }, tradeoff: 'Mózg jest kosztowny — wymaga dobrego odżywiania.',
+      desc: 'Scentralizowany mózg umożliwia złożone zachowania.' },
+    { id: 'pack_hunting', name: 'Polowanie w grupie', icon: '🐺', category: 'uklad_nerwowy', cost: 20, requires: ['brain'], minEra: 1,
+      effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Skuteczne łowy wymagają koordynacji grupy.',
+      desc: 'Współdziałanie w grupie zwiększa skuteczność zdobywania pokarmu i obronę.' },
+    { id: 'big_brain', name: 'Rozbudowany mózg', icon: '💡', category: 'uklad_nerwowy', cost: 30, requires: ['brain', 'endothermy'], path: 'intelligence',
+      effects: { intelligence: 4, metabolism: 3 }, tradeoff: 'Bardzo energochłonny — potrzebuje stabilnej energii.',
+      desc: 'Powiększona kora pozwala na uczenie się i planowanie.' },
+    { id: 'social', name: 'Zachowania społeczne', icon: '👥', category: 'uklad_nerwowy', cost: 26, requires: ['brain'], path: 'intelligence', minEra: 1,
+      effects: { intelligence: 2, defense: 1, metabolism: 1 }, tradeoff: 'Życie w grupie wymaga komunikacji i koordynacji.',
+      desc: 'Współpraca i uczenie się od innych przyspieszają rozwój poznawczy.' },
+    { id: 'tool_use', name: 'Używanie narzędzi', icon: '🪓', category: 'uklad_nerwowy', cost: 34, requires: ['big_brain', 'social', 'grasping_hand'], path: 'intelligence', minEra: 2,
+      effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja: wymaga mózgu, życia społecznego i ręki chwytnej.',
+      desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' }
+  ];
+
+  function land(food, predators) { return { food: food, predators: predators }; }
+
+  var ERAS = [
+    {
+      id: 'paleozoik', name: 'Paleozoik', dates: '541–252 mln lat temu',
+      intro: 'Twoja linia startuje w ciepłych, płytkich morzach. Przed nią rozkwit drapieżników, ' +
+        'wahania tlenu i klimatu, a wreszcie kuszący, pusty ląd.',
+      milestone: 'Kamienie milowe: szkielet, płetwy → kończyny, oddychanie powietrzem, wyjście na ląd.',
+      turns: [
+        { title: 'Kambr — eksplozja życia', oxygen: 8, food: 12, predators: 4, climate: 'cieplo', land: land(5, 2),
+          note: 'Morza pełne pokarmu, ale pojawiają się pierwsi drapieżcy.' },
+        { title: 'Ordowik — rafy i łowcy', oxygen: 9, food: 11, predators: 6, climate: 'cieplo', land: land(5, 2),
+          note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
+        { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
+          note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'woda', severity: 0.35, knowledge: 'extinction' } },
+        { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
+          note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
+        { title: 'Dewon — wiek ryb', oxygen: 11, food: 9, predators: 10, climate: 'umiarkowanie', land: land(9, 3),
+          note: 'Wielkie drapieżne ryby dominują w wodzie — na lądzie spokojniej.' },
+        { title: 'Dewon — brzeg lądu', oxygen: 11, food: 8, predators: 8, climate: 'cieplo', land: land(11, 3),
+          note: 'Ląd stoi otworem: z kończynami warto migrować.' },
+        { title: 'Karbon — bujne lasy', oxygen: 15, food: 10, predators: 7, climate: 'cieplo', land: land(14, 4),
+          note: 'Wysoki tlen i bujna roślinność sprzyjają życiu na lądzie.' },
+        { title: 'Perm — Wielkie Wymieranie', oxygen: 9, food: 7, predators: 9, climate: 'zimno', land: land(9, 5),
+          note: 'Największa katastrofa w dziejach życia uderza w morza.',
+          catastrophe: { name: 'Wymieranie permskie', niche: 'woda', severity: 0.55, knowledge: 'extinction' } }
+      ]
+    },
+    {
+      id: 'mezozoik', name: 'Mezozoik', dates: '252–66 mln lat temu',
+      intro: 'Era gadów. Ląd należy do dinozaurów, a klimat jest ciepły. Twoje linie mogą wejść ' +
+        'w cień wielkich drapieżników, wzbić się w powietrze — albo dorównać im sprytem.',
+      milestone: 'Kamienie milowe: jajo lądowe, stałocieplność, izolacja (pióra/futro), lot, życie społeczne.',
+      turns: [
+        { title: 'Trias — po katastrofie', oxygen: 10, food: 9, predators: 6, climate: 'cieplo', land: land(10, 6),
+          note: 'Świat odradza się po wymieraniu — wiele nisz stoi otworem.' },
+        { title: 'Trias — pierwsze dinozaury', oxygen: 11, food: 10, predators: 9, climate: 'cieplo', land: land(11, 9),
+          note: 'Na lądzie rosną w siłę nowi, sprawni drapieżcy.' },
+        { title: 'Jura — giganty', oxygen: 13, food: 12, predators: 12, climate: 'cieplo', land: land(13, 12),
+          note: 'Wielkie dinozaury dominują ląd — przetrwa obrona, prędkość lub spryt.' },
+        { title: 'Jura — chłodniejsze noce', oxygen: 12, food: 9, predators: 11, climate: 'umiarkowanie', land: land(10, 11),
+          note: 'Stałocieplność i izolacja dają przewagę w chłodniejsze noce.' },
+        { title: 'Kreda — kwitnące rośliny', oxygen: 12, food: 13, predators: 10, climate: 'cieplo', land: land(14, 10),
+          note: 'Rośliny kwiatowe i owady tworzą nowe źródła pokarmu.' },
+        { title: 'Kreda — uderzenie asteroidy', oxygen: 10, food: 6, predators: 8, climate: 'zimno', land: land(6, 8),
+          note: 'Asteroida i zima uderzeniowa kończą erę dinozaurów.',
+          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.5, knowledge: 'extinction' } }
+      ]
+    },
+    {
+      id: 'kenozoik', name: 'Kenozoik', dates: '66 mln lat temu – dziś',
+      intro: 'Era ssaków. Klimat stopniowo się ochładza, a inteligencja i życie społeczne stają ' +
+        'się realną przewagą. To tu może narodzić się gatunek rozumny.',
+      milestone: 'Kamienie milowe: opieka nad potomstwem, ręka chwytna, duży mózg, używanie narzędzi.',
+      turns: [
+        { title: 'Paleogen — świt ssaków', oxygen: 11, food: 12, predators: 7, climate: 'cieplo', land: land(13, 7),
+          note: 'Po dinozaurach ssaki zajmują opustoszałe nisze.' },
+        { title: 'Paleogen — pierwsze naczelne', oxygen: 11, food: 11, predators: 8, climate: 'umiarkowanie', land: land(12, 8),
+          note: 'Życie na drzewach premiuje wzrok, chwyt i większy mózg.' },
+        { title: 'Neogen — sawanny', oxygen: 11, food: 9, predators: 9, climate: 'umiarkowanie', land: land(10, 9),
+          note: 'Otwarte przestrzenie sprzyjają współpracy i sprytnym łowom.' },
+        { title: 'Neogen — ochłodzenie', oxygen: 10, food: 8, predators: 9, climate: 'zimno', land: land(8, 9),
+          note: 'Chłód premiuje izolację, zapasy i inteligencję.' },
+        { title: 'Plejstocen — epoki lodowcowe', oxygen: 10, food: 7, predators: 8, climate: 'zimno', land: land(8, 8),
+          note: 'Zlodowacenia to twarda szkoła — przetrwają najbardziej elastyczni.',
+          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'lad', severity: 0.3, knowledge: 'extinction' } },
+        { title: 'Współczesność — próg rozumności', oxygen: 11, food: 10, predators: 6, climate: 'umiarkowanie', land: land(11, 6),
+          note: 'Ostatnia tura: czy Twoja linia przekroczy próg inteligencji?' }
+      ]
+    }
+  ];
+
+  // Pozytywne zdarzenia losowe (ZALOZENIA 4.3 — nie tylko katastrofy).
+  var POSITIVE_EVENTS = [
+    { id: 'bloom', name: 'Rozkwit pokarmu', foodBonus: 3, knowledge: 'events', desc: 'Zakwit roślinności/planktonu — więcej pokarmu w tej turze.' },
+    { id: 'mild', name: 'Łagodny sezon', predBonus: -2, knowledge: 'events', desc: 'Spokojny sezon — mniejsza presja drapieżników.' }
+  ];
+
+  // Scenariusze lekcyjne (ZALOZENIA sekcja 8/6).
+  var SCENARIOS = [
+    { id: 'full', name: 'Pełna ewolucja', icon: '🧬', difficulty: 'normalny', startEra: 0,
+      intro: 'Klasyczna gra od prostego życia w morzu aż do gatunku rozumnego, przez trzy ery.' },
+    { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
+      intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
+    { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
+      startEp: 60, goal: 14, startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
+        'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
+  ];
+
+  var KNOWLEDGE = {
+    intro: { icon: '🧬', title: 'Czym jest dobór naturalny?',
+      body: 'Osobniki różnią się cechami. Te lepiej przystosowane częściej przeżywają i zostawiają ' +
+        'potomstwo, przekazując mu swoje cechy. Po wielu pokoleniach populacja się zmienia.' },
+    mutation_good: { icon: '🧪', title: 'Mutacje — źródło zmienności',
+      body: 'Mutacja to losowa zmiana materiału genetycznego. Większość jest neutralna lub szkodliwa, ' +
+        'ale czasem daje przewagę, którą dobór naturalny „premiuje”.' },
+    mutation_bad: { icon: '⚠️', title: 'Nie każda zmiana pomaga',
+      body: 'Ta mutacja pogorszyła cechę. W naturze osobniki z niekorzystnymi mutacjami częściej giną — ' +
+        'dlatego szkodliwe warianty są z czasem „odsiewane”.' },
+    predation: { icon: '🦈', title: 'Presja drapieżników',
+      body: 'Gdy obrona gatunku jest za słaba, populacja topnieje. Pancerz, kamuflaż czy prędkość to ' +
+        'odpowiedzi ewolucji na drapieżnictwo.',
+      fossil: 'W kambrze polował Anomalocaris — jeden z pierwszych wielkich drapieżników.' },
+    coevolution: { icon: '🏹', title: 'Koewolucja i wyścig zbrojeń',
+      body: 'Drapieżniki też ewoluują. Im lepiej broni się ofiara, tym silniejsi stają się łowcy — to ' +
+        '„wyścig zbrojeń”, w którym obie strony napędzają swoje adaptacje.' },
+    starvation: { icon: '🍂', title: 'Bilans energetyczny',
+      body: 'Metabolizm to koszt utrzymania organizmu. Jeśli zdobyty pokarm go nie pokrywa, populacja ' +
+        'głoduje. Sprawniejsze cechy bywają kosztowne — to kompromis.' },
+    cold: { icon: '❄️', title: 'Klimat jako presja',
+      body: 'Ochłodzenie ogranicza pokarm i aktywność zwierząt zmiennocieplnych. Stałocieplność pozwala ' +
+        'działać w chłodzie, ale wymaga znacznie więcej energii.' },
+    land: { icon: '🦶', title: 'Podbój lądu',
+      body: 'Wyjście na ląd wymagało kończyn, oddychania powietrzem i rozrodu niezależnego od wody.',
+      fossil: 'Tiktaalik (dewon) łączy cechy ryb i płazów — ilustruje przejście na ląd.' },
+    niche: { icon: '🗺️', title: 'Nisza ekologiczna',
+      body: 'Nisza to zespół warunków i zasobów, w których gatunek żyje. Różne nisze (woda, przybrzeże, ' +
+        'ląd, powietrze) mają inne pokarmy i zagrożenia — rozdzielenie linii między nisze rozkłada ryzyko.' },
+    events: { icon: '🍀', title: 'Zmienność środowiska',
+      body: 'Środowisko bywa też łaskawe: zakwity pokarmu czy spokojne sezony dają chwilową przewagę. ' +
+        'Ewolucja to gra z ciągle zmieniającymi się warunkami — nie tylko z katastrofami.' },
+    intelligence: { icon: '🧠', title: 'Ewolucja inteligencji',
+      body: 'Duży mózg daje przewagę (uczenie się, współpraca), ale zużywa mnóstwo energii. Rozwija się ' +
+        'tam, gdzie ta przewaga się opłaca.' },
+    speciation: { icon: '🌿', title: 'Specjacja — powstawanie gatunków',
+      body: 'Gdy część populacji przystosuje się do odrębnej niszy i przestaje wymieniać geny z resztą, ' +
+        'powstaje nowy gatunek. Tak linie rozgałęziają się w „drzewo życia”.',
+      fossil: 'Zięby Darwina z Galapagos to klasyczny przykład szybkiej specjacji w różnych niszach.' },
+    extinction: { icon: '☄️', title: 'Wymieranie masowe',
+      body: 'To gwałtowny zanik wielu gatunków w krótkim (geologicznie) czasie. Uderza najmocniej w linie ' +
+        'niedostosowane do nowych warunków — dywersyfikacja (wiele linii w różnych niszach) zwiększa ' +
+        'szansę, że któraś przetrwa.',
+      fossil: 'Wymieranie permskie (~252 mln lat temu) zgładziło ok. 90% gatunków morskich.' },
+    milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
+      body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
+        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
+  };
+
+  return {
+    BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
+    SPECIATION_COST: SPECIATION_COST, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
+    TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
+    // Zgodność wsteczna:
+    INTELLIGENCE_GOAL: DIFFICULTIES.normalny.goal, START_EP: DIFFICULTIES.normalny.startEp
+  };
+});
+
+</script>
+  <script>
+/*
+ * engine.js — silnik symulacji (czysta logika gry).
+ *
+ * ZALOZENIA.md sekcja 9: logika oddzielona od UI, testowalna, bez DOM.
+ * Obsługuje: poziomy trudności, wiele er, wiele linii (specjacja), cztery nisze
+ * z migracją, katastrofy i pozytywne zdarzenia, koewolucję (adaptacyjną presję
+ * drapieżników), rozbicie EP i prognozę „co-jeśli”.
+ *
+ * Funkcje mutujące zwracają NOWY stan (kopię) — tryb nauczyciela cofa akcje.
+ */
+(function (root, factory) {
+  var engine = factory();
+  if (typeof module === 'object' && module.exports) module.exports = engine;
+  else root.Engine = engine;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function round1(v) { return Math.round(v * 10) / 10; }
+  function dedupe(a) { var s = {}, o = []; a.forEach(function (x) { if (!s[x]) { s[x] = 1; o.push(x); } }); return o; }
+  function traitsById(data) { var m = {}; data.TRAITS.forEach(function (t) { m[t.id] = t; }); return m; }
+
+  function makeLineage(id, name, parentId, population, stats, traits, niche, bornEra, bornTurn) {
+    return {
+      id: id, name: name, parentId: parentId,
+      population: population, peakPopulation: population,
+      stats: clone(stats), traits: traits.slice(), niche: niche || 'woda',
+      alive: true, bornEra: bornEra, bornTurn: bornTurn, extinctGlobalTurn: null,
+      popHistory: [population]
+    };
+  }
+
+  function globalTurn(data, eraIndex, turn) {
+    var g = 0; for (var i = 0; i < eraIndex; i++) g += data.ERAS[i].turns.length; return g + turn;
+  }
+  function totalTurns(data) { return data.ERAS.reduce(function (s, e) { return s + e.turns.length; }, 0); }
+
+  /*
+   * opts: { difficulty, startEra, startEp, goal, startTraits, scenarioId }
+   */
+  function createInitialState(data, speciesName, opts) {
+    opts = opts || {};
+    var diffKey = opts.difficulty || 'normalny';
+    var diff = data.DIFFICULTIES[diffKey] || data.DIFFICULTIES.normalny;
+    var ep = opts.startEp != null ? opts.startEp : diff.startEp;
+    var goal = opts.goal != null ? opts.goal : diff.goal;
+    var startEra = opts.startEra || 0;
+
+    var root = makeLineage('L0', speciesName || 'Prazwierzę', null,
+      data.START_POPULATION, data.BASE_STATS, [], 'woda', startEra, 0);
+
+    // Zestaw startowy scenariusza (pomijamy warunki wstępne — to „fory”).
+    if (opts.startTraits && opts.startTraits.length) {
+      var byId = traitsById(data);
+      opts.startTraits.forEach(function (id) {
+        var t = byId[id];
+        if (t && root.traits.indexOf(id) === -1) { root.traits.push(id); applyEffects(root, t.effects); }
+      });
+    }
+
+    return {
+      version: 4,
+      difficulty: diffKey,
+      scenario: opts.scenarioId || 'full',
+      eraIndex: startEra,
+      turn: 0,
+      totalTurns: totalTurns(data),
+      ep: ep,
+      intelligenceGoal: goal,
+      predatorLevel: 0,          // koewolucja: adaptacyjna presja drapieżników
+      lineages: [root],
+      activeLineageId: 'L0',
+      nextLineageNum: 1,
+      unlockedKnowledge: ['intro'],
+      status: 'playing',
+      history: []
+    };
+  }
+
+  // ---------- Ery / środowisko ----------
+  function currentEra(data, state) { return data.ERAS[Math.min(state.eraIndex, data.ERAS.length - 1)]; }
+  function currentTurnEnv(data, state) {
+    if (state.eraIndex >= data.ERAS.length) return null;
+    var era = data.ERAS[state.eraIndex];
+    if (state.turn >= era.turns.length) return null;
+    return era.turns[state.turn];
+  }
+  function difficultyOf(data, state) { return data.DIFFICULTIES[state.difficulty] || data.DIFFICULTIES.normalny; }
+
+  // ---------- Dostęp do linii ----------
+  function getLineage(state, id) {
+    for (var i = 0; i < state.lineages.length; i++) if (state.lineages[i].id === id) return state.lineages[i];
+    return null;
+  }
+  function getActiveLineage(state) { return getLineage(state, state.activeLineageId); }
+  function aliveLineages(state) { return state.lineages.filter(function (l) { return l.alive; }); }
+  function totalPopulation(state) { return state.lineages.reduce(function (s, l) { return s + (l.alive ? l.population : 0); }, 0); }
+  function maxIntelligence(state) {
+    var m = 0; state.lineages.forEach(function (l) { if (l.alive && l.stats.intelligence > m) m = l.stats.intelligence; }); return m;
+  }
+  function maxDefense(state) {
+    var m = 0; state.lineages.forEach(function (l) { if (l.alive && l.stats.defense > m) m = l.stats.defense; }); return m;
+  }
+  function lstat(l, k) { return Math.max(0, l.stats[k]); }
+
+  function setActiveLineage(state, id) {
+    var l = getLineage(state, id); if (!l || !l.alive) return state;
+    var n = clone(state); n.activeLineageId = id; return n;
+  }
+
+  // ---------- Nisze / migracja ----------
+  function availableNiches(data, lineage) {
+    return Object.keys(data.NICHES).filter(function (k) {
+      var req = data.NICHES[k].requires;
+      return !req || lineage.traits.indexOf(req) !== -1;
+    });
+  }
+  function canMigrate(data, state, lineage, niche) {
+    if (!lineage.alive) return { ok: false, error: 'Linia wymarła.' };
+    if (!data.NICHES[niche]) return { ok: false, error: 'Nieznana nisza.' };
+    if (lineage.niche === niche) return { ok: false, error: 'Linia już zajmuje tę niszę.' };
+    var req = data.NICHES[niche].requires;
+    if (req && lineage.traits.indexOf(req) === -1) {
+      var tr = traitsById(data)[req];
+      return { ok: false, error: 'Wymaga cechy „' + (tr ? tr.name : req) + '”.' };
+    }
+    return { ok: true, error: null };
+  }
+  function migrateLineage(data, state, lineageId, niche) {
+    var l = getLineage(state, lineageId);
+    if (!l) return { ok: false, state: state, error: 'Nieznana linia.' };
+    var can = canMigrate(data, state, l, niche);
+    if (!can.ok) return { ok: false, state: state, error: can.error };
+    var n = clone(state); getLineage(n, lineageId).niche = niche; return { ok: true, state: n, error: null };
+  }
+
+  // ---------- Cechy ----------
+  function prerequisitesMet(lineage, trait) {
+    for (var i = 0; i < trait.requires.length; i++) if (lineage.traits.indexOf(trait.requires[i]) === -1) return false;
+    return true;
+  }
+  function eraUnlocked(state, trait) { return (trait.minEra == null) || (state.eraIndex >= trait.minEra); }
+  function traitStatus(state, trait) {
+    var l = getActiveLineage(state);
+    if (!l) return 'locked';
+    if (l.traits.indexOf(trait.id) !== -1) return 'owned';
+    if (!eraUnlocked(state, trait)) return 'era_locked';
+    if (!prerequisitesMet(l, trait)) return 'locked';
+    if (state.ep < trait.cost) return 'too_expensive';
+    return 'available';
+  }
+  function buyTrait(data, state, traitId) {
+    var trait = traitsById(data)[traitId];
+    if (!trait) return { ok: false, state: state, error: 'Nieznana cecha.' };
+    var a = getActiveLineage(state);
+    if (!a) return { ok: false, state: state, error: 'Brak aktywnej linii.' };
+    if (a.traits.indexOf(traitId) !== -1) return { ok: false, state: state, error: 'Cecha już posiadana.' };
+    if (!eraUnlocked(state, trait)) return { ok: false, state: state, error: 'Cecha dostępna w późniejszej erze.' };
+    if (!prerequisitesMet(a, trait)) return { ok: false, state: state, error: 'Niespełnione warunki wstępne.' };
+    if (state.ep < trait.cost) return { ok: false, state: state, error: 'Za mało punktów ewolucji.' };
+    var n = clone(state); var l = getActiveLineage(n);
+    n.ep -= trait.cost; l.traits.push(traitId); applyEffects(l, trait.effects); unlockKnowledgeForTrait(n, trait);
+    return { ok: true, state: n, error: null };
+  }
+  function applyEffects(l, effects) {
+    for (var k in effects) if (Object.prototype.hasOwnProperty.call(effects, k)) l.stats[k] = (l.stats[k] || 0) + effects[k];
+  }
+  function unlockKnowledge(state, key) { if (state.unlockedKnowledge.indexOf(key) === -1) state.unlockedKnowledge.push(key); }
+  function unlockKnowledgeForTrait(state, trait) {
+    if (trait.category === 'uklad_nerwowy') unlockKnowledge(state, 'intelligence');
+    if (trait.id === 'endothermy') unlockKnowledge(state, 'cold');
+    if (trait.id === 'limbs' || trait.id === 'amniotic_egg' || trait.id === 'flight') unlockKnowledge(state, 'niche');
+  }
+
+  // ---------- Specjacja ----------
+  function canSpeciate(data, state) {
+    var a = getActiveLineage(state);
+    if (!a) return { ok: false, error: 'Brak aktywnej linii.' };
+    if (state.ep < data.SPECIATION_COST) return { ok: false, error: 'Za mało EP na specjację (potrzeba ' + data.SPECIATION_COST + ').' };
+    if (a.population < data.MIN_SPECIATION_POP) return { ok: false, error: 'Za mała populacja do specjacji (min. ' + data.MIN_SPECIATION_POP + ').' };
+    return { ok: true, error: null };
+  }
+  function speciate(data, state, newName) {
+    var check = canSpeciate(data, state);
+    if (!check.ok) return { ok: false, state: state, error: check.error };
+    var n = clone(state); var parent = getActiveLineage(n);
+    var childPop = Math.floor(parent.population / 2);
+    parent.population -= childPop; parent.popHistory[parent.popHistory.length - 1] = parent.population;
+    var childId = 'L' + n.nextLineageNum; n.nextLineageNum += 1;
+    var child = makeLineage(childId, newName || (parent.name + ' II'), parent.id,
+      childPop, parent.stats, parent.traits, parent.niche, n.eraIndex, n.turn);
+    n.lineages.push(child); n.ep -= data.SPECIATION_COST; n.activeLineageId = childId;
+    unlockKnowledge(n, 'speciation');
+    return { ok: true, state: n, error: null };
+  }
+
+  // ---------- Mutacja ----------
+  function rollMutation(l, rng) {
+    if (rng() > 0.28) return null;
+    var keys = ['feeding', 'defense', 'reproduction', 'mobility', 'intelligence'];
+    var key = keys[Math.floor(rng() * keys.length)];
+    var beneficial = rng() < 0.6; var delta = beneficial ? 1 : -1;
+    if (l.stats[key] + delta < 0) { delta = 1; beneficial = true; }
+    l.stats[key] += delta;
+    return { key: key, delta: delta, beneficial: beneficial, knowledge: beneficial ? 'mutation_good' : 'mutation_bad' };
+  }
+
+  // ---------- Dynamika (współdzielona: symulacja + prognoza) ----------
+  function envForNiche(data, env, niche) {
+    var cfg = data.NICHES[niche] || data.NICHES.woda;
+    if (cfg.land) return { food: env.land.food, predators: env.land.predators };
+    return { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
+  }
+  function computeDynamics(data, env, lineage, ctx) {
+    ctx = ctx || {};
+    var ne = envForNiche(data, env, lineage.niche);
+    var food = Math.max(0, ne.food + (ctx.foodBonus || 0));
+    var predators = ne.predators + (ctx.predBonus || 0) + (ctx.predatorLevel || 0);
+    predators = Math.max(0, predators * (ctx.predMult || 1));
+
+    var climateMod = env.climate === 'zimno' ? 0.7 : (env.climate === 'cieplo' ? 1.1 : 1.0);
+    if (env.climate === 'zimno' && lineage.traits.indexOf('endothermy') !== -1) climateMod = 1.0;
+    var oxygenMod = clamp(1 + (10 - env.oxygen) * 0.04, 0.7, 1.4);
+
+    var foodIntake = lstat(lineage, 'feeding') * (food / 10) * climateMod;
+    var upkeep = lstat(lineage, 'metabolism') * oxygenMod;
+    var energy = foodIntake - upkeep;
+    var mobilityShield = lstat(lineage, 'mobility') * 0.4;
+    var predationPressure = Math.max(0, predators - lstat(lineage, 'defense') - mobilityShield);
+    var predationLossRate = clamp(predationPressure * 0.035, 0, 0.45);
+    var starvationLossRate = energy < 0 ? clamp(-energy * 0.03, 0, 0.5) : 0;
+    var birthRate = energy >= 0 ? clamp(0.03 * lstat(lineage, 'reproduction') * (1 + energy * 0.05), 0, 0.6) : 0;
+    return { energy: energy, predationPressure: predationPressure,
+      predationLossRate: predationLossRate, starvationLossRate: starvationLossRate, birthRate: birthRate };
+  }
+  function contextFor(data, state, extra) {
+    var diff = difficultyOf(data, state);
+    var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult };
+    if (extra) { ctx.foodBonus = extra.foodBonus || 0; ctx.predBonus = extra.predBonus || 0; }
+    return ctx;
+  }
+
+  /* Prognoza „co-jeśli” — bez mutacji i zdarzeń, ale z koewolucją i trudnością. */
+  function forecast(data, state, lineage) {
+    var env = currentTurnEnv(data, state);
+    if (!env) return null;
+    var d = computeDynamics(data, env, lineage, contextFor(data, state));
+    var pop = lineage.population;
+    var births = Math.round(pop * d.birthRate);
+    var predD = Math.round(pop * d.predationLossRate);
+    var starvD = Math.round(pop * d.starvationLossRate);
+    var proj = Math.max(0, pop + births - predD - starvD);
+    var cat = env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === lineage.niche) ? env.catastrophe : null;
+    return { energy: round1(d.energy), predationPressure: round1(d.predationPressure),
+      births: births, predationDeaths: predD, starvationDeaths: starvD,
+      projectedPop: proj, delta: proj - pop, catastrophe: cat };
+  }
+
+  // ---------- Symulacja tury ----------
+  function simulateTurn(data, state, rng) {
+    rng = rng || Math.random;
+    if (state.status !== 'playing') return { state: state, report: null };
+    var n = clone(state);
+    var era = data.ERAS[n.eraIndex];
+    var env = era.turns[n.turn];
+    var diff = difficultyOf(data, n);
+
+    var knowledge = [];
+    var lineReports = [];
+    var totalEp = 0, anyAlive = false;
+
+    // Pozytywne zdarzenie losowe (gdy brak katastrofy).
+    var event = null;
+    if (!env.catastrophe && rng() < 0.22 && data.POSITIVE_EVENTS.length) {
+      event = data.POSITIVE_EVENTS[Math.floor(rng() * data.POSITIVE_EVENTS.length)];
+      knowledge.push(event.knowledge || 'events');
+    }
+    var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
+    var ctx = contextFor(data, n, ctxExtra);
+
+    aliveLineages(n).forEach(function (l) {
+      var r = simulateLineage(data, n, l, env, rng, knowledge, ctx, diff);
+      lineReports.push(r); totalEp += r.epGain; if (l.alive) anyAlive = true;
+    });
+    if (anyAlive) totalEp += 12;
+    n.ep += totalEp;
+
+    // Koewolucja: presja drapieżników „dogania” dobrze bronione linie.
+    var target = Math.max(0, (maxDefense(n) - data.BASE_STATS.defense) * 0.7) * diff.coevo;
+    n.predatorLevel = clamp((n.predatorLevel || 0) + (target - (n.predatorLevel || 0)) * 0.35, 0, 12);
+    if (n.predatorLevel > 2) unlockKnowledge(n, 'coevolution');
+
+    if (env.catastrophe) knowledge.push(env.catastrophe.knowledge || 'extinction');
+    knowledge.forEach(function (k) { unlockKnowledge(n, k); });
+
+    var prevEraIndex = n.eraIndex;
+    n.turn += 1;
+    var eraChanged = false;
+    if (n.turn >= era.turns.length) {
+      if (n.eraIndex < data.ERAS.length - 1) { n.eraIndex += 1; n.turn = 0; eraChanged = true; unlockKnowledge(n, 'milestone'); }
+      else n.eraIndex = data.ERAS.length;
+    }
+    n.status = evaluateStatus(n, data);
+
+    var report = {
+      eraIndex: prevEraIndex, eraName: era.name, turnIndex: state.turn,
+      envTitle: env.title, envNote: env.note, climate: env.climate,
+      catastrophe: env.catastrophe || null,
+      event: event ? { name: event.name, desc: event.desc } : null,
+      lineReports: lineReports, epGain: totalEp, epBase: anyAlive ? 12 : 0,
+      predatorLevel: round1(n.predatorLevel),
+      totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
+      intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
+      newEraName: eraChanged ? data.ERAS[n.eraIndex].name : null,
+      knowledge: dedupe(knowledge), status: n.status
+    };
+    n.history.push(report);
+    return { state: n, report: report };
+  }
+
+  function simulateLineage(data, n, l, env, rng, knowledge, ctx, diff) {
+    var events = [];
+    var mut = rollMutation(l, rng);
+    if (mut) {
+      events.push((mut.beneficial ? 'Korzystna' : 'Szkodliwa') + ' mutacja: ' + statLabel(mut.key) + ' ' + (mut.delta > 0 ? '+1' : '-1') + '.');
+      knowledge.push(mut.knowledge);
+    }
+    var popBefore = l.population;
+    var d = computeDynamics(data, env, l, ctx);
+    var births = Math.round(popBefore * d.birthRate);
+    var predationDeaths = Math.round(popBefore * d.predationLossRate);
+    var starvationDeaths = Math.round(popBefore * d.starvationLossRate);
+    var pop = popBefore + births - predationDeaths - starvationDeaths;
+
+    var catDeaths = 0;
+    if (env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === l.niche)) {
+      var sev = clamp(env.catastrophe.severity * diff.catMult, 0, 0.95);
+      catDeaths = Math.round(Math.max(0, pop) * sev);
+      pop -= catDeaths;
+      events.push('Katastrofa (' + env.catastrophe.name + ') — ciężkie straty.');
+    }
+
+    pop = Math.max(0, Math.round(pop));
+    l.population = pop; l.popHistory.push(pop);
+    if (pop > l.peakPopulation) l.peakPopulation = pop;
+
+    if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
+    if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
+    if (env.climate === 'zimno') knowledge.push('cold');
+    if (l.niche !== 'woda') knowledge.push('niche');
+
+    if (pop <= 0 && l.alive) {
+      l.alive = false; l.extinctGlobalTurn = globalTurn(data, n.eraIndex, n.turn) + 1;
+      events.push('Ta linia wymarła.');
+    }
+
+    // Rozbicie EP (P1) — czytelne, skąd pochodzą punkty.
+    var growth = pop - popBefore;
+    var nicheBonus = (pop > 0) ? (data.NICHES[l.niche].epBonus || 0) : 0;
+    var bd = {
+      growth: pop > 0 ? Math.max(0, Math.floor(growth / 15)) : 0,
+      population: pop > 0 ? Math.floor(pop / 150) : 0,
+      intelligence: pop > 0 ? Math.floor(lstat(l, 'intelligence') / 2) : 0,
+      niche: nicheBonus
+    };
+    var epGain = bd.growth + bd.population + bd.intelligence + bd.niche;
+
+    return {
+      lineageId: l.id, name: l.name, niche: l.niche,
+      popBefore: popBefore, popAfter: pop,
+      births: births, predationDeaths: predationDeaths, starvationDeaths: starvationDeaths, catDeaths: catDeaths,
+      energy: round1(d.energy), intelligence: lstat(l, 'intelligence'),
+      epGain: epGain, epBreakdown: bd, alive: l.alive, events: events
+    };
+  }
+
+  function evaluateStatus(n, data) {
+    if (totalPopulation(n) <= 0) return 'lost';
+    if (maxIntelligence(n) >= n.intelligenceGoal) return 'won';
+    if (n.eraIndex >= data.ERAS.length) return 'survived';
+    return 'playing';
+  }
+
+  function statLabel(k) {
+    return ({ feeding: 'odżywianie', defense: 'obrona', reproduction: 'rozród',
+      mobility: 'mobilność', metabolism: 'metabolizm', intelligence: 'inteligencja' })[k] || k;
+  }
+
+  return {
+    createInitialState: createInitialState,
+    currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
+    difficultyOf: difficultyOf,
+    getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,
+    totalPopulation: totalPopulation, maxIntelligence: maxIntelligence, maxDefense: maxDefense,
+    setActiveLineage: setActiveLineage,
+    availableNiches: availableNiches, canMigrate: canMigrate, migrateLineage: migrateLineage,
+    traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
+    buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
+    forecast: forecast, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
+    _internals: { rollMutation: rollMutation, clamp: clamp, computeDynamics: computeDynamics }
+  };
+});
+
+</script>
+  <script>
+/*
+ * ui.js — kontroler interfejsu.
+ * Spina dane (GameData), silnik (Engine) i i18n (GameI18n) z DOM.
+ * Logika gry jest w silniku; tutaj render, zdarzenia, zapis lokalny,
+ * cofanie (tryb nauczyciela), samouczek i prognoza „co-jeśli”.
+ */
+(function () {
+  'use strict';
+
+  var DATA = window.GameData;
+  var Engine = window.Engine;
+  var T = window.GameI18n.t;
+  var SAVE_KEY = 'ewolucja.save.v4';
+  var TUTORIAL_KEY = 'ewolucja.tutorialDone';
+
+  var state = null;
+  var undoStack = [];
+  var UNDO_LIMIT = 50;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    screenStart: $('screen-start'), screenGame: $('screen-game'), screenEnd: $('screen-end'),
+    formStart: $('form-start'), speciesInput: $('species-name'), introGoal: $('intro-goal'),
+    scenarioCards: $('scenario-cards'),
+    ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
+    timeline: $('era-timeline'),
+    lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
+    btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
+    speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
+    sparkline: $('sparkline'), forecastBody: $('forecast-body'),
+    statsList: $('stats-list'),
+    envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
+    traits: $('traits-container'),
+    btnSimulate: $('btn-simulate'), btnUndo: $('btn-undo'),
+    modalReport: $('modal-report'), reportEra: $('report-era'), reportEvent: $('report-event'), reportBody: $('report-body'),
+    reportKnowledge: $('report-knowledge'), btnReportClose: $('btn-report-close'),
+    modalCodex: $('modal-codex'), codexBody: $('codex-body'), btnCodexClose: $('btn-codex-close'),
+    modalTree: $('modal-tree'), treeContainer: $('tree-container'), btnTreeClose: $('btn-tree-close'),
+    modalSpeciate: $('modal-speciate'), formSpeciate: $('form-speciate'),
+    speciateName: $('speciate-name'), speciateHint: $('speciate-hint'), btnSpeciateCancel: $('btn-speciate-cancel'),
+    modalConfirm: $('modal-confirm'), confirmMessage: $('confirm-message'),
+    btnConfirmYes: $('btn-confirm-yes'), btnConfirmNo: $('btn-confirm-no'),
+    endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
+    endStats: $('end-stats'), btnPlayAgain: $('btn-play-again'), btnOpenCodexEnd: $('btn-open-codex-end'),
+    btnSummary: $('btn-summary'),
+    modalSummary: $('modal-summary'), summaryText: $('summary-text'), btnSummaryClose: $('btn-summary-close'),
+    btnSummaryCopy: $('btn-summary-copy'), btnSummaryDownload: $('btn-summary-download'),
+    btnCodex: $('btn-codex'), btnRestart: $('btn-restart'),
+    tutorial: $('tutorial'), tutorialProgress: $('tutorial-progress'),
+    tutorialTitle: $('tutorial-title'), tutorialText: $('tutorial-text'),
+    btnTutorialSkip: $('btn-tutorial-skip'), btnTutorialNext: $('btn-tutorial-next')
+  };
+
+  var STAT_META = [
+    { key: 'feeding', label: 'Odżywianie' }, { key: 'defense', label: 'Obrona' },
+    { key: 'reproduction', label: 'Rozród' }, { key: 'mobility', label: 'Mobilność' },
+    { key: 'metabolism', label: 'Metabolizm' }, { key: 'intelligence', label: 'Inteligencja' }
+  ];
+
+  // ===================== Zapis / wczytanie =====================
+  function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+  function loadSaved() {
+    try {
+      var s = JSON.parse(localStorage.getItem(SAVE_KEY));
+      return (s && s.version === 4 && s.status === 'playing') ? s : null;
+    } catch (e) { return null; }
+  }
+  function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+  // ===================== Cofanie =====================
+  function pushUndo() { undoStack.push(JSON.stringify(state)); if (undoStack.length > UNDO_LIMIT) undoStack.shift(); }
+  function onUndo() { if (!undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); }
+  function updateUndoButton() {
+    el.btnUndo.disabled = (undoStack.length === 0);
+    el.btnUndo.textContent = '↶ Cofnij' + (undoStack.length ? ' (' + undoStack.length + ')' : '') + ' — tryb nauczyciela';
+  }
+
+  function showScreen(name) {
+    el.screenStart.hidden = name !== 'start';
+    el.screenGame.hidden = name !== 'game';
+    el.screenEnd.hidden = name !== 'end';
+  }
+
+  function newGame(speciesName, opts) {
+    state = Engine.createInitialState(DATA, speciesName, opts || {});
+    undoStack = [];
+    save();
+    showScreen('game');
+    renderAll();
+    maybeStartTutorial();
+  }
+
+  function scenarioOpts(sc) {
+    return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp,
+      goal: sc.goal, startTraits: sc.startTraits, scenarioId: sc.id };
+  }
+  function renderScenarios() {
+    el.scenarioCards.innerHTML = '';
+    DATA.SCENARIOS.forEach(function (sc) {
+      var diff = DATA.DIFFICULTIES[sc.difficulty];
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'scenario-card';
+      card.innerHTML = '<span class="scenario-icon">' + sc.icon + '</span>' +
+        '<span class="scenario-name">' + sc.name + '</span>' +
+        '<span class="scenario-diff">' + diff.label + ' · cel int. ' + (sc.goal != null ? sc.goal : diff.goal) + '</span>' +
+        '<span class="scenario-intro">' + sc.intro + '</span>';
+      card.addEventListener('click', function () {
+        newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
+      });
+      el.scenarioCards.appendChild(card);
+    });
+  }
+
+  // ===================== Render — pasek stanu =====================
+  function renderStatus() {
+    setAnimated(el.ep, state.ep);
+    setAnimated(el.pop, Engine.totalPopulation(state));
+    var era = Engine.currentEra(DATA, state);
+    var tno = Math.min(state.turn + 1, era.turns.length);
+    el.era.textContent = era.name + ' ' + tno + '/' + era.turns.length;
+    el.era.title = era.dates || '';
+    el.intel.textContent = Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal;
+  }
+  function setAnimated(node, value) {
+    if (node.textContent !== String(value)) {
+      node.textContent = value;
+      node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash');
+    }
+  }
+
+  // ===================== Render — oś czasu =====================
+  function renderTimeline() {
+    var era = Engine.currentEra(DATA, state);
+    el.timeline.innerHTML = '';
+    era.turns.forEach(function (t, i) {
+      var step = document.createElement('div');
+      step.className = 'era-step';
+      if (i < state.turn) step.classList.add('done');
+      if (i === state.turn) step.classList.add('current');
+      if (t.catastrophe) step.classList.add('catastrophe');
+      step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '');
+      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? '☄️' : '') + '</span>' +
+        t.title.split(' — ')[0];
+      el.timeline.appendChild(step);
+    });
+  }
+
+  // ===================== Render — linie / nisze =====================
+  function nicheIcon(n) { return (DATA.NICHES[n] && DATA.NICHES[n].icon) || '🌊'; }
+  function nicheLabel(n) { return (DATA.NICHES[n] && DATA.NICHES[n].label) || n; }
+  function renderLineageBar() {
+    el.lineageChips.innerHTML = '';
+    state.lineages.forEach(function (l) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'lineage-chip';
+      if (!l.alive) chip.classList.add('extinct');
+      if (l.id === state.activeLineageId) chip.classList.add('active');
+      chip.disabled = !l.alive;
+      chip.innerHTML = (l.alive ? nicheIcon(l.niche) + ' ' : '🦴 ') + escapeHtml(l.name) +
+        '<span class="lineage-chip-pop">' + (l.alive ? l.population : 'wymarła') + '</span>';
+      if (l.alive) chip.addEventListener('click', function () { onSelectLineage(l.id); });
+      el.lineageChips.appendChild(chip);
+    });
+
+    var can = Engine.canSpeciate(DATA, state);
+    el.btnSpeciate.disabled = !can.ok || state.status !== 'playing';
+    el.btnSpeciate.title = can.ok ? 'Rozdziel aktywną linię (koszt ' + DATA.SPECIATION_COST + ' EP)' : can.error;
+
+    renderNicheButtons();
+  }
+  // Przyciski nisz — pokazują wszystkie nisze; aktywna wyróżniona, dostępne klikalne.
+  function renderNicheButtons() {
+    var a = Engine.getActiveLineage(state);
+    el.nicheButtons.innerHTML = '';
+    Object.keys(DATA.NICHES).forEach(function (key) {
+      var cfg = DATA.NICHES[key];
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'niche-btn' + (a.niche === key ? ' current' : '');
+      btn.innerHTML = cfg.icon + ' ' + cfg.label;
+      if (a.niche === key) {
+        btn.disabled = true; btn.title = 'Aktualna nisza';
+      } else {
+        var can = Engine.canMigrate(DATA, state, a, key);
+        btn.disabled = !can.ok || state.status !== 'playing';
+        btn.title = can.ok ? 'Migruj do niszy: ' + cfg.label : can.error;
+        if (can.ok) btn.addEventListener('click', function () { onMigrateTo(key); });
+      }
+      el.nicheButtons.appendChild(btn);
+    });
+  }
+  function onSelectLineage(id) {
+    state = Engine.setActiveLineage(state, id); save();
+    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv();
+  }
+  function onMigrateTo(niche) {
+    var a = Engine.getActiveLineage(state);
+    var res = Engine.migrateLineage(DATA, state, a.id, niche);
+    if (!res.ok) { flash(res.error); return; }
+    pushUndo(); state = res.state; save();
+    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); updateUndoButton();
+  }
+
+  // ===================== Render — aktywna linia =====================
+  function renderActiveLineage() {
+    var l = Engine.getActiveLineage(state);
+    el.speciesName.textContent = l.name;
+    el.speciesNiche.innerHTML = 'Nisza: <strong>' + nicheIcon(l.niche) + ' ' + nicheLabel(l.niche) + '</strong>';
+    renderStats(l);
+    renderSparkline(l);
+  }
+  function renderStats(lineage) {
+    el.statsList.innerHTML = '';
+    STAT_META.forEach(function (m) {
+      var val = lineage.stats[m.key];
+      var pct = Math.max(0, Math.min(100, (val / 20) * 100));
+      var li = document.createElement('li');
+      li.className = 'stat-row';
+      li.innerHTML = '<span class="stat-name">' + m.label + '</span>' +
+        '<span class="stat-bar"><span class="stat-fill ' + m.key + '" style="width:' + pct + '%"></span></span>' +
+        '<span class="stat-num">' + val + '</span>';
+      el.statsList.appendChild(li);
+    });
+  }
+
+  // ===================== Render — wykres populacji =====================
+  function renderSparkline(lineage) {
+    var d = lineage.popHistory, w = 260, h = 46, pad = 4;
+    if (!d || d.length < 2) {
+      el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h +
+        '"><line x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) +
+        '" stroke="var(--line)"/></svg>';
+      return;
+    }
+    var max = Math.max.apply(null, d), min = Math.min.apply(null, d), range = Math.max(1, max - min);
+    var stepX = (w - 2 * pad) / (d.length - 1);
+    var pts = d.map(function (v, i) {
+      return Math.round(pad + i * stepX) + ',' + Math.round((h - pad) - ((v - min) / range) * (h - 2 * pad));
+    });
+    var last = pts[pts.length - 1].split(',');
+    var area = 'M' + pad + ',' + (h - pad) + ' L' + pts.join(' L') + ' L' + (w - pad) + ',' + (h - pad) + ' Z';
+    el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
+      '<path d="' + area + '" fill="var(--brand)" opacity="0.12"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="var(--brand)"/></svg>';
+  }
+
+  // ===================== Render — prognoza (co-jeśli) =====================
+  function renderForecast(previewTrait) {
+    var l = Engine.getActiveLineage(state);
+    var base = Engine.forecast(DATA, state, l);
+    if (!base) { el.forecastBody.innerHTML = '<span class="forecast-none">Era dobiega końca.</span>'; return; }
+
+    var deltaClass = base.delta >= 0 ? 'pos' : 'neg';
+    var html = '<div class="forecast-row"><span>Populacja</span><span class="fc ' + deltaClass + '">' +
+      (base.delta >= 0 ? '+' : '') + base.delta + ' → ' + base.projectedPop + '</span></div>';
+    html += '<div class="forecast-row"><span>Bilans energii</span><span class="fc ' +
+      (base.energy >= 0 ? 'pos' : 'neg') + '">' + base.energy + '</span></div>';
+
+    if (previewTrait) {
+      var clonel = JSON.parse(JSON.stringify(l));
+      for (var k in previewTrait.effects) clonel.stats[k] = (clonel.stats[k] || 0) + previewTrait.effects[k];
+      var withT = Engine.forecast(DATA, state, clonel);
+      var diff = withT.delta - base.delta;
+      html += '<div class="forecast-preview"><strong>Z cechą „' + escapeHtml(previewTrait.name) + '”:</strong> ' +
+        'populacja ' + (withT.delta >= 0 ? '+' : '') + withT.delta +
+        ' <span class="fc ' + (diff >= 0 ? 'pos' : 'neg') + '">(' + (diff >= 0 ? '+' : '') + diff + ')</span></div>';
+    }
+
+    if (base.catastrophe) {
+      html += '<div class="forecast-warn">☄️ Uwaga: nadchodzi katastrofa (' +
+        escapeHtml(base.catastrophe.name) + ') — uderzy w niszę ' +
+        (base.catastrophe.niche === 'all' ? 'wszystkich' : nicheLabel(base.catastrophe.niche)) + '.</div>';
+    }
+    el.forecastBody.innerHTML = html;
+  }
+
+  // ===================== Render — środowisko =====================
+  function renderEnv() {
+    var env = Engine.currentTurnEnv(DATA, state);
+    if (!env) {
+      el.envName.textContent = 'Era dobiega końca';
+      el.envNote.textContent = ''; el.envStats.innerHTML = ''; el.envCatastrophe.hidden = true;
+      return;
+    }
+    el.envName.textContent = env.title;
+    el.envNote.textContent = env.note;
+    var a = Engine.getActiveLineage(state);
+    var cfg = DATA.NICHES[a.niche];
+    var nicheEnv = cfg.land ? env.land
+      : { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
+    el.envStats.innerHTML = chip('Klimat: ' + climateLabel(env.climate)) + chip('Tlen: ' + env.oxygen) +
+      chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food)) +
+      chip('Drapieżniki: ' + Math.round(nicheEnv.predators));
+    if (env.catastrophe) {
+      el.envCatastrophe.hidden = false;
+      var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
+      el.envCatastrophe.textContent = '☄️ ' + env.catastrophe.name + ' — niszczy niszę ' + cn + '!';
+    } else el.envCatastrophe.hidden = true;
+  }
+  function chip(t) { return '<li>' + t + '</li>'; }
+  function climateLabel(c) { return c === 'zimno' ? '❄️ zimno' : (c === 'cieplo' ? '☀️ ciepło' : '⛅ umiarkowanie'); }
+
+  // ===================== Render — drzewo cech =====================
+  function renderTraits() {
+    el.traits.innerHTML = '';
+    var lineage = Engine.getActiveLineage(state);
+    Object.keys(DATA.CATEGORIES).forEach(function (catKey) {
+      var inCat = DATA.TRAITS.filter(function (t) { return t.category === catKey; });
+      if (!inCat.length) return;
+      var section = document.createElement('div');
+      section.className = 'trait-category';
+      var h3 = document.createElement('h3');
+      h3.textContent = (DATA.CATEGORY_ICONS[catKey] ? DATA.CATEGORY_ICONS[catKey] + ' ' : '') + DATA.CATEGORIES[catKey];
+      section.appendChild(h3);
+      var grid = document.createElement('div'); grid.className = 'trait-grid';
+      inCat.forEach(function (trait) { grid.appendChild(renderTraitCard(trait, lineage)); });
+      section.appendChild(grid);
+      el.traits.appendChild(section);
+    });
+  }
+  function renderTraitCard(trait, lineage) {
+    var status = Engine.traitStatus(state, trait);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'trait ' + status + (trait.path === 'intelligence' ? ' path-intel' : '');
+    btn.dataset.traitId = trait.id;
+    btn.disabled = (status !== 'available') || state.status !== 'playing';
+
+    var costLabel;
+    if (status === 'owned') costLabel = '✓ zdobyta';
+    else if (status === 'locked') costLabel = '🔒 zablokowana';
+    else if (status === 'era_locked') costLabel = '⏳ ' + DATA.ERAS[trait.minEra].name;
+    else costLabel = trait.cost + ' EP';
+
+    var extra = '';
+    if (status === 'locked') {
+      var missing = trait.requires.filter(function (id) { return lineage.traits.indexOf(id) === -1; });
+      extra = '<div class="trait-req">🔒 Najpierw zdobądź: <strong>' + reqNames(missing) +
+        '</strong> (koszt: ' + trait.cost + ' EP)</div>';
+    } else if (status === 'era_locked') {
+      extra = '<div class="trait-req">⏳ Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
+        '</strong> (koszt: ' + trait.cost + ' EP)</div>';
+    } else if (status === 'too_expensive') {
+      extra = '<div class="trait-req warn">Brakuje ' + (trait.cost - state.ep) + ' EP</div>';
+    }
+
+    var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">⭐</span> ' : '';
+    var ico = trait.icon ? trait.icon + ' ' : '';
+    btn.innerHTML = '<div class="trait-head"><span class="trait-name">' + star + ico + trait.name + '</span>' +
+      '<span class="trait-cost">' + costLabel + '</span></div>' +
+      '<div class="trait-desc">' + trait.desc + '</div>' +
+      '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
+      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + extra;
+
+    if (status === 'available' && state.status === 'playing') {
+      btn.addEventListener('click', function () { onBuyTrait(trait.id); });
+      btn.addEventListener('mouseenter', function () { renderForecast(trait); });
+      btn.addEventListener('mouseleave', function () { renderForecast(); });
+      btn.addEventListener('focus', function () { renderForecast(trait); });
+      btn.addEventListener('blur', function () { renderForecast(); });
+    }
+    return btn;
+  }
+  function renderEffects(effects) {
+    var html = '';
+    for (var k in effects) if (Object.prototype.hasOwnProperty.call(effects, k)) {
+      var v = effects[k];
+      html += '<span class="effect-chip ' + (v > 0 ? 'up' : 'down') + '">' + Engine.statLabel(k) + ' ' + (v > 0 ? '+' : '') + v + '</span>';
+    }
+    return html;
+  }
+  function reqNames(ids) {
+    return ids.map(function (id) { var t = DATA.TRAITS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; }).join(', ');
+  }
+
+  // ===================== Akcje =====================
+  function onBuyTrait(traitId) {
+    var res = Engine.buyTrait(DATA, state, traitId);
+    if (!res.ok) { flash(res.error); return; }
+    pushUndo(); state = res.state; save();
+    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); updateUndoButton();
+  }
+  function onSpeciate() {
+    var can = Engine.canSpeciate(DATA, state);
+    if (!can.ok) { flash(can.error); return; }
+    var base = Engine.getActiveLineage(state).name;
+    el.speciateHint.textContent = 'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + DATA.SPECIATION_COST +
+      ' EP). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie — możesz wysłać ją w inną niszę.';
+    el.speciateName.value = base + ' II';
+    openModal(el.modalSpeciate); el.speciateName.focus(); el.speciateName.select();
+  }
+  function confirmSpeciate() {
+    var base = Engine.getActiveLineage(state).name;
+    var name = (el.speciateName.value || '').trim() || (base + ' II');
+    var res = Engine.speciate(DATA, state, name);
+    closeModal(el.modalSpeciate);
+    if (!res.ok) { flash(res.error); return; }
+    pushUndo(); state = res.state; save(); renderAll();
+  }
+  function onSimulate() {
+    var res = Engine.simulateTurn(DATA, state);
+    if (!res.report) return;
+    pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
+  }
+  function renderAll() {
+    renderStatus(); renderTimeline(); renderLineageBar();
+    renderActiveLineage(); renderForecast(); renderEnv(); renderTraits(); updateUndoButton();
+    el.btnSimulate.disabled = (state.status !== 'playing');
+  }
+
+  // ===================== Raport tury =====================
+  function showReport(report) {
+    // Baner zmiany ery.
+    if (report.eraChanged) {
+      el.reportEra.hidden = false;
+      el.reportEra.innerHTML = '🏛️ Nowa era: <strong>' + report.newEraName + '</strong><br>' +
+        '<span class="report-era-milestone">' + eraMilestone(report.newEraName) + '</span>';
+    } else el.reportEra.hidden = true;
+
+    // Baner pozytywnego zdarzenia.
+    if (report.event) {
+      el.reportEvent.hidden = false;
+      el.reportEvent.textContent = '🍀 ' + report.event.name + ' — ' + report.event.desc;
+    } else el.reportEvent.hidden = true;
+
+    el.reportBody.innerHTML = '';
+    var multi = report.lineReports.length > 1;
+    report.lineReports.forEach(function (lr) {
+      var block = document.createElement('div'); block.className = 'report-lineage';
+      if (multi) {
+        var head = document.createElement('div'); head.className = 'report-lineage-head';
+        head.textContent = (lr.alive ? nicheIcon(lr.niche) + ' ' : '🦴 ') + lr.name;
+        block.appendChild(head);
+      }
+      lr.events.forEach(function (txt) {
+        var d = document.createElement('div'); d.className = 'report-event';
+        if (/Katastrofa/.test(txt)) d.className += ' danger';
+        d.textContent = txt; block.appendChild(d);
+      });
+      block.appendChild(line('Populacja', lr.popBefore + ' → ' + lr.popAfter, lr.popAfter >= lr.popBefore ? 'pos' : 'neg'));
+      if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos'));
+      if (lr.predationDeaths > 0) block.appendChild(line('Straty od drapieżników', '-' + lr.predationDeaths, 'neg'));
+      if (lr.starvationDeaths > 0) block.appendChild(line('Straty z głodu', '-' + lr.starvationDeaths, 'neg'));
+      if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg'));
+      block.appendChild(line('Inteligencja', lr.intelligence + ' / ' + report.intelligenceGoal, 'plain'));
+      // Rozbicie EP tej linii (skąd punkty).
+      if (lr.epGain > 0) {
+        var b = lr.epBreakdown;
+        var parts = [];
+        if (b.growth) parts.push('wzrost +' + b.growth);
+        if (b.population) parts.push('populacja +' + b.population);
+        if (b.intelligence) parts.push('inteligencja +' + b.intelligence);
+        if (b.niche) parts.push('nisza +' + b.niche);
+        var ep = document.createElement('div'); ep.className = 'report-epbreak';
+        ep.innerHTML = '<span>EP z tej linii: <strong>+' + lr.epGain + '</strong></span>' +
+          (parts.length ? '<span class="report-epparts">(' + parts.join(', ') + ')</span>' : '');
+        block.appendChild(ep);
+      }
+      el.reportBody.appendChild(block);
+    });
+    var sum = document.createElement('div'); sum.className = 'report-summary';
+    sum.appendChild(line('Łączna populacja', report.totalPopulation, 'plain'));
+    if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
+    sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
+    if (report.predatorLevel > 2) {
+      sum.appendChild(line('Presja drapieżników (koewolucja)', '↑ ' + report.predatorLevel, 'neg'));
+    }
+    el.reportBody.appendChild(sum);
+
+    el.reportKnowledge.innerHTML = '';
+    report.knowledge.forEach(function (key) {
+      var k = DATA.KNOWLEDGE[key]; if (!k) return;
+      var card = document.createElement('div'); card.className = 'knowledge-card';
+      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
+        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
+      el.reportKnowledge.appendChild(card);
+    });
+
+    el.btnReportClose.textContent = (state.status === 'playing') ? T('report.next') : T('report.summary');
+    openModal(el.modalReport);
+  }
+  function eraMilestone(name) {
+    var e = DATA.ERAS.filter(function (x) { return x.name === name; })[0];
+    return e ? e.milestone : '';
+  }
+  function line(label, value, tone) {
+    var d = document.createElement('div'); d.className = 'report-line';
+    var cls = tone === 'pos' ? 'num pos' : (tone === 'neg' ? 'num neg' : 'num');
+    d.innerHTML = '<span>' + label + '</span><span class="' + cls + '">' + value + '</span>';
+    return d;
+  }
+  function onReportClose() { closeModal(el.modalReport); if (state.status !== 'playing') showEnd(); }
+
+  // ===================== Drzewo życia =====================
+  function showTree() {
+    el.treeContainer.innerHTML = buildTreeSvg();
+    Array.prototype.forEach.call(el.treeContainer.querySelectorAll('[data-lineage]'), function (n) {
+      var id = n.getAttribute('data-lineage'); var lin = Engine.getLineage(state, id);
+      if (lin && lin.alive) {
+        n.style.cursor = 'pointer';
+        n.addEventListener('click', function () { onSelectLineage(id); closeModal(el.modalTree); });
+      }
+    });
+    openModal(el.modalTree);
+  }
+  function buildTreeSvg() {
+    var lineages = state.lineages, rowH = 46, topPad = 24, leftPad = 90, rightPad = 140, innerW = 620;
+    var maxT = Engine.totalTurns(DATA);
+    var nowT = Engine.globalTurn(DATA, state.eraIndex >= DATA.ERAS.length ? DATA.ERAS.length - 0 : state.eraIndex, state.turn);
+    var rows = {}, order = [], childrenOf = {};
+    lineages.forEach(function (l) { var p = l.parentId || '__root'; (childrenOf[p] = childrenOf[p] || []).push(l); });
+    function bornGT(l) { return Engine.globalTurn(DATA, l.bornEra, l.bornTurn); }
+    function dfs(l) { rows[l.id] = order.length; order.push(l); (childrenOf[l.id] || []).forEach(dfs); }
+    (childrenOf['__root'] || []).forEach(dfs);
+
+    var height = topPad * 2 + order.length * rowH;
+    var xOf = function (t) { return leftPad + (t / Math.max(1, maxT)) * innerW; };
+    var yOf = function (id) { return topPad + rows[id] * rowH + rowH / 2; };
+    var svg = '<svg viewBox="0 0 ' + (leftPad + innerW + rightPad) + ' ' + height + '" width="100%" role="img" aria-label="Drzewo życia">';
+
+    // znaczniki er na osi
+    var acc = 0;
+    DATA.ERAS.forEach(function (era) {
+      var x = xOf(acc);
+      svg += '<line x1="' + x + '" y1="' + (topPad - 8) + '" x2="' + x + '" y2="' + (height - topPad + 8) + '" stroke="var(--line)"/>';
+      svg += '<text x="' + (x + 4) + '" y="' + (topPad - 12) + '" font-size="11" fill="var(--ink-soft)">' + era.name + '</text>';
+      acc += era.turns.length;
+    });
+
+    order.forEach(function (l) {
+      var y = yOf(l.id), xStart = xOf(bornGT(l));
+      var endGT = (l.extinctGlobalTurn != null) ? l.extinctGlobalTurn : nowT;
+      var xEnd = xOf(endGT); if (xEnd - xStart < 10) xEnd = xStart + 10;
+      var color = l.alive ? 'var(--brand)' : 'var(--ink-soft)';
+      var isActive = (l.id === state.activeLineageId);
+      if (l.parentId) {
+        svg += '<line x1="' + xStart + '" y1="' + yOf(l.parentId) + '" x2="' + xStart + '" y2="' + y + '" stroke="var(--line)" stroke-width="2"/>';
+      }
+      svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
+        '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
+      svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
+        '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
+        '<text x="' + (xEnd + 10) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
+        escapeHtml(l.name) + (l.alive ? ' ' + nicheIcon(l.niche) + ' (' + l.population + ')' : ' †') + '</text></g>';
+    });
+    return svg + '</svg>';
+  }
+
+  // ===================== Ekran końcowy =====================
+  function showEnd() {
+    clearSave();
+    var s = state.status;
+    el.endEmblem.textContent = s === 'won' ? '🧠' : (s === 'survived' ? '🐾' : '🦴');
+    el.endTitle.textContent = s === 'won' ? 'Narodziny inteligencji!' :
+      (s === 'survived' ? 'Gatunek przetrwał wszystkie ery' : 'Wszystkie linie wygasły');
+    el.endSummary.textContent =
+      s === 'won'
+        ? 'Jedna z Twoich linii osiągnęła próg inteligencji — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
+        : s === 'survived'
+        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
+        : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
+    el.endStats.innerHTML = '';
+    endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
+    endStat('Liczba linii rozwojowych', state.lineages.length);
+    endStat('Szczytowa łączna populacja', state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0));
+    endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
+    endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
+    showScreen('end');
+  }
+  function endStat(label, value) {
+    var li = document.createElement('li'); li.innerHTML = '<span>' + label + '</span><strong>' + value + '</strong>';
+    el.endStats.appendChild(li);
+  }
+
+  // ===================== Eksport podsumowania =====================
+  function buildSummaryText() {
+    if (!state) return '';
+    var statusPl = state.status === 'won' ? 'Zwycięstwo (osiągnięto inteligencję)' :
+      (state.status === 'survived' ? 'Przetrwanie (bez rozumności)' : 'Wymarcie');
+    var sc = DATA.SCENARIOS.filter(function (x) { return x.id === state.scenario; })[0];
+    var diff = DATA.DIFFICULTIES[state.difficulty];
+    var L = ['EWOLUCJA — podsumowanie gry', '============================',
+      'Scenariusz: ' + (sc ? sc.name : state.scenario) + ' (trudność: ' + (diff ? diff.label : state.difficulty) + ')',
+      'Wynik: ' + statusPl,
+      'Najwyższa inteligencja: ' + Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal,
+      'Liczba linii rozwojowych: ' + state.lineages.length,
+      'Szczytowa łączna populacja: ' + state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0),
+      'Odkryte pojęcia w Kodeksie: ' + state.unlockedKnowledge.length, '', 'Linie rozwojowe:'];
+    state.lineages.forEach(function (l) {
+      L.push('  • ' + l.name + ' — ' + (l.alive ? 'żywa' : 'wymarła') +
+        ', nisza: ' + DATA.NICHES[l.niche].label +
+        ', inteligencja: ' + l.stats.intelligence +
+        ', cechy: ' + (l.traits.length ? l.traits.map(traitName).join(', ') : 'brak'));
+    });
+    L.push('', 'Odkryte pojęcia: ' + state.unlockedKnowledge.map(function (k) {
+      return DATA.KNOWLEDGE[k] ? DATA.KNOWLEDGE[k].title : k;
+    }).join('; '));
+    return L.join('\n');
+  }
+  function traitName(id) { var t = DATA.TRAITS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; }
+
+  function showSummary() {
+    el.summaryText.value = buildSummaryText();
+    openModal(el.modalSummary);
+  }
+  function copySummary() {
+    el.summaryText.select();
+    var okMsg = 'Skopiowano ✓';
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.summaryText.value).then(function () { flashBtn(el.btnSummaryCopy, okMsg); },
+          function () { legacyCopy(); });
+      } else legacyCopy();
+    } catch (e) { legacyCopy(); }
+    function legacyCopy() { try { document.execCommand('copy'); flashBtn(el.btnSummaryCopy, okMsg); } catch (e) {} }
+  }
+  function downloadSummary() {
+    try {
+      var blob = new Blob([buildSummaryText()], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'ewolucja-podsumowanie.txt';
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    } catch (e) { flashBtn(el.btnSummaryDownload, 'Pobieranie zablokowane — skopiuj tekst'); }
+  }
+  function flashBtn(btn, msg) { var p = btn.textContent; btn.textContent = msg; setTimeout(function () { btn.textContent = p; }, 1400); }
+
+  // ===================== Kodeks =====================
+  function showCodex() {
+    el.codexBody.innerHTML = '';
+    var unlocked = (state ? state.unlockedKnowledge : ['intro']), any = false;
+    Object.keys(DATA.KNOWLEDGE).forEach(function (key) {
+      if (unlocked.indexOf(key) === -1) return; any = true;
+      var k = DATA.KNOWLEDGE[key];
+      var card = document.createElement('div'); card.className = 'knowledge-card';
+      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
+        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
+      el.codexBody.appendChild(card);
+    });
+    if (!any) el.codexBody.innerHTML = '<p class="codex-empty">Kodeks jest jeszcze pusty — graj, aby odkrywać pojęcia.</p>';
+    openModal(el.modalCodex);
+  }
+
+  // ===================== Samouczek =====================
+  var tutorialSteps = [
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + DATA.INTELLIGENCE_GOAL + ' w ciągu trzech er.' },
+    { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
+    { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
+    { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️.' }
+  ];
+  var tutorialIdx = 0;
+  function maybeStartTutorial() {
+    var done; try { done = localStorage.getItem(TUTORIAL_KEY); } catch (e) { done = null; }
+    if (done) return;
+    tutorialIdx = 0; showTutorialStep(); el.tutorial.hidden = false;
+  }
+  function showTutorialStep() {
+    var s = tutorialSteps[tutorialIdx];
+    el.tutorialTitle.textContent = s.title;
+    el.tutorialText.textContent = s.text;
+    el.tutorialProgress.textContent = (tutorialIdx + 1) + ' / ' + tutorialSteps.length;
+    el.btnTutorialNext.textContent = (tutorialIdx === tutorialSteps.length - 1) ? T('tutorial.done') : T('tutorial.next');
+  }
+  function tutorialNext() {
+    if (tutorialIdx < tutorialSteps.length - 1) { tutorialIdx++; showTutorialStep(); }
+    else endTutorial();
+  }
+  function endTutorial() {
+    el.tutorial.hidden = true;
+    try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch (e) {}
+  }
+
+  // ===================== Modale =====================
+  var lastFocused = null;
+  function openModal(m) { lastFocused = document.activeElement; m.hidden = false; var f = m.querySelector('button, input'); if (f) f.focus(); }
+  function closeModal(m) { m.hidden = true; if (lastFocused && lastFocused.focus) lastFocused.focus(); }
+  function flash(msg) { var p = el.btnSimulate.textContent; el.btnSimulate.textContent = msg; setTimeout(function () { el.btnSimulate.textContent = p; }, 1500); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  var confirmCallback = null;
+  function openConfirm(msg, cb) { el.confirmMessage.textContent = msg; confirmCallback = cb; openModal(el.modalConfirm); }
+  function resolveConfirm(yes) { closeModal(el.modalConfirm); var cb = confirmCallback; confirmCallback = null; if (yes && cb) cb(); }
+
+  // ===================== Inicjalizacja =====================
+  function init() {
+    window.GameI18n.applyStatic(document);
+    el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
+      'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
+      'Rozwijaj układ nerwowy (⭐), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
+      'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
+
+    renderScenarios();
+    // Enter w polu nazwy startuje domyślny scenariusz (pełna ewolucja).
+    el.formStart.addEventListener('submit', function (e) {
+      e.preventDefault();
+      newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(DATA.SCENARIOS[0]));
+    });
+    el.btnSimulate.addEventListener('click', onSimulate);
+    el.btnUndo.addEventListener('click', onUndo);
+    el.btnSpeciate.addEventListener('click', onSpeciate);
+    el.btnTree.addEventListener('click', showTree);
+    el.btnReportClose.addEventListener('click', onReportClose);
+    el.btnCodex.addEventListener('click', showCodex);
+    el.btnCodexClose.addEventListener('click', function () { closeModal(el.modalCodex); });
+    el.btnTreeClose.addEventListener('click', function () { closeModal(el.modalTree); });
+    el.btnOpenCodexEnd.addEventListener('click', showCodex);
+    el.btnSummary.addEventListener('click', showSummary);
+    el.btnSummaryClose.addEventListener('click', function () { closeModal(el.modalSummary); });
+    el.btnSummaryCopy.addEventListener('click', copySummary);
+    el.btnSummaryDownload.addEventListener('click', downloadSummary);
+    el.formSpeciate.addEventListener('submit', function (e) { e.preventDefault(); confirmSpeciate(); });
+    el.btnSpeciateCancel.addEventListener('click', function () { closeModal(el.modalSpeciate); });
+    el.btnConfirmYes.addEventListener('click', function () { resolveConfirm(true); });
+    el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
+    el.btnTutorialNext.addEventListener('click', tutorialNext);
+    el.btnTutorialSkip.addEventListener('click', endTutorial);
+
+    function doRestart() { clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
+    el.btnRestart.addEventListener('click', function () {
+      if (state && state.status === 'playing') openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
+      else doRestart();
+    });
+    el.btnPlayAgain.addEventListener('click', function () { state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (!el.modalCodex.hidden) closeModal(el.modalCodex);
+      else if (!el.modalTree.hidden) closeModal(el.modalTree);
+      else if (!el.modalSummary.hidden) closeModal(el.modalSummary);
+      else if (!el.modalSpeciate.hidden) closeModal(el.modalSpeciate);
+      else if (!el.modalConfirm.hidden) resolveConfirm(false);
+    });
+    [el.modalCodex, el.modalTree, el.modalSpeciate, el.modalSummary].forEach(function (m) {
+      m.addEventListener('click', function (e) { if (e.target === m) closeModal(m); });
+    });
+
+    var saved = loadSaved();
+    if (saved) { state = saved; showScreen('game'); renderAll(); }
+    else showScreen('start');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+</script>
+</body>
+</html>

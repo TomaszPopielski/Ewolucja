@@ -22,6 +22,18 @@ w przeglądarce (Chrome, Firefox, Edge, Safari):
 Gra działa w pełni po stronie przeglądarki i zapisuje postęp lokalnie
 (`localStorage`) — można ją także używać offline.
 
+### Wersja jednoplikowa (najprościej do zagrania)
+
+W katalogu **`dist/ewolucja.html`** jest samowystarczalny plik — cały CSS i JavaScript
+wbudowane w środku, bez żadnych zależności. Wystarczy **otworzyć go dwuklikiem**
+(albo wysłać komuś jednym plikiem) i grać, także offline. Nie trzeba serwera.
+
+Plik powstaje ze źródeł poleceniem:
+
+```bash
+node build.js   # → dist/ewolucja.html
+```
+
 ## Jak grać
 
 1. Nazwij swój gatunek i rozpocznij grę.
