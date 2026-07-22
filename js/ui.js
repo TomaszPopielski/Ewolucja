@@ -16,6 +16,7 @@
   var state = null;
   var undoStack = [];
   var UNDO_LIMIT = 50;
+  var scene = null;   // kontroler sceny ekosystemu (render.js)
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {
@@ -27,6 +28,8 @@
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
     speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
+    creaturePortrait: $('creature-portrait'),
+    sceneCanvas: $('ecosystem-canvas'), sceneOverlay: $('scene-overlay'), sceneAlt: $('scene-alt'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -79,6 +82,8 @@
     el.screenStart.hidden = name !== 'start';
     el.screenGame.hidden = name !== 'game';
     el.screenEnd.hidden = name !== 'end';
+    // Canvas ma rozmiar 0 gdy ukryty — po pokazaniu ekranu gry przelicz wymiary.
+    if (name === 'game' && scene) { try { scene.resize(); } catch (e) {} }
   }
 
   function newGame(speciesName, opts) {
@@ -149,6 +154,7 @@
   // ===================== Render — linie / nisze =====================
   function nicheIcon(n) { return (DATA.NICHES[n] && DATA.NICHES[n].icon) || '🌊'; }
   function nicheLabel(n) { return (DATA.NICHES[n] && DATA.NICHES[n].label) || n; }
+  function nicheColor(n) { return (window.Render && window.Render.biome(n).body) || 'var(--brand)'; }
   function renderLineageBar() {
     el.lineageChips.innerHTML = '';
     state.lineages.forEach(function (l) {
@@ -208,8 +214,56 @@
     var l = Engine.getActiveLineage(state);
     el.speciesName.textContent = l.name;
     el.speciesNiche.innerHTML = 'Nisza: <strong>' + nicheIcon(l.niche) + ' ' + nicheLabel(l.niche) + '</strong>';
+    renderCreaturePortrait(l);
     renderStats(l);
     renderSparkline(l);
+    renderScene();
+  }
+
+  // ===================== Render — awatar stworzenia =====================
+  function renderCreaturePortrait(lineage) {
+    if (!el.creaturePortrait || !window.Render) return;
+    el.creaturePortrait.innerHTML = window.Render.creatureSvg(lineage, { size: 140 });
+  }
+
+  // ===================== Render — scena ekosystemu =====================
+  // Buduje opis świata aktywnej linii dla renderera (nisza, środowisko, populacja).
+  function sceneWorld() {
+    var l = Engine.getActiveLineage(state);
+    var env = Engine.currentTurnEnv(DATA, state);
+    var cfg = DATA.NICHES[l.niche] || DATA.NICHES.woda;
+    var food = 8, predators = 3, climate = 'umiarkowanie', oxygen = 10;
+    if (env) {
+      climate = env.climate; oxygen = env.oxygen;
+      if (cfg.land) { food = env.land.food; predators = env.land.predators; }
+      else { food = env.food * (cfg.foodMult || 1); predators = env.predators * (cfg.predMult || 1); }
+    }
+    return { niche: l.niche, traits: l.traits, population: l.alive ? l.population : 0,
+      climate: climate, oxygen: oxygen, food: food, predators: predators };
+  }
+  function renderScene() {
+    if (!scene) return;
+    var w = sceneWorld();
+    scene.setWorld(w);
+    renderSceneOverlay(w);
+    updateSceneAlt(w);
+  }
+  function renderSceneOverlay(w) {
+    if (!el.sceneOverlay) return;
+    var l = Engine.getActiveLineage(state);
+    var html = '<span class="scene-chip">' + nicheIcon(w.niche) + ' ' + nicheLabel(w.niche) + '</span>' +
+      '<span class="scene-chip">' + climateLabel(w.climate) + '</span>' +
+      '<span class="scene-chip pop">' + (l.alive ? '👥 ' + l.population : '🦴 wymarła') + '</span>';
+    var fc = Engine.forecast(DATA, state, l);
+    if (fc && fc.catastrophe) html += '<span class="scene-chip warn">☄️ ' + escapeHtml(fc.catastrophe.name) + '</span>';
+    el.sceneOverlay.innerHTML = html;
+  }
+  function updateSceneAlt(w) {
+    if (!el.sceneAlt) return;
+    var l = Engine.getActiveLineage(state);
+    el.sceneAlt.textContent = 'Scena: nisza ' + nicheLabel(w.niche) + ', klimat ' + w.climate +
+      ', tlen ' + Math.round(w.oxygen) + ', pokarm ' + Math.round(w.food) + ', drapieżniki ' + Math.round(w.predators) +
+      '. Populacja linii „' + l.name + '”: ' + (l.alive ? l.population + ' osobników.' : 'wymarła.');
   }
   function renderStats(lineage) {
     el.statsList.innerHTML = '';
@@ -401,9 +455,17 @@
     pushUndo(); state = res.state; save(); renderAll();
   }
   function onSimulate() {
+    var activeId = state.activeLineageId;
     var res = Engine.simulateTurn(DATA, state);
     if (!res.report) return;
-    pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
+    pushUndo(); state = res.state; save(); renderAll();
+    // Animacja wyniku tury w scenie, potem raport (pod reduced-motion od razu raport).
+    var lr = res.report.lineReports.filter(function (r) { return r.lineageId === activeId; })[0];
+    if (scene && !scene.isReduced() && lr) {
+      scene.playTurn(sceneWorld(), lr, res.report.catastrophe, function () { showReport(res.report); });
+    } else {
+      showReport(res.report);
+    }
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
@@ -521,6 +583,15 @@
     var yOf = function (id) { return topPad + rows[id] * rowH + rowH / 2; };
     var svg = '<svg viewBox="0 0 ' + (leftPad + innerW + rightPad) + ' ' + height + '" width="100%" role="img" aria-label="Drzewo życia">';
 
+    // pasy er w tle (naprzemienne) — czytelniejsza skala czasu
+    var accB = 0;
+    DATA.ERAS.forEach(function (era, i) {
+      var x1 = xOf(accB), x2 = xOf(accB + era.turns.length);
+      svg += '<rect x="' + x1 + '" y="' + (topPad - 8) + '" width="' + (x2 - x1) + '" height="' + (height - 2 * topPad + 16) +
+        '" fill="var(--ink)" opacity="' + (i % 2 ? 0.05 : 0.02) + '"/>';
+      accB += era.turns.length;
+    });
+
     // znaczniki er na osi
     var acc = 0;
     DATA.ERAS.forEach(function (era) {
@@ -534,14 +605,17 @@
       var y = yOf(l.id), xStart = xOf(bornGT(l));
       var endGT = (l.extinctGlobalTurn != null) ? l.extinctGlobalTurn : nowT;
       var xEnd = xOf(endGT); if (xEnd - xStart < 10) xEnd = xStart + 10;
-      var color = l.alive ? 'var(--brand)' : 'var(--ink-soft)';
+      var color = l.alive ? nicheColor(l.niche) : 'var(--ink-soft)';
       var isActive = (l.id === state.activeLineageId);
       if (l.parentId) {
         svg += '<line x1="' + xStart + '" y1="' + yOf(l.parentId) + '" x2="' + xStart + '" y2="' + y + '" stroke="var(--line)" stroke-width="2"/>';
       }
       svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
         '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
-      svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
+      var tip = escapeHtml(l.name) + ' — ' + (l.alive ? nicheLabel(l.niche) + ', populacja ' + l.population +
+        ', inteligencja ' + l.stats.intelligence : 'wymarła');
+      svg += '<g data-lineage="' + l.id + '"><title>' + tip + '</title>' +
+        '<circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
         '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
         '<text x="' + (xEnd + 10) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
         escapeHtml(l.name) + (l.alive ? ' ' + nicheIcon(l.niche) + ' (' + l.population + ')' : ' †') + '</text></g>';
@@ -689,6 +763,9 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
+    if (window.Render && el.sceneCanvas) {
+      try { scene = window.Render.createScene(el.sceneCanvas); } catch (e) { scene = null; }
+    }
     el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
       'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (⭐), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +

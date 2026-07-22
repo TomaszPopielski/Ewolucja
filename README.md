@@ -47,6 +47,7 @@ index.html         — struktura strony i ekranów
 css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, dostępność)
 js/data.js         — dane gry: cechy, era, karty wiedzy (konfiguracja)
 js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
+js/render.js       — warstwa wizualizacji: awatar stworzenia (SVG z cech) i scena ekosystemu (Canvas)
 js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
 test/engine.test.js — testy silnika
 ```
@@ -77,8 +78,14 @@ przechodnia świadomą strategią.
   do inteligencji oznaczona ⭐.
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
   każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
+- **Wizualizacja świata i populacji** — scena ekosystemu (Canvas): biom niszy,
+  atmosfera środowiska (klimat, tlen, pokarm, drapieżniki), rój populacji oraz
+  animacja wyniku tury (narodziny, straty, katastrofy) z poszanowaniem
+  `prefers-reduced-motion`.
+- **Proceduralny awatar gatunku** — sylwetka zwierzęcia składana z posiadanych
+  cech (oczy, szczęki, płetwy, kończyny, pancerz, mózg…) — widać, jak organizm ewoluuje.
 - **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny (żywe i
-  wymarłe gałęzie, oś er).
+  wymarłe gałęzie, oś er, pasy epok, kolory nisz).
 - **Katastrofy / wymierania masowe** (permskie, K–Pg, zlodowacenia) oraz
   **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).

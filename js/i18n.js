@@ -38,6 +38,7 @@
       'lineage.migrateToWater': '🌊 Wróć do wody',
 
       'species.title': 'Aktywna linia',
+      'species.avatar': 'Twój gatunek — sylwetka rośnie z cech',
       'species.popOverTime': 'Populacja w czasie',
       'species.forecast': 'Prognoza następnej tury',
       'species.envTitle': 'Środowisko następnej tury',
