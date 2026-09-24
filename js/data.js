@@ -18,8 +18,27 @@
 
   var START_POPULATION = 120;
 
-  var SPECIATION_COST = 12;
+  var SPECIATION_COST = 12;          // koszt pierwszej specjacji
+  var SPECIATION_COST_STEP = 8;      // +EP za każdą kolejną żywą linię
   var MIN_SPECIATION_POP = 60;
+
+  // Minimalna żywotna populacja: poniżej linia wymiera (wąskie gardło, dryf).
+  var MIN_VIABLE_POP = 12;
+  // Pojemność środowiska: ile osobników utrzyma 1 jednostka pokarmu w niszy.
+  var CAPACITY_PER_FOOD = 45;
+
+  // Ekonomia EP.
+  var EP_BASE = 8;                   // premia za przetrwanie tury
+  var EP_COLONIZE = 6;               // pierwsze zajęcie nowej niszy
+  var EP_CATASTROPHE_SURVIVED = 5;   // linia przetrwała uderzenie katastrofy
+  var DROP_TRAIT_COST = 5;           // odrzucenie cechy (narząd szczątkowy)
+  var QUIZ_EP = 5;                   // poprawna odpowiedź w quizie po erze
+  var MUTATION_OFFER_CHANCE = 0.45;  // szansa na ofertę mutacji po turze
+  var DRIFT_MUTATION_CHANCE = 0.15;  // spontaniczna mutacja (bez wyboru)
+  var MINOR_CATASTROPHE_CHANCE = 0.14;
+
+  // Zwycięstwo wymaga tej cechy (próg kultury) — gra toczy się do kenozoiku.
+  var WIN_TRAIT = 'tool_use';
 
   // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
   var DIFFICULTIES = {
@@ -85,7 +104,7 @@
     { id: 'shell', name: 'Pancerz', icon: '🐢', category: 'obrona', cost: 16, requires: [],
       effects: { defense: 4, mobility: -1, metabolism: 2 }, tradeoff: 'Świetna obrona kosztem ruchu i energii.',
       desc: 'Twardy pancerz zniechęca większość drapieżników.' },
-    { id: 'camouflage', name: 'Kamuflaż', icon: '🦎', category: 'obrona', cost: 14, requires: ['eyes'],
+    { id: 'camouflage', name: 'Kamuflaż', icon: '🍃', category: 'obrona', cost: 14, requires: ['eyes'],
       effects: { defense: 3 }, tradeoff: 'Zawodzi, gdy trzeba się aktywnie poruszać.',
       desc: 'Ubarwienie zlewające się z otoczeniem to obrona bez kosztu ruchu.' },
 
@@ -136,6 +155,156 @@
       effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja: wymaga mózgu, życia społecznego i ręki chwytnej.',
       desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' }
   ];
+
+  /*
+   * Kompromisy zależne od sytuacji (ZALOZENIA 4.3: „cecha korzystna w jednej
+   * epoce bywa obciążeniem w innej”). Warunek może zawierać: niche (lista nisz),
+   * climate (lista klimatów), foodBelow (pokarm w niszy poniżej progu),
+   * unlessTrait (nie działa, gdy linia ma daną cechę). Wszystkie pola muszą
+   * być spełnione. Efekty dodają się do statystyk tylko w tej sytuacji.
+   */
+  var TRAIT_CONDITIONS = {
+    filter_feeding: [
+      { foodBelow: 9, effects: { feeding: -2 }, note: 'Przy niedoborze planktonu filtrowanie nie działa' },
+      { niche: ['lad', 'powietrze'], effects: { feeding: -2 }, note: 'Poza wodą nie ma czego filtrować' }
+    ],
+    fins: [
+      { niche: ['lad', 'powietrze'], effects: { mobility: -2 }, note: 'Poza wodą płetwy są bezużyteczne' }
+    ],
+    lateral_line: [
+      { niche: ['lad', 'powietrze'], effects: { defense: -1, mobility: -1 }, note: 'Linia boczna działa tylko w wodzie' }
+    ],
+    limbs: [
+      { niche: ['woda'], effects: { mobility: -1 }, note: 'W otwartej wodzie kończyny przeszkadzają' },
+      { niche: ['lad'], effects: { feeding: 1 }, note: 'Na lądzie kończyny otwierają nowe żerowiska' }
+    ],
+    scales: [
+      { niche: ['lad'], effects: { defense: 1 }, note: 'Na lądzie łuski chronią przed wysychaniem' }
+    ],
+    shell: [
+      { niche: ['powietrze'], effects: { mobility: -2, defense: -1 }, note: 'Ciężki pancerz w locie to balast' }
+    ],
+    camouflage: [
+      { niche: ['powietrze'], effects: { defense: -2 }, note: 'W locie trudno się ukryć' },
+      { niche: ['przybrzeze'], effects: { defense: 1 }, note: 'Rafy i wodorosty to idealna kryjówka' }
+    ],
+    many_eggs: [
+      { niche: ['lad'], unlessTrait: 'amniotic_egg', effects: { reproduction: -2 }, note: 'Jaja bez skorupy wysychają na lądzie' }
+    ],
+    amniotic_egg: [
+      { niche: ['lad', 'powietrze'], effects: { reproduction: 1 }, note: 'Jajo lądowe rozkwita poza wodą' },
+      { niche: ['woda'], effects: { reproduction: -1 }, note: 'W wodzie skorupa jaja to zbędny koszt' }
+    ],
+    endothermy: [
+      { climate: ['zimno'], effects: { feeding: 1 }, note: 'W chłodzie stałocieplni żerują dalej' },
+      { climate: ['cieplo'], effects: { metabolism: 1 }, note: 'W upale utrzymanie temperatury kosztuje' }
+    ],
+    insulation: [
+      { climate: ['zimno'], effects: { defense: 1, metabolism: -1 }, note: 'Futro/pióra oszczędzają energię w zimnie' },
+      { climate: ['cieplo'], effects: { metabolism: 1 }, note: 'W upale izolacja grozi przegrzaniem' }
+    ],
+    flight: [
+      { niche: ['woda'], effects: { mobility: -2 }, note: 'Skrzydła w wodzie tylko przeszkadzają' }
+    ],
+    pack_hunting: [
+      { niche: ['lad'], effects: { feeding: 1 }, note: 'Na otwartym lądzie łowy grupowe są najskuteczniejsze' }
+    ],
+    grasping_hand: [
+      { niche: ['lad'], effects: { feeding: 1 }, note: 'Chwyt pomaga zdobywać owoce i narzędzia' }
+    ]
+  };
+  TRAITS.forEach(function (t) { if (TRAIT_CONDITIONS[t.id]) t.conditions = TRAIT_CONDITIONS[t.id]; });
+
+  /*
+   * Rywale (gatunki NPC) — dominujące grupy danej ery w każdej niszy. Konkurują
+   * o pokarm (odejmują `strength` od pokarmu niszy), rosną w siłę z każdą turą
+   * i słabną, gdy uderzy w nie katastrofa — wymierania otwierają nisze.
+   */
+  var RIVALS = {
+    paleozoik: {
+      woda: { name: 'Trylobity i ryby pancerne', icon: '🐟', strength: 1.5 },
+      przybrzeze: { name: 'Wielkoraki', icon: '🦂', strength: 1.5 },
+      lad: { name: 'Pierwsze stawonogi lądowe', icon: '🪲', strength: 0.5 },
+      powietrze: { name: 'Olbrzymie ważki', icon: '🪰', strength: 0.5 }
+    },
+    mezozoik: {
+      woda: { name: 'Ichtiozaury', icon: '🐬', strength: 2 },
+      przybrzeze: { name: 'Plezjozaury', icon: '🦕', strength: 1.5 },
+      lad: { name: 'Dinozaury', icon: '🦖', strength: 2.5 },
+      powietrze: { name: 'Pterozaury', icon: '🦇', strength: 1.5 }
+    },
+    kenozoik: {
+      woda: { name: 'Rekiny i walenie', icon: '🦈', strength: 2 },
+      przybrzeze: { name: 'Płetwonogie', icon: '🦭', strength: 1 },
+      lad: { name: 'Wielkie ssaki', icon: '🦣', strength: 2 },
+      powietrze: { name: 'Ptaki drapieżne', icon: '🦅', strength: 1.5 }
+    }
+  };
+  var RIVAL_GROWTH = 0.15;
+
+  // Zwiastuny — ogólnikowe sygnały pojawiające się turę przed katastrofą.
+  var OMENS = {
+    extinction: 'Niepokojące sygnały: skład oceanów i klimat zaczynają się zmieniać…',
+    minor: 'Coś wisi w powietrzu — lokalne środowisko staje się niestabilne.'
+  };
+
+  // Drobne, losowe katastrofy lokalne (dodają zmienności między rozgrywkami).
+  var MINOR_CATASTROPHES = [
+    { name: 'Lokalny wulkanizm', severity: 0.2, knowledge: 'events' },
+    { name: 'Susza', severity: 0.18, knowledge: 'events', niches: ['lad', 'powietrze'] },
+    { name: 'Zakwit toksycznych glonów', severity: 0.22, knowledge: 'events', niches: ['woda', 'przybrzeze'] },
+    { name: 'Epidemia', severity: 0.2, knowledge: 'events' }
+  ];
+
+  // Szablony ofert mutacji (gracz wybiera jedną lub odrzuca wszystkie).
+  var MUTATION_TEMPLATES = [
+    { kind: 'good', label: 'Korzystna', build: 'plus1' },
+    { kind: 'catch', label: 'Z haczykiem', build: 'plus2minus1' },
+    { kind: 'risky', label: 'Ryzykowna', build: 'brain' },
+    { kind: 'neutral', label: 'Cicha (neutralna)', build: 'none' }
+  ];
+
+  // Osiągnięcia / wyzwania.
+  var ACHIEVEMENTS = [
+    { id: 'first_land', icon: '🦶', name: 'Pierwszy krok', desc: 'Zajmij ląd jeszcze w paleozoiku.' },
+    { id: 'all_niches', icon: '🗺️', name: 'Kosmopolita', desc: 'Zajmij wszystkie cztery nisze (w dowolnym momencie gry).' },
+    { id: 'permian', icon: '☄️', name: 'Ocalały z Permu', desc: 'Przetrwaj wymieranie permskie bez utraty żadnej linii.' },
+    { id: 'kpg', icon: '🌋', name: 'Po asteroidzie', desc: 'Przetrwaj wymieranie K–Pg.' },
+    { id: 'diverse', icon: '🌳', name: 'Radiacja adaptacyjna', desc: 'Miej jednocześnie 4 żywe linie.' },
+    { id: 'phoenix', icon: '🐦‍🔥', name: 'Z popiołów', desc: 'Odbuduj linię z mniej niż 30 do ponad 150 osobników.' },
+    { id: 'flyer', icon: '🕊️', name: 'Podbój nieba', desc: 'Zajmij niszę powietrzną.' },
+    { id: 'vestigial', icon: '🦴', name: 'Narząd szczątkowy', desc: 'Odrzuć niepotrzebną cechę.' },
+    { id: 'scholar', icon: '🎓', name: 'Uczony', desc: 'Odpowiedz poprawnie na wszystkie pytania quizu po erze.' },
+    { id: 'pacifist', icon: '🕊', name: 'Bez pancerza', desc: 'Wygraj bez cechy Pancerz.' }
+  ];
+
+  // Quizy po erach (ZALOZENIA 6: mini-quizy, poprawna odpowiedź = bonus EP).
+  var QUIZZES = {
+    paleozoik: [
+      { q: 'Co jest źródłem nowej zmienności w populacji?', options: ['Mutacje', 'Wola zwierzęcia', 'Klimat'], answer: 0,
+        explain: 'Mutacje są losowe; dobór naturalny tylko „wybiera” spośród istniejących wariantów.' },
+      { q: 'Która cecha była kluczowa przy wyjściu kręgowców na ląd?', options: ['Pancerz', 'Kończyny', 'Lot'], answer: 1,
+        explain: 'Płetwy przekształcone w kończyny (np. Tiktaalik) pozwoliły poruszać się po lądzie.' },
+      { q: 'Wymieranie permskie uderzyło najmocniej w…', options: ['Organizmy morskie', 'Ptaki', 'Ssaki naczelne'], answer: 0,
+        explain: 'Zginęło ok. 90% gatunków morskich — ptaków i naczelnych jeszcze nie było.' }
+    ],
+    mezozoik: [
+      { q: 'Dlaczego jajo lądowe (owodniowe) było przełomem?', options: ['Jest większe', 'Uniezależnia rozród od wody', 'Chroni przed drapieżnikami'], answer: 1,
+        explain: 'Błony i skorupa chronią zarodek przed wyschnięciem — rozród nie wymaga już wody.' },
+      { q: 'Jaki jest główny koszt stałocieplności?', options: ['Wolniejszy ruch', 'Duże zużycie energii', 'Brak kolorów'], answer: 1,
+        explain: 'Utrzymanie stałej temperatury wymaga wielokrotnie więcej pokarmu.' },
+      { q: 'Co zakończyło erę dinozaurów (poza ptakami)?', options: ['Zlodowacenie', 'Uderzenie asteroidy', 'Ludzie'], answer: 1,
+        explain: 'Uderzenie asteroidy ~66 mln lat temu wywołało zimę uderzeniową i wymieranie K–Pg.' }
+    ],
+    kenozoik: [
+      { q: 'Czy ewolucja „dąży” do inteligencji?', options: ['Tak, to jej cel', 'Nie — to jedna z wielu dróg', 'Tylko u ssaków'], answer: 1,
+        explain: 'Ewolucja nie ma celu. Inteligencja rozwija się tam, gdzie przynosi przewagę większą niż jej koszt.' },
+      { q: 'Co najlepiej chroni grupę linii przed wymarciem?', options: ['Jedna wyspecjalizowana linia', 'Różnorodność nisz', 'Duży mózg'], answer: 1,
+        explain: 'Dywersyfikacja rozkłada ryzyko — katastrofa rzadko uderza we wszystkie nisze naraz.' },
+      { q: 'Narząd szczątkowy to…', options: ['Narząd, który utracił pierwotną funkcję', 'Nowy narząd', 'Narząd tylko u samców'], answer: 0,
+        explain: 'Np. kość ogonowa człowieka — ślad cechy przodków, która przestała być potrzebna.' }
+    ]
+  };
 
   function land(food, predators) { return { food: food, predators: predators }; }
 
@@ -219,11 +388,11 @@
   // Scenariusze lekcyjne (ZALOZENIA sekcja 8/6).
   var SCENARIOS = [
     { id: 'full', name: 'Pełna ewolucja', icon: '🧬', difficulty: 'normalny', startEra: 0,
-      intro: 'Klasyczna gra od prostego życia w morzu aż do gatunku rozumnego, przez trzy ery.' },
+      intro: 'Klasyczna gra od prostego życia w morzu aż do gatunku rozumnego, przez trzy ery. Wygrana wymaga progu inteligencji i używania narzędzi (kenozoik).' },
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 60, goal: 14, startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 44, goal: 14, startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -272,6 +441,23 @@
         'niedostosowane do nowych warunków — dywersyfikacja (wiele linii w różnych niszach) zwiększa ' +
         'szansę, że któraś przetrwa.',
       fossil: 'Wymieranie permskie (~252 mln lat temu) zgładziło ok. 90% gatunków morskich.' },
+    bottleneck: { icon: '⏳', title: 'Wąskie gardło populacji',
+      body: 'Bardzo mała populacja jest skrajnie narażona: przypadkowe zdarzenia (dryf genetyczny), ' +
+        'chów wsobny i pech mogą ją unicestwić, nawet gdy warunki się poprawią.',
+      fossil: 'Gepardy przeszły wąskie gardło ok. 10 tys. lat temu — do dziś mają bardzo małą zmienność genetyczną.' },
+    capacity: { icon: '⚖️', title: 'Pojemność środowiska',
+      body: 'Każda nisza wyżywi tylko określoną liczbę osobników. Gdy populacja się do niej zbliża, ' +
+        'rozród zwalnia, a nadmiar ginie z głodu. Nowe nisze to nowe zasoby.' },
+    competition: { icon: '🥊', title: 'Konkurencja',
+      body: 'Gatunki o podobnych potrzebach walczą o te same zasoby. Silny konkurent zmniejsza ilość pokarmu — ' +
+        'dlatego gatunki często „rozchodzą się” do różnych nisz.' },
+    vestigial: { icon: '🦴', title: 'Narządy szczątkowe',
+      body: 'Cechy, które przestały być potrzebne, zanikają — utrzymanie ich kosztuje. Ewolucja nie tylko ' +
+        'dodaje, ale też odbiera.',
+      fossil: 'Walenie mają w ciele szczątkowe kości miednicy — ślad po czworonożnych przodkach.' },
+    tradeoff: { icon: '⚖️', title: 'Kompromis zależy od środowiska',
+      body: 'Ta sama cecha bywa zaletą w jednym miejscu i obciążeniem w innym: płetwy w wodzie, ' +
+        'futro w zimnie. Wartość adaptacji zależy od warunków.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
         'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
@@ -279,7 +465,14 @@
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
-    SPECIATION_COST: SPECIATION_COST, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    MIN_VIABLE_POP: MIN_VIABLE_POP, CAPACITY_PER_FOOD: CAPACITY_PER_FOOD,
+    EP_BASE: EP_BASE, EP_COLONIZE: EP_COLONIZE, EP_CATASTROPHE_SURVIVED: EP_CATASTROPHE_SURVIVED,
+    DROP_TRAIT_COST: DROP_TRAIT_COST, QUIZ_EP: QUIZ_EP,
+    MUTATION_OFFER_CHANCE: MUTATION_OFFER_CHANCE, DRIFT_MUTATION_CHANCE: DRIFT_MUTATION_CHANCE,
+    MINOR_CATASTROPHE_CHANCE: MINOR_CATASTROPHE_CHANCE, WIN_TRAIT: WIN_TRAIT,
+    RIVALS: RIVALS, RIVAL_GROWTH: RIVAL_GROWTH, OMENS: OMENS, MINOR_CATASTROPHES: MINOR_CATASTROPHES,
+    MUTATION_TEMPLATES: MUTATION_TEMPLATES, ACHIEVEMENTS: ACHIEVEMENTS, QUIZZES: QUIZZES,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:

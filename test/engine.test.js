@@ -19,7 +19,8 @@ var det = function () { return 0.5; };
 
 function playThrough(plan, opts) {
   opts = opts || {};
-  var s = Engine.createInitialState(GameData, 'Bot', opts.init || {});
+  var init = opts.init || {}; if (init.seed == null) init.seed = 4242;
+  var s = Engine.createInitialState(GameData, 'Bot', init);
   var guard = 0;
   while (s.status === 'playing' && guard++ < 60) {
     var changed = true;
@@ -107,9 +108,9 @@ group('specjacja', function () {
 });
 
 group('katastrofa + trudność (mnożnik)', function () {
-  var s = Engine.createInitialState(GameData, 'X'); s.turn = 7; // Perm
+  var s = Engine.createInitialState(GameData, 'X', { seed: 7 }); s.turn = 7; // Perm
   var lrN = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
-  var h = Engine.createInitialState(GameData, 'X', { difficulty: 'trudny' }); h.turn = 7;
+  var h = Engine.createInitialState(GameData, 'X', { difficulty: 'trudny', seed: 7 }); h.turn = 7;
   var lrH = Engine.simulateTurn(GameData, h, noMut).report.lineReports[0];
   ok(lrN.catDeaths > 0, 'katastrofa uderza (' + lrN.catDeaths + ')');
   ok(lrH.catDeaths >= lrN.catDeaths, 'na trudnym katastrofa nie słabsza (' + lrH.catDeaths + ' ≥ ' + lrN.catDeaths + ')');
@@ -137,20 +138,129 @@ group('rozbicie EP w raporcie', function () {
   var s = Engine.createInitialState(GameData, 'X');
   var lr = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
   ok(lr.epBreakdown && typeof lr.epBreakdown.growth === 'number', 'raport zawiera rozbicie EP');
-  eq(lr.epBreakdown.growth + lr.epBreakdown.population + lr.epBreakdown.intelligence + lr.epBreakdown.niche, lr.epGain, 'składniki EP sumują się do epGain');
+  var b = lr.epBreakdown;
+  eq(b.growth + b.population + b.niche + b.catastrophe, lr.epGain, 'składniki EP linii sumują się do epGain');
+  var out = Engine.simulateTurn(GameData, Engine.createInitialState(GameData, 'X', { seed: 3 }), noMut).report;
+  var g = out.globalEp;
+  eq(out.lineReports[0].epGain + g.base + g.intelligence + g.colonize, out.epGain, 'EP globalne + linii = suma tury');
 });
 
 group('evaluateStatus', function () {
   var s = Engine.createInitialState(GameData, 'X'); active(s).population = 0;
   eq(Engine.evaluateStatus(s, GameData), 'lost', 'populacja 0 => lost');
   var s2 = Engine.createInitialState(GameData, 'X'); active(s2).stats.intelligence = s2.intelligenceGoal;
-  eq(Engine.evaluateStatus(s2, GameData), 'won', 'próg inteligencji => won');
+  eq(Engine.evaluateStatus(s2, GameData), 'playing', 'sam próg inteligencji bez narzędzi => gra trwa');
+  active(s2).traits.push(GameData.WIN_TRAIT);
+  eq(Engine.evaluateStatus(s2, GameData), 'won', 'próg inteligencji + używanie narzędzi => won');
+});
+
+
+group('świat — ziarno daje powtarzalny, a różne ziarna różny świat', function () {
+  var a = Engine.createInitialState(GameData, 'X', { seed: 11 });
+  var b = Engine.createInitialState(GameData, 'X', { seed: 11 });
+  var c = Engine.createInitialState(GameData, 'X', { seed: 12 });
+  eq(JSON.stringify(a.world), JSON.stringify(b.world), 'to samo ziarno => ten sam świat');
+  ok(JSON.stringify(a.world) !== JSON.stringify(c.world), 'inne ziarno => inny świat');
+  ok(a.world[0][7].catastrophe && /permsk/i.test(a.world[0][7].catastrophe.name), 'wymieranie permskie zostaje na historycznym miejscu');
+  var s5 = Engine.createInitialState(GameData, 'X', { seed: 11 }); s5.turn = 4;
+  eq(Engine.upcomingOmen(GameData, s5), null, 'brak zwiastuna, gdy za dwie tury spokojnie (tura 6 bez katastrofy)');
+  var s6 = Engine.createInitialState(GameData, 'X', { seed: 11 }); s6.turn = 6;
+  ok(typeof Engine.upcomingOmen(GameData, s6) === 'string', 'turę przed Permem pojawia się zwiastun');
+});
+
+group('symulacja jest deterministyczna przy danym ziarnie (cofanie odtwarza losowość)', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 99 });
+  var r1 = Engine.simulateTurn(GameData, s).state, r2 = Engine.simulateTurn(GameData, s).state;
+  eq(JSON.stringify(r1), JSON.stringify(r2), 'ten sam stan => ten sam wynik tury');
+});
+
+group('minimalna żywotna populacja (wąskie gardło)', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 }); active(s).population = Math.floor(GameData.MIN_VIABLE_POP / 3);
+  var out = Engine.simulateTurn(GameData, s, noMut);
+  eq(Engine.getLineage(out.state, 'L0').alive, false, 'zbyt mała populacja wymiera');
+  eq(out.state.status, 'lost', 'wymarcie jedynej linii => porażka');
+  ok(out.state.unlockedKnowledge.indexOf('bottleneck') !== -1, 'karta wiedzy: wąskie gardło');
+});
+
+group('pojemność środowiska hamuje wzrost', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 });
+  var env = Engine.currentTurnEnv(GameData, s);
+  var small = Engine._internals.computeDynamics(GameData, env, active(s), { nichePop: 100 });
+  var big = Engine._internals.computeDynamics(GameData, env, active(s), { nichePop: small.capacity * 1.3 });
+  ok(big.birthRate < small.birthRate, 'przy przeludnieniu mniej narodzin');
+  ok(big.capacityLossRate > 0, 'nadmiar ponad pojemność ginie');
+});
+
+group('kompromisy zależne od niszy i klimatu', function () {
+  var l = { niche: 'woda', stats: JSON.parse(JSON.stringify(GameData.BASE_STATS)), traits: ['fins'] };
+  var env = Engine.currentTurnEnv(GameData, Engine.createInitialState(GameData, 'X', { seed: 1 }));
+  eq(Engine.effectiveStats(GameData, l, env).stats.mobility, l.stats.mobility, 'płetwy w wodzie bez kary');
+  l.niche = 'lad';
+  eq(Engine.effectiveStats(GameData, l, env).stats.mobility, l.stats.mobility - 2, 'płetwy na lądzie: mobilność -2');
+  var cold = JSON.parse(JSON.stringify(env)); cold.climate = 'zimno';
+  var ins = { niche: 'lad', stats: JSON.parse(JSON.stringify(GameData.BASE_STATS)), traits: ['insulation'] };
+  ok(Engine.effectiveStats(GameData, ins, cold).notes.length > 0, 'izolacja działa w zimnie');
+});
+
+group('rywale i koewolucja per nisza', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 5 }); s.ep = 300;
+  ok(s.rivals.woda && s.rivals.woda.strength > 0, 'w wodzie jest rywal');
+  s = Engine.buyTrait(GameData, s, 'shell').state;
+  for (var i = 0; i < 3; i++) s = Engine.simulateTurn(GameData, s, noMut).state;
+  ok(s.predatorLevels.woda > 0, 'drapieżniki w wodzie doganiają pancerną linię');
+  eq(s.predatorLevels.lad, 0, 'na pustym lądzie presja nie rośnie');
+});
+
+group('specjacja — koszt rośnie z liczbą linii', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 }); s.ep = 200; active(s).population = 400;
+  var c1 = Engine.speciationCost(GameData, s);
+  s = Engine.speciate(GameData, s, 'B').state;
+  ok(Engine.speciationCost(GameData, s) > c1, 'druga specjacja droższa');
+});
+
+group('odrzucanie cech (narząd szczątkowy)', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 }); s.ep = 200;
+  s = Engine.buyTrait(GameData, s, 'fins').state; s = Engine.buyTrait(GameData, s, 'limbs').state;
+  ok(!Engine.dropTrait(GameData, s, 'fins').ok, 'nie można odrzucić płetw, gdy zależą od nich kończyny');
+  var mob = active(s).stats.mobility;
+  var r = Engine.dropTrait(GameData, s, 'limbs');
+  ok(r.ok, 'odrzucenie kończyn');
+  eq(active(r.state).stats.mobility, mob - 3, 'efekty cechy cofnięte');
+  ok(r.state.achievements.indexOf('vestigial') !== -1, 'osiągnięcie: narząd szczątkowy');
+});
+
+group('oferta mutacji — wybór i odrzucenie', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 });
+  s.mutationOffer = Engine._internals.buildMutationOffer(GameData, s, seeded([0.1, 0.5, 0.9, 0.3, 0.7, 0.2, 0.4]));
+  eq(s.mutationOffer.options.length, 3, 'trzy opcje');
+  var before = JSON.stringify(active(s).stats);
+  var r = Engine.chooseMutation(GameData, s, 0);
+  ok(r.ok && r.state.mutationOffer === null, 'wybór zamyka ofertę');
+  var rej = Engine.rejectMutation(GameData, s);
+  eq(JSON.stringify(active(rej.state).stats), before, 'odrzucenie nie zmienia statystyk');
+});
+
+group('quiz po erze i wynik punktowy', function () {
+  var s = Engine.createInitialState(GameData, 'X', { seed: 1 });
+  s.pendingQuiz = { eraId: 'paleozoik', answers: [] };
+  var ep0 = s.ep;
+  GameData.QUIZZES.paleozoik.forEach(function (q, i) { s = Engine.answerQuiz(GameData, s, i, q.answer).state; });
+  eq(s.ep, ep0 + GameData.QUIZ_EP * GameData.QUIZZES.paleozoik.length, 'poprawne odpowiedzi dają EP');
+  var f = Engine.finishQuiz(GameData, s);
+  ok(f.state.achievements.indexOf('scholar') !== -1, 'komplet poprawnych => osiągnięcie Uczony');
+  ok(Engine.computeScore(GameData, f.state).total > 0, 'wynik punktowy > 0');
+});
+
+group('bierność prowadzi do wymarcia', function () {
+  var lost = 0;
+  for (var i = 1; i <= 10; i++) { if (playThrough([], { init: { seed: i } }).status === 'lost') lost++; }
+  ok(lost >= 8, 'gra bez żadnych decyzji zwykle kończy się wymarciem (' + lost + '/10)');
 });
 
 group('pełna rozgrywka — skupiona strategia wygrywa (normalny)', function () {
-  var plan = ['eyes', 'scales', 'many_eggs', 'ganglia', 'fins', 'limbs', 'shell', 'jaws',
-    'brain', 'endothermy', 'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care'];
-  var s = playThrough(plan);
+  var plan = ['eyes', 'scales', 'many_eggs', 'ganglia', 'fins', 'limbs', 'jaws',
+    'brain', 'endothermy', 'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care', 'amniotic_egg'];
+  var s = playThrough(plan, { migrateLandWhenAble: true });
   eq(s.status, 'won', 'skupiona strategia wygrywa (int ' + Engine.maxIntelligence(s) + '/' + s.intelligenceGoal + ')');
 });
 

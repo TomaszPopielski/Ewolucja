@@ -5,19 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
   <title>Ewolucja — gra edukacyjna</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body>
+<body data-era="paleozoik">
   <a class="skip-link" href="#main">Przejdź do treści</a>
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">🧬</span>
+      <span class="brand-mark" id="brand-mark" aria-hidden="true"></span>
       <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
-    <nav class="topbar-actions">
-      <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex">Kodeks wiedzy</button>
-      <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
+    <nav class="topbar-actions" aria-label="Menu">
+      <button id="btn-codex" class="btn btn-ghost btn-nav" type="button"><span class="nav-ico" data-icon="book"></span><span class="nav-txt" data-i18n="nav.codex">Kodeks wiedzy</span></button>
+      <button id="btn-achievements" class="btn btn-ghost btn-nav" type="button"><span class="nav-ico" data-icon="trophy"></span><span class="nav-txt">Osiągnięcia</span></button>
+      <button id="btn-cb" class="btn btn-ghost btn-nav btn-toggle" type="button" aria-pressed="false" title="Tryb dla daltonistów: kolory bezpieczne i dodatkowe symbole ▲▼"><span class="nav-ico" data-icon="contrast"></span><span class="nav-txt">Daltonizm</span></button>
+      <button id="btn-present" class="btn btn-ghost btn-nav btn-toggle" type="button" aria-pressed="false" title="Tryb prezentacji: większe litery na tablicę, mniej szczegółów"><span class="nav-ico" data-icon="present"></span><span class="nav-txt">Tablica</span></button>
+      <button id="btn-restart" class="btn btn-ghost btn-nav" type="button"><span class="nav-ico" data-icon="restart"></span><span class="nav-txt" data-i18n="nav.newgame">Nowa gra</span></button>
     </nav>
   </header>
 
@@ -26,10 +32,11 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <div class="card intro-card">
+        <div class="intro-hero" id="intro-hero" aria-hidden="true"></div>
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
-          aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
+          aż do gatunku, który używa narzędzi. Wydawaj <strong>punkty ewolucji</strong> na cechy,
           zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
           <strong>dobór naturalny</strong>.
         </p>
@@ -38,6 +45,11 @@
           <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
                  data-i18n-ph="start.namePlaceholder" autocomplete="off" />
+          <details class="teacher-opts">
+            <summary>Opcje dla nauczyciela</summary>
+            <label for="seed-input">Ziarno świata (opcjonalnie) — ta sama liczba = ten sam świat dla całej klasy:</label>
+            <input id="seed-input" type="number" min="1" max="999999" inputmode="numeric" placeholder="np. 2024" />
+          </details>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
@@ -49,84 +61,113 @@
     <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
       <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
 
-      <div class="status-bar">
-        <div class="status-item status-ep">
-          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
-          <span class="status-value" id="ep-value">0</span>
+      <div class="hud">
+        <div class="hud-item hud-ep" id="hud-ep">
+          <span class="hud-ico" data-icon="ep"></span>
+          <span class="hud-text"><span class="hud-label" data-i18n="status.ep">Punkty ewolucji</span><span class="hud-value" id="ep-value">0</span></span>
         </div>
-        <div class="status-item">
-          <span class="status-label" data-i18n="status.population">Populacja</span>
-          <span class="status-value" id="pop-value">0</span>
+        <div class="hud-item hud-pop" id="hud-pop">
+          <span class="hud-ico" data-icon="pop"></span>
+          <span class="hud-text"><span class="hud-label" data-i18n="status.population">Populacja</span><span class="hud-value" id="pop-value">0</span></span>
         </div>
-        <div class="status-item status-era">
-          <span class="status-label" data-i18n="status.era">Era</span>
-          <span class="status-value" id="era-value">—</span>
+        <div class="hud-item hud-era">
+          <span class="hud-ico" data-icon="era"></span>
+          <span class="hud-text"><span class="hud-label" data-i18n="status.era">Era</span><span class="hud-value" id="era-value">—</span><span class="hud-sub" id="era-dates"></span></span>
         </div>
-        <div class="status-item status-goal">
-          <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
-          <span class="status-value" id="intel-value">0 / 0</span>
+        <div class="hud-item hud-goal">
+          <span class="hud-ico" data-icon="goal"></span>
+          <span class="hud-text"><span class="hud-label" data-i18n="status.intelligence">Cel: inteligencja + narzędzia</span><span class="hud-value" id="intel-value">0 / 0</span><span class="hud-sub" id="goal-sub"></span></span>
         </div>
       </div>
 
-      <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
+      <div class="timeline" id="timeline" aria-label="Oś czasu gry"></div>
 
-      <div class="lineage-bar" aria-label="Linie rozwojowe">
-        <div class="lineage-chips" id="lineage-chips"></div>
-        <div class="lineage-actions">
-          <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
-          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
-          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
+      <section class="scene-wrap" aria-label="Ekosystem">
+        <div class="scene-head">
+          <div class="scene-title"><strong id="env-name">—</strong> <span id="env-note" class="scene-note"></span></div>
+          <div class="scene-chips" id="env-stats"></div>
         </div>
-      </div>
+        <div class="omen" id="env-omen" hidden></div>
+        <div class="env-catastrophe" id="env-catastrophe" hidden></div>
+        <div class="scene" id="scene"></div>
+        <div class="scene-bar">
+          <div class="lineage-chips" id="lineage-chips" aria-label="Linie rozwojowe"></div>
+          <div class="scene-actions">
+            <div id="niche-buttons" class="niche-buttons" aria-label="Migracja aktywnej linii do niszy"></div>
+            <button id="btn-speciate" class="btn btn-ghost btn-sm" type="button"><span class="nav-ico" data-icon="split"></span> <span data-i18n="lineage.speciate">Specjacja</span></button>
+            <button id="btn-tree" class="btn btn-ghost btn-sm" type="button"><span class="nav-ico" data-icon="tree"></span> <span data-i18n="lineage.tree">Drzewo życia</span></button>
+          </div>
+        </div>
+      </section>
 
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
           <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
-          <p class="species-name" id="species-name-display">—</p>
-          <p class="species-niche" id="species-niche">—</p>
-
-          <div class="sparkline-box">
-            <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
-            <div id="sparkline" class="sparkline" aria-hidden="true"></div>
+          <div class="portrait-row">
+            <div class="portrait" id="portrait"></div>
+            <div>
+              <p class="species-name" id="species-name-display">—</p>
+              <p class="species-niche" id="species-niche">—</p>
+            </div>
           </div>
 
           <div class="forecast-box" id="forecast-box">
-            <span class="forecast-label" data-i18n="species.forecast">Prognoza następnej tury</span>
+            <span class="box-label" data-i18n="species.forecast">Prognoza następnej tury</span>
             <div id="forecast-body" class="forecast-body"></div>
           </div>
 
-          <ul class="stats-list" id="stats-list"></ul>
-
-          <div class="env-box">
-            <h3 class="env-title" data-i18n="species.envTitle">Środowisko następnej tury</h3>
-            <p class="env-name" id="env-name">—</p>
-            <p class="env-note" id="env-note">—</p>
-            <div class="env-catastrophe" id="env-catastrophe" hidden></div>
-            <ul class="env-stats" id="env-stats"></ul>
+          <div class="radar-box">
+            <span class="box-label">Statystyki (w obecnej niszy i klimacie)</span>
+            <div id="radar" class="radar-wrap"></div>
+            <ul class="tradeoff-notes" id="tradeoff-notes"></ul>
+            <ul class="stats-list visually-hidden" id="stats-list"></ul>
           </div>
 
-          <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
+          <div class="chart-box">
+            <span class="box-label" data-i18n="species.popOverTime">Populacja w czasie</span>
+            <div id="sparkline" class="chart-wrap"></div>
+          </div>
+
+          <button id="btn-simulate" class="btn btn-primary btn-block btn-simulate" type="button"><span class="nav-ico" data-icon="play"></span> <span data-i18n="species.simulate">Przeżyj turę</span></button>
           <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
         </aside>
 
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
-          <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
+          <div class="traits-head">
+            <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
+            <button id="btn-map" class="btn btn-ghost btn-sm" type="button"><span class="nav-ico" data-icon="map"></span> Mapa cech</button>
+          </div>
           <p class="panel-hint" data-i18n="traits.hint"></p>
+          <div class="trait-toolbar">
+            <div class="trait-tabs" id="trait-tabs" role="tablist" aria-label="Kategorie cech"></div>
+            <label class="trait-filter"><input type="checkbox" id="filter-available" /> tylko dostępne teraz</label>
+          </div>
           <div id="traits-container" class="traits-container"></div>
         </div>
+      </div>
+
+      <!-- Pasek akcji na telefonie (w zasięgu kciuka) -->
+      <div class="mobile-bar" id="mobile-bar">
+        <span class="mobile-ep"><span class="nav-ico" data-icon="ep"></span> <strong id="mobile-ep">0</strong> EP</span>
+        <span class="mobile-pop"><span class="nav-ico" data-icon="pop"></span> <strong id="mobile-pop">0</strong></span>
+        <button id="btn-simulate-mobile" class="btn btn-primary" type="button">Przeżyj turę →</button>
       </div>
     </section>
 
     <!-- Ekran końcowy -->
     <section id="screen-end" class="screen screen-end" hidden aria-labelledby="end-title">
       <div class="card end-card">
-        <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
+        <div class="end-emblem" id="end-emblem" aria-hidden="true"></div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <div class="score" id="end-score"></div>
+        <div class="end-chart" id="end-chart"></div>
+        <div class="end-ach" id="end-ach"></div>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
-          <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
+          <button id="btn-end-tree" class="btn btn-ghost" type="button">Drzewo życia</button>
+          <button id="btn-summary" class="btn btn-ghost" type="button">Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
       </div>
@@ -135,13 +176,47 @@
 
   <!-- Modal: raport tury -->
   <div id="modal-report" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="report-title">
-    <div class="modal-box">
+    <div class="modal-box report-box" id="report-box">
+      <div class="report-hero" id="report-hero"></div>
       <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
-      <div id="report-era" class="report-era" hidden></div>
       <div id="report-event" class="report-event-banner" hidden></div>
       <div id="report-body" class="report-body"></div>
+      <div id="report-ach" class="report-ach"></div>
       <div id="report-knowledge" class="report-knowledge"></div>
       <button id="btn-report-close" class="btn btn-primary btn-block" type="button" data-i18n="report.next">Dalej</button>
+    </div>
+  </div>
+
+  <!-- Plansza nowej ery -->
+  <div id="era-plate" class="era-plate" hidden role="dialog" aria-modal="true" aria-labelledby="era-plate-title">
+    <div class="era-plate-art" id="era-plate-art"></div>
+    <div class="era-plate-box">
+      <p class="era-plate-kicker">Nowa era</p>
+      <h2 id="era-plate-title" class="era-plate-title">—</h2>
+      <p class="era-plate-dates" id="era-plate-dates"></p>
+      <p class="era-plate-intro" id="era-plate-intro"></p>
+      <p class="era-plate-milestone" id="era-plate-milestone"></p>
+      <button id="btn-era-plate" class="btn btn-primary" type="button">Wkraczam w nową erę</button>
+    </div>
+  </div>
+
+  <!-- Modal: oferta mutacji -->
+  <div id="modal-mutation" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mutation-title">
+    <div class="modal-box">
+      <h2 id="mutation-title" class="modal-title">Nowe mutacje w populacji</h2>
+      <p class="panel-hint" id="mutation-hint"></p>
+      <div class="mutation-options" id="mutation-options"></div>
+      <button id="btn-mutation-reject" class="btn btn-ghost btn-block" type="button">Odrzuć wszystkie (dobór je odsieje)</button>
+    </div>
+  </div>
+
+  <!-- Modal: quiz po erze -->
+  <div id="modal-quiz" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+    <div class="modal-box">
+      <h2 id="quiz-title" class="modal-title">Quiz</h2>
+      <p class="panel-hint" id="quiz-hint"></p>
+      <div id="quiz-body" class="quiz-body"></div>
+      <button id="btn-quiz-done" class="btn btn-primary btn-block" type="button">Dalej</button>
     </div>
   </div>
 
@@ -157,11 +232,23 @@
     </div>
   </div>
 
-  <!-- Modal: Drzewo życia -->
-  <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
+  <!-- Modal: Osiągnięcia -->
+  <div id="modal-ach" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="ach-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">🌳 Drzewo życia</h2>
+        <h2 id="ach-title" class="modal-title">Osiągnięcia i wyzwania</h2>
+        <button id="btn-ach-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">Dodatkowe cele — każde osiągnięcie podnosi wynik końcowy.</p>
+      <div id="ach-body" class="ach-grid"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Drzewo życia -->
+  <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
+    <div class="modal-box modal-box-xwide">
+      <div class="modal-head">
+        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">Drzewo życia</h2>
         <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
       <p class="panel-hint" data-i18n="tree.hint"></p>
@@ -169,10 +256,23 @@
     </div>
   </div>
 
+  <!-- Modal: mapa cech -->
+  <div id="modal-map" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="map-title">
+    <div class="modal-box modal-box-xwide">
+      <div class="modal-head">
+        <h2 id="map-title" class="modal-title">Mapa cech</h2>
+        <button id="btn-map-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+      </div>
+      <p class="panel-hint">Co odblokowuje co. Kolumny to kolejne „piętra” zależności; fioletowa ramka to droga do inteligencji. Kliknij dostępną cechę, aby ją kupić.</p>
+      <div class="map-legend"><span class="lg st-owned">posiadana</span><span class="lg st-available">dostępna</span><span class="lg st-too_expensive">za droga</span><span class="lg st-locked">zablokowana</span><span class="lg st-era_locked">późniejsza era</span></div>
+      <div id="map-container" class="map-container"></div>
+    </div>
+  </div>
+
   <!-- Modal: specjacja -->
   <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
     <div class="modal-box">
-      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">🌿 Specjacja</h2>
+      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">Specjacja</h2>
       <p class="panel-hint" id="speciate-hint"></p>
       <form id="form-speciate">
         <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
@@ -201,7 +301,7 @@
   <div id="modal-summary" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="summary-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
+        <h2 id="summary-title" class="modal-title">Podsumowanie gry</h2>
         <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
       <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
@@ -226,9 +326,13 @@
     </div>
   </div>
 
+  <!-- Powiadomienia (osiągnięcia, komunikaty) -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
   <script src="js/i18n.js"></script>
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/art.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

@@ -3,9 +3,10 @@
 Edukacyjna gra przeglądarkowa o **doborze naturalnym** i historii życia,
 inspirowana *Evolution: The Game of Intelligent Life* (1997).
 
-Poprowadź linię rozwojową zwierząt przez erę **paleozoiku** — od prostego
-organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
-na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa ewolucja.
+Poprowadź linie rozwojowe zwierząt przez **paleozoik, mezozoik i kenozoik** — od
+prostego organizmu w morzu aż do gatunku, który używa narzędzi. Wydawaj **punkty
+ewolucji** na cechy, zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
+ewolucja.
 
 > Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
 > mechanizmów, nie odwzorowaniu konkretnych gatunków. Pełne założenia
@@ -20,85 +21,94 @@ w przeglądarce (Chrome, Firefox, Edge, Safari):
 - uruchom lokalny serwer, np.: `python3 -m http.server` i wejdź na `http://localhost:8000`.
 
 Gra działa w pełni po stronie przeglądarki i zapisuje postęp lokalnie
-(`localStorage`) — można ją także używać offline.
+(`localStorage`). Działa też offline — bez internetu nagłówki używają kroju
+zastępczego (Georgia) zamiast Fraunces z Google Fonts.
 
 ## Jak grać
 
-1. Nazwij swój gatunek i rozpocznij grę.
-2. W **panelu adaptacji** wydawaj punkty ewolucji (EP) na cechy. Każda cecha
-   ma koszt, efekty i **kompromis** — nic nie jest darmowe.
-3. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
-   rozród i mutacje, a raport wyjaśni, *co się stało i dlaczego*.
-4. Powtarzaj przez 8 tur ery. **Cel:** doprowadzić gatunek do progu inteligencji.
-   Uwaga — sama liczna populacja nie wystarczy; trzeba świadomie rozwijać
-   **układ nerwowy** (zwoje → mózg → rozbudowany mózg), a to wymaga też
-   przetrwania presji środowiska.
+1. Nazwij gatunek i wybierz scenariusz. W „Opcjach dla nauczyciela” możesz podać
+   **ziarno świata** — ta sama liczba daje całej klasie ten sam świat.
+2. **Scena ekosystemu** pokazuje cztery nisze: niebo, morze, przybrzeże i ląd.
+   Liście to pokarm, kły to drapieżcy, ciemne sylwetki to **rywale**, którzy
+   zjadają Twój pokarm. Kliknij strefę, by przenieść tam aktywną linię.
+3. W panelu **Adaptacje** wydawaj EP na cechy. Najedź na cechę, a prognoza,
+   wykres radarowy i portret pokażą jej wpływ, zanim ją kupisz. Wiele cech
+   **działa inaczej zależnie od niszy i klimatu** (np. płetwy na lądzie przeszkadzają).
+4. Kliknij **„Przeżyj turę”**. Raport wyjaśni, *co się stało i dlaczego*:
+   narodziny, straty (drapieżnictwo, głód, przeludnienie, katastrofa, wąskie gardło)
+   i skąd przyszły punkty.
+5. **Cel:** jedna linia musi osiągnąć próg inteligencji **i** wykształcić
+   *używanie narzędzi* (dostępne w kenozoiku).
 
-Zakończenia: **zwycięstwo** (osiągnięto inteligencję), **przetrwanie**
-(gatunek przeżył erę, ale bez rozumności) lub **wymarcie**.
+Zakończenia: **zwycięstwo**, **przetrwanie** (bez rozumności) lub **wymarcie**,
+a na koniec **wynik punktowy** z rozbiciem.
 
-Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
-paleontologia, ekologia).
+## Mechaniki
+
+- **Pojemność środowiska** — każda nisza wyżywi ograniczoną liczbę osobników;
+  własne linie w tej samej niszy konkurują o pokarm.
+- **Minimalna żywotna populacja** — linia poniżej 12 osobników wymiera (wąskie gardło).
+- **Kompromisy zależne od sytuacji** — warunkowe efekty cech (nisza, klimat,
+  niedobór pokarmu) widoczne na kartach; „(teraz)” oznacza, że działają w tej turze.
+- **Odrzucanie cech** — niepotrzebną cechę można porzucić (narząd szczątkowy).
+- **Losowy świat** — wartości tur różnią się między grami, pojawiają się drobne
+  katastrofy lokalne. Wymierania historyczne zostają na swoich miejscach, ale
+  mają losową siłę i zasięg. Turę wcześniej widać **zwiastun**.
+- **Rywale i koewolucja per nisza** — dominujące grupy każdej ery konkurują
+  o pokarm i słabną po katastrofach. Drapieżniki „doganiają” najlepiej bronioną
+  linię w danej niszy.
+- **Mutacje do wyboru** — populacja co jakiś czas oferuje trzy mutacje:
+  korzystną, z haczykiem, ryzykowną lub neutralną. Można też odrzucić wszystkie.
+- **Ekonomia EP** — punkty za przetrwanie, wzrost, kolonizację nowej niszy,
+  przetrwanie katastrofy i inteligencję (liczoną raz). Kolejne specjacje kosztują więcej.
+- **Quizy po erze** (+EP), **osiągnięcia/wyzwania** i **wynik punktowy**.
+
+## Warstwa graficzna
+
+- Własny zestaw ikon SVG (spójny na wszystkich systemach, bez emoji w interfejsie).
+- **Portret gatunku** składany z cech: płetwy → kończyny, łuski, pancerz, oczy,
+  futro/pióra, skrzydła, głowa rosnąca z mózgiem.
+- **Scena ekosystemu** zależna od ery i klimatu (śnieg, słońce, wulkan, paprocie,
+  sawanna); katastrofa zaznacza zagrożoną strefę.
+- **Wykresy**: populacja wszystkich linii (pasy er, katastrofy, prognoza),
+  radar statystyk z podglądem cechy, drzewo życia jako diagram wrzecionowy,
+  mapa zależności cech.
+- Raport z paskiem przepływu populacji, animowanym licznikiem, ilustracją katastrofy;
+  pełnoekranowa **plansza nowej ery**.
+- Palety kolorów zależne od ery, szeryfowe nagłówki, tryb jasny i ciemny.
+- **Tryb dla daltonistów** (bezpieczne kolory i symbole ▲▼), **tryb tablicy**
+  (większe litery), pasek akcji na telefonie, `prefers-reduced-motion`.
 
 ## Struktura projektu
 
 ```
-index.html         — struktura strony i ekranów
-css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, dostępność)
-js/data.js         — dane gry: cechy, era, karty wiedzy (konfiguracja)
-js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
-js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
+index.html          — struktura strony i ekranów
+css/styles.css      — warstwa prezentacji (palety er, tryby, responsywność, dostępność)
+js/i18n.js          — stringi interfejsu (warstwa i18n)
+js/data.js          — dane gry: cechy i ich warunki, ery, rywale, quizy, osiągnięcia, karty wiedzy
+js/engine.js        — silnik symulacji: czysta, testowalna logika (bez DOM)
+js/art.js           — grafika SVG: ikony, portret, scena, wykresy, drzewo, mapa cech
+js/ui.js            — kontroler interfejsu: render, zdarzenia, zapis lokalny
 test/engine.test.js — testy silnika
 ```
 
-Zgodnie z założeniami (sekcja 9) logika gry jest **oddzielona od UI** i
-testowalna niezależnie, a dane (cechy/era/wiedza) są konfiguracją — łatwą do
-rozbudowy bez zmian w kodzie.
+Logika gry jest **oddzielona od UI** (ZALOZENIA, sekcja 9) i testowalna niezależnie,
+a dane są konfiguracją, którą łatwo rozbudować bez zmian w kodzie.
 
 ## Testy
-
-Silnik ma zestaw testów bez zależności zewnętrznych:
 
 ```bash
 node test/engine.test.js
 ```
 
-Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
-mechanikę mutacji, warunki zwycięstwa/porażki oraz to, że gra jest
-przechodnia świadomą strategią.
-
-## Funkcje
-
-- **Scenariusze i poziomy trudności** — trzy scenariusze (pełna ewolucja, podbój
-  lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
-- **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
-  geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **24 cechy** (z ikonami) w drzewie zależności z kosztami i kompromisami; ścieżka
-  do inteligencji oznaczona ⭐.
-- **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
-  każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
-- **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny (żywe i
-  wymarłe gałęzie, oś er).
-- **Katastrofy / wymierania masowe** (permskie, K–Pg, zlodowacenia) oraz
-  **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
-- **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
-- **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
-  (skąd pochodzą punkty).
-- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
-- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
-- **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
-- **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
-- Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
-  (klawiatura, kontrasty, `prefers-reduced-motion`).
-
-## Struktura projektu (uzupełnienie)
-
-```
-js/i18n.js  — stringi interfejsu (warstwa i18n)
-```
+Testy sprawdzają m.in.: kupno i odrzucanie cech, determinizm świata przy danym
+ziarnie, zwiastuny, wąskie gardło, pojemność środowiska, warunkowe kompromisy,
+rywali i koewolucję per nisza, oferty mutacji, quizy i wynik. Sprawdzają też,
+że bierna gra kończy się wymarciem, a przemyślana strategia wygrywa.
 
 ## Status
 
-Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
-tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+Działający **MVP+**: trzy ery, losowy świat, specjacja z drzewem życia, nisze
+z rywalami, katastrofy ze zwiastunami, quizy, osiągnięcia, samouczek i tryb
+nauczyciela. Dalsze możliwe kroki: tryb offline (PWA), tryb wieloosobowy,
+kolejne języki.

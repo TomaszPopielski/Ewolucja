@@ -29,11 +29,11 @@
 
       'status.ep': 'Punkty ewolucji',
       'status.population': 'Populacja',
-      'status.intelligence': 'Inteligencja (cel)',
+      'status.intelligence': 'Cel: inteligencja',
       'status.era': 'Era',
 
-      'lineage.speciate': '🌿 Specjacja',
-      'lineage.tree': '🌳 Drzewo życia',
+      'lineage.speciate': 'Specjacja',
+      'lineage.tree': 'Drzewo życia',
       'lineage.migrateToLand': '🏝️ Migruj na ląd',
       'lineage.migrateToWater': '🌊 Wróć do wody',
 
@@ -41,11 +41,11 @@
       'species.popOverTime': 'Populacja w czasie',
       'species.forecast': 'Prognoza następnej tury',
       'species.envTitle': 'Środowisko następnej tury',
-      'species.simulate': 'Przeżyj turę →',
+      'species.simulate': 'Przeżyj turę',
       'species.undo': '↶ Cofnij (tryb nauczyciela)',
 
       'traits.title': 'Adaptacje — wydaj punkty ewolucji',
-      'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. ⭐ oznacza drogę do inteligencji.',
+      'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis, a część działa inaczej w różnych niszach i klimatach. Gwiazdka oznacza drogę do inteligencji.',
 
       'report.title': 'Wynik tury',
       'report.next': 'Dalej',
@@ -53,12 +53,12 @@
 
       'codex.title': 'Kodeks wiedzy',
       'codex.hint': 'Zbiór odblokowanych pojęć. Odkrywasz je, grając.',
-      'codex.fossil': '🦴 Zapis kopalny: ',
+      'codex.fossil': 'Zapis kopalny: ',
 
-      'tree.title': '🌳 Drzewo życia',
-      'tree.hint': 'Historia Twoich linii rozwojowych. Rozgałęzienia to specjacje; wygaszone gałęzie to linie, które wymarły. Kliknij żywą gałąź, aby uczynić ją aktywną.',
+      'tree.title': 'Drzewo życia',
+      'tree.hint': 'Historia Twoich linii rozwojowych. Grubość gałęzi to liczebność populacji w czasie, rozgałęzienia to specjacje, † to wymarcie. Kliknij żywą gałąź, aby uczynić ją aktywną.',
 
-      'speciate.title': '🌿 Specjacja',
+      'speciate.title': 'Specjacja',
       'speciate.label': 'Nazwa nowej gałęzi:',
       'speciate.confirm': 'Rozdziel gatunek',
       'common.cancel': 'Anuluj',
