@@ -171,7 +171,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 
 /* --- Pasek stanu --- */
 .status-bar {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   margin-bottom: 16px;
 }
 .status-item {
@@ -239,7 +239,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .sparkline svg { display: block; }
 
 /* --- Układ gry --- */
-.game-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.game-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
 /* Panel aktywnej linii „przykleja się”, by prognoza „co-jeśli” była widoczna
    także przy najechaniu na cechy niżej na liście. */
 @media (min-width: 821px) {
@@ -414,4 +414,155 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 /* --- Ograniczenie animacji (dostępność) --- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ===================== Rozgrywka 2.0 ===================== */
+.status-score .status-value { color: var(--accent); }
+.goal-bar { display: block; height: 5px; margin-top: 4px; background: var(--bg-elev); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.goal-fill { display: block; height: 100%; background: var(--ep); transition: width .4s ease; }
+
+/* Start: kod świata */
+.seed-row { display: flex; gap: 8px; }
+.seed-row input { flex: 1; min-width: 0; }
+.seed-hint { font-size: .78rem; color: var(--ink-soft); margin: 0; }
+.scenario-best { grid-column: 2; font-size: .74rem; color: var(--accent); font-weight: 700; margin-top: 2px; }
+
+.btn-small { padding: 6px 10px; font-size: .8rem; }
+.flash-msg { background: var(--danger) !important; }
+.lineage-chip-dot { color: var(--accent); font-size: .7rem; }
+
+/* Mapa nisz */
+.niche-map { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.niche-card {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px; font-size: .82rem;
+}
+.niche-card.current { border-color: var(--accent); border-width: 2px; }
+.niche-head { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+.niche-icon { font-size: 1.2rem; }
+.niche-stats { display: flex; flex-wrap: wrap; gap: 4px 8px; color: var(--ink-soft); }
+.rival.none { color: var(--good); font-weight: 700; }
+.rival.low { color: var(--good); }
+.rival.mid { color: var(--accent); }
+.rival.high { color: var(--danger); font-weight: 700; }
+.niche-lineages { color: var(--ink); font-weight: 600; min-height: 1.2em; }
+.niche-lineages em { color: var(--ink-soft); font-weight: 400; }
+.niche-warn { color: var(--danger); font-weight: 700; }
+.niche-here { font-size: .76rem; color: var(--accent); font-weight: 700; }
+.niche-go { margin-top: auto; }
+
+/* Środowisko */
+.env-event { border-radius: 8px; padding: 6px 10px; font-size: .8rem; margin: 6px 0; }
+.env-event.good { background: rgba(47,125,91,.12); border: 1px solid var(--good); }
+.env-event.bad { background: rgba(178,59,59,.1); border: 1px solid var(--danger); }
+.env-next { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: .78rem; color: var(--ink-soft); }
+.objectives-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 12px; }
+.objectives-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.obj { display: flex; justify-content: space-between; gap: 8px; font-size: .8rem; }
+.obj.done { color: var(--good); }
+.obj-reward { color: var(--ep); font-weight: 700; white-space: nowrap; }
+.obj-none { font-size: .8rem; color: var(--ink-soft); }
+
+/* Panel ewolucji */
+.panel-evo { display: flex; flex-direction: column; gap: 18px; }
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.section-head .panel-title { margin: 0; }
+.panel-evo .panel-hint { margin-top: 6px; }
+.draft-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.draft-card {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg-elev);
+  display: flex; flex-direction: column; gap: 6px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.draft-card:hover { border-color: var(--brand); box-shadow: var(--shadow); }
+.draft-card.loss { border-style: dashed; }
+.draft-card.path-intel { border-left: 3px solid var(--ep); }
+.draft-kind { font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-soft); font-weight: 700; }
+.draft-pick { margin-top: auto; }
+.draft-empty { color: var(--ink-soft); font-size: .88rem; background: var(--bg-elev); border: 1px dashed var(--line); border-radius: 10px; padding: 14px; margin: 0; }
+
+.sel { font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 20px; white-space: nowrap; border: 1px solid currentColor; }
+.sel.up { color: var(--good); }
+.sel.down { color: var(--danger); }
+.sel.flat { color: var(--ink-soft); }
+.sel.fixed { color: var(--brand); }
+
+.trait-cond { font-size: .72rem; color: var(--ink-soft); line-height: 1.8; }
+.cond-label { font-weight: 600; }
+.effect-chip.small { font-size: .66rem; padding: 0 6px; }
+.trait-resist { font-size: .72rem; color: var(--ink-soft); }
+
+/* Pula genowa */
+.gene-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.gene { display: grid; grid-template-columns: minmax(130px, 1.2fr) 2fr 44px auto; align-items: center; gap: 8px; font-size: .85rem; }
+.gene.path-intel .gene-name { color: var(--ep); font-weight: 600; }
+.gene-bar { position: relative; height: 10px; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.gene-fill { display: block; height: 100%; background: var(--ink-soft); transition: width .5s ease; }
+.gene-fill.up { background: var(--good); }
+.gene-fill.down { background: var(--danger); }
+.gene.fixed .gene-fill { background: var(--brand); }
+.gene-mark { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); opacity: .35; }
+.gene-pct { text-align: right; font-weight: 700; }
+.gene-empty { color: var(--ink-soft); font-size: .85rem; }
+
+.catalog summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.catalog[open] summary { margin-bottom: 8px; }
+.trait { cursor: default; }
+.trait.fixed { background: var(--bg-panel); border-color: var(--brand); }
+.trait.fixed .trait-cost, .trait.present .trait-cost { color: var(--good); }
+.trait.possible .trait-cost { color: var(--ep); }
+.trait.era_locked, .trait.excluded { opacity: .6; }
+
+/* Raport */
+.report-event-banner.good { background: var(--good); }
+.report-event-banner.bad { background: var(--danger); }
+.report-objectives { background: var(--ep); color: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: .88rem; }
+.report-parts { font-size: .8rem; color: var(--ink-soft); padding: 2px 0 4px; }
+.report-genes { background: var(--bg-elev); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+.report-genes-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-soft); font-weight: 700; margin-bottom: 4px; }
+.gene-change { display: flex; justify-content: space-between; gap: 8px; font-size: .84rem; padding: 1px 0; }
+.report-event.good { border-left-color: var(--good); color: var(--good); font-weight: 600; }
+
+/* Quiz */
+.quiz-question { font-weight: 700; font-size: 1.02rem; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-option { text-align: left; font-weight: 500; }
+.quiz-option.correct { border-color: var(--good); background: rgba(47,125,91,.15); }
+.quiz-option.wrong { border-color: var(--danger); background: rgba(178,59,59,.12); }
+.quiz-feedback { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: .88rem; }
+.quiz-feedback.good { background: rgba(47,125,91,.12); }
+.quiz-feedback.bad { background: rgba(178,59,59,.1); }
+
+/* Specjacja: wybór niszy */
+.speciate-niches { display: flex; flex-wrap: wrap; gap: 8px; }
+.speciate-niche { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 20px; padding: 5px 12px; cursor: pointer; }
+
+/* Wynik końcowy */
+.end-score-total { font-size: 2.6rem; font-weight: 800; color: var(--accent); }
+.end-score-total small { font-size: 1rem; color: var(--ink-soft); }
+.end-record { color: var(--ep); font-weight: 700; }
+.end-score-parts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.end-score-parts span { font-size: .76rem; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 20px; padding: 2px 10px; }
+.end-seed { font-size: .85rem; color: var(--ink-soft); }
+
+.draft-card .trait-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* Responsywność nowych elementów (musi być na końcu pliku) */
+@media (max-width: 1000px) {
+  .draft-cards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}
+@media (max-width: 820px) {
+  .game-grid { grid-template-columns: minmax(0, 1fr); }
+  .niche-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .status-score { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .draft-cards { grid-template-columns: minmax(0, 1fr); }
+  .gene { grid-template-columns: minmax(0, 1fr) 44px; }
+  .gene .gene-bar { grid-column: 1 / -1; grid-row: 2; }
+  .gene .sel { grid-column: 1 / -1; justify-self: start; }
+  .topbar { padding: 10px 16px; }
+  .topbar-actions .btn { padding: 8px 10px; font-size: .85rem; }
+  .seed-row { flex-direction: column; }
+  .lineage-actions { width: 100%; }
+  .lineage-actions .btn { flex: 1; }
 }

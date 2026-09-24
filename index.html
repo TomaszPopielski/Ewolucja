@@ -28,16 +28,23 @@
       <div class="card intro-card">
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
-          Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
-          aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
-          zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
-          <strong>dobór naturalny</strong>.
+          Poprowadź populację zwierząt przez trzy ery — od prostego organizmu w morzu
+          aż do gatunku rozumnego. W każdej turze w populacji pojawiają się <strong>losowe mutacje</strong>;
+          wskaż, którą warto rozwinąć — ale to <strong>dobór naturalny</strong> zdecyduje, czy się
+          rozprzestrzeni. Każdy świat jest inny.
         </p>
         <div class="intro-goal" id="intro-goal"></div>
         <form id="form-start" class="start-form">
           <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
                  data-i18n-ph="start.namePlaceholder" autocomplete="off" />
+          <label for="seed-code" data-i18n="start.seedLabel">Kod świata (opcjonalnie):</label>
+          <div class="seed-row">
+            <input id="seed-code" name="seed-code" type="text" maxlength="16"
+                   data-i18n-ph="start.seedPlaceholder" autocomplete="off" />
+            <button id="btn-daily" class="btn btn-ghost" type="button" data-i18n="start.daily">📅 Wyzwanie dnia</button>
+          </div>
+          <p class="seed-hint" data-i18n="start.seedHint"></p>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
@@ -50,9 +57,9 @@
       <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
 
       <div class="status-bar">
-        <div class="status-item status-ep">
-          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
-          <span class="status-value" id="ep-value">0</span>
+        <div class="status-item status-ep" title="Zmienność genetyczna — waluta ewolucji. Rośnie z liczebnością populacji i liczbą zajętych nisz.">
+          <span class="status-label" data-i18n="status.zg">🧬 Zmienność</span>
+          <span class="status-value" id="zg-value">0</span>
         </div>
         <div class="status-item">
           <span class="status-label" data-i18n="status.population">Populacja</span>
@@ -65,6 +72,11 @@
         <div class="status-item status-goal">
           <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
+          <span class="goal-bar"><span class="goal-fill" id="intel-fill"></span></span>
+        </div>
+        <div class="status-item status-score">
+          <span class="status-label" data-i18n="status.score">Wynik</span>
+          <span class="status-value" id="score-value">0</span>
         </div>
       </div>
 
@@ -73,11 +85,12 @@
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
         <div class="lineage-actions">
-          <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
           <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
           <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
         </div>
       </div>
+
+      <div class="niche-map" id="niche-map" aria-label="Nisze ekologiczne"></div>
 
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
@@ -101,18 +114,42 @@
             <h3 class="env-title" data-i18n="species.envTitle">Środowisko następnej tury</h3>
             <p class="env-name" id="env-name">—</p>
             <p class="env-note" id="env-note">—</p>
+            <div class="env-event" id="env-event" hidden></div>
             <div class="env-catastrophe" id="env-catastrophe" hidden></div>
             <ul class="env-stats" id="env-stats"></ul>
+            <div class="env-next" id="env-next"></div>
+          </div>
+
+          <div class="objectives-box">
+            <h3 class="env-title" data-i18n="species.objectives">🎯 Cele ery</h3>
+            <ul class="objectives-list" id="objectives-list"></ul>
           </div>
 
           <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
           <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
         </aside>
 
-        <div class="panel panel-traits" aria-labelledby="traits-panel-title">
-          <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
-          <p class="panel-hint" data-i18n="traits.hint"></p>
-          <div id="traits-container" class="traits-container"></div>
+        <div class="panel panel-evo">
+          <section aria-labelledby="draft-title">
+            <div class="section-head">
+              <h2 id="draft-title" class="panel-title" data-i18n="draft.title">🎲 Mutacje w populacji</h2>
+              <button id="btn-reroll" class="btn btn-ghost btn-small" type="button">🔄 Losuj ponownie</button>
+            </div>
+            <p class="panel-hint" data-i18n="draft.hint"></p>
+            <div id="draft-cards" class="draft-cards"></div>
+          </section>
+
+          <section aria-labelledby="genes-title" class="genes-section">
+            <h2 id="genes-title" class="panel-title" data-i18n="genes.title">🧬 Pula genowa linii</h2>
+            <p class="panel-hint" data-i18n="genes.hint"></p>
+            <ul id="gene-list" class="gene-list"></ul>
+          </section>
+
+          <details class="catalog" id="catalog">
+            <summary data-i18n="traits.title">📖 Katalog cech — co może się pojawić</summary>
+            <p class="panel-hint" data-i18n="traits.hint"></p>
+            <div id="traits-container" class="traits-container"></div>
+          </details>
         </div>
       </div>
     </section>
@@ -123,7 +160,9 @@
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <div class="end-score" id="end-score"></div>
         <ul class="end-stats" id="end-stats"></ul>
+        <p class="end-seed" id="end-seed"></p>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
           <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
@@ -139,6 +178,7 @@
       <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
       <div id="report-era" class="report-era" hidden></div>
       <div id="report-event" class="report-event-banner" hidden></div>
+      <div id="report-objectives" class="report-objectives" hidden></div>
       <div id="report-body" class="report-body"></div>
       <div id="report-knowledge" class="report-knowledge"></div>
       <button id="btn-report-close" class="btn btn-primary btn-block" type="button" data-i18n="report.next">Dalej</button>
@@ -177,11 +217,25 @@
       <form id="form-speciate">
         <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
         <input id="speciate-name" type="text" maxlength="28" autocomplete="off" />
+        <span class="speciate-label" data-i18n="speciate.nicheLabel">Gdzie osiedlić nową gałąź?</span>
+        <div id="speciate-niches" class="speciate-niches" role="radiogroup"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" type="submit" data-i18n="speciate.confirm">Rozdziel gatunek</button>
           <button class="btn btn-ghost" type="button" id="btn-speciate-cancel" data-i18n="common.cancel">Anuluj</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: quiz po erze -->
+  <div id="modal-quiz" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+    <div class="modal-box">
+      <h2 id="quiz-title" class="modal-title" data-i18n="quiz.title">🎓 Pytanie ery</h2>
+      <p class="panel-hint" data-i18n="quiz.hint"></p>
+      <p id="quiz-question" class="quiz-question"></p>
+      <div id="quiz-options" class="quiz-options"></div>
+      <div id="quiz-feedback" class="quiz-feedback" hidden></div>
+      <button id="btn-quiz-next" class="btn btn-primary btn-block" type="button" hidden data-i18n="report.next">Dalej</button>
     </div>
   </div>
 
