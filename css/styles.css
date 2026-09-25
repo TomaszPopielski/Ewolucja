@@ -211,6 +211,8 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .fc.neg { color: var(--danger); }
 .forecast-preview { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: .82rem; }
 .forecast-warn { margin-top: 6px; font-size: .8rem; color: var(--danger); font-weight: 600; }
+.forecast-note { margin-top: 6px; font-size: .78rem; color: var(--ink-soft); }
+.env-dev { font-size: .72rem; color: var(--ink-soft); }
 .forecast-none { font-size: .82rem; color: var(--ink-soft); }
 .env-catastrophe { background: var(--danger); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: .82rem; font-weight: 600; margin: 6px 0; }
 
@@ -295,6 +297,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .effect-chip.up { color: var(--good); border-color: var(--good); }
 .effect-chip.down { color: var(--danger); border-color: var(--danger); }
 .trait-tradeoff { font-size: .74rem; color: var(--accent); font-style: italic; }
+.trait-condition { font-size: .72rem; color: var(--ink-soft); }
 .trait-req { font-size: .72rem; color: var(--ink-soft); }
 .trait-req.warn { color: var(--danger); }
 .trait.locked .trait-cost { color: var(--ink-soft); }

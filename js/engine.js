@@ -98,7 +98,32 @@
     if (state.eraIndex >= data.ERAS.length) return null;
     var era = data.ERAS[state.eraIndex];
     if (state.turn >= era.turns.length) return null;
+    // Wylosowane warunki bieżącej tury (jeśli dotyczą właśnie tej tury).
+    var e = state.env;
+    if (e && e.eraIndex === state.eraIndex && e.turn === state.turn) return e.conditions;
     return era.turns[state.turn];
+  }
+
+  var CLIMATES = ['zimno', 'umiarkowanie', 'cieplo'];
+  /* Faza środowiska: odchylenia od warunków historycznych danej tury. Tura z
+     katastrofą zachowuje historyczny klimat. rng()=0.5 daje warunki bazowe. */
+  function rollEnv(data, eraIndex, turn, rng) {
+    if (eraIndex >= data.ERAS.length || turn >= data.ERAS[eraIndex].turns.length) return null;
+    var base = data.ERAS[eraIndex].turns[turn], v = data.ENV_VARIATION;
+    var jitter = function (x, amp, lo) { return Math.max(lo, x + Math.round((rng() * 2 - 1) * amp)); };
+    var c = clone(base);
+    c.food = jitter(base.food, v.food, 1);
+    c.predators = jitter(base.predators, v.predators, 0);
+    c.oxygen = jitter(base.oxygen, v.oxygen, 5);
+    c.land = { food: jitter(base.land.food, v.food, 1), predators: jitter(base.land.predators, v.predators, 0) };
+    var shift = rng();
+    if (!base.catastrophe && shift < v.climateShift) {
+      var i = CLIMATES.indexOf(base.climate);
+      var j = clamp(i + (shift < v.climateShift / 2 ? -1 : 1), 0, CLIMATES.length - 1);
+      c.climate = CLIMATES[j];
+    }
+    c.climateShifted = c.climate !== base.climate;
+    return { eraIndex: eraIndex, turn: turn, conditions: c };
   }
   function difficultyOf(data, state) { return data.DIFFICULTIES[state.difficulty] || data.DIFFICULTIES.normalny; }
 
@@ -139,17 +164,28 @@
       var tr = traitsById(data)[req];
       return { ok: false, error: 'Wymaga cechy „' + (tr ? tr.name : req) + '”.' };
     }
-    return { ok: true, error: null };
+    if (lineage.migratedAt === nowTurn(data, state)) return { ok: false, error: 'Ta linia już migrowała w tej turze.' };
+    var cost = migrationCost(data, lineage);
+    if (state.ep < cost) return { ok: false, error: 'Za mało EP na migrację (potrzeba ' + cost + ').' };
+    return { ok: true, error: null, cost: cost };
+  }
+  // Migracja kosztuje EP — tym mniej, im mobilniejsza linia (ZALOZENIA 4.1).
+  function migrationCost(data, lineage) {
+    var m = data.MIGRATION;
+    return Math.max(m.minCost, m.baseCost - lstat(lineage, 'mobility'));
   }
   function migrateLineage(data, state, lineageId, niche) {
     var l = getLineage(state, lineageId);
     if (!l) return { ok: false, state: state, error: 'Nieznana linia.' };
     var can = canMigrate(data, state, l, niche);
     if (!can.ok) return { ok: false, state: state, error: can.error };
-    var n = clone(state); getLineage(n, lineageId).niche = niche;
+    var n = clone(state); var nl = getLineage(n, lineageId);
+    nl.niche = niche; nl.migratedAt = nowTurn(data, n); n.ep -= can.cost;
     if (niche === 'lad') unlockKnowledge(n, 'land');
     return { ok: true, state: n, error: null };
   }
+  // Globalny numer bieżącej (jeszcze nierozegranej) tury.
+  function nowTurn(data, state) { return globalTurn(data, state.eraIndex, state.turn); }
 
   // ---------- Cechy ----------
   function prerequisitesMet(lineage, trait) {
@@ -191,34 +227,44 @@
   }
 
   // ---------- Specjacja ----------
+  // Każda kolejna żywa linia podnosi koszt — utrzymanie wielu linii nie jest darmowe.
+  function speciationCost(data, state) {
+    return data.SPECIATION_COST + (data.SPECIATION_COST_STEP || 0) * Math.max(0, aliveLineages(state).length - 1);
+  }
   function canSpeciate(data, state) {
     var a = getActiveLineage(state);
     if (!a) return { ok: false, error: 'Brak aktywnej linii.' };
-    if (state.ep < data.SPECIATION_COST) return { ok: false, error: 'Za mało EP na specjację (potrzeba ' + data.SPECIATION_COST + ').' };
+    var cost = speciationCost(data, state);
+    if (state.ep < cost) return { ok: false, error: 'Za mało EP na specjację (potrzeba ' + cost + ').' };
     if (a.population < data.MIN_SPECIATION_POP) return { ok: false, error: 'Za mała populacja do specjacji (min. ' + data.MIN_SPECIATION_POP + ').' };
     return { ok: true, error: null };
   }
   function speciate(data, state, newName) {
     var check = canSpeciate(data, state);
     if (!check.ok) return { ok: false, state: state, error: check.error };
-    var n = clone(state); var parent = getActiveLineage(n);
+    var n = clone(state); var parent = getActiveLineage(n); var cost = speciationCost(data, state);
     var childPop = Math.floor(parent.population / 2);
     parent.population -= childPop; parent.popHistory[parent.popHistory.length - 1] = parent.population;
     var childId = 'L' + n.nextLineageNum; n.nextLineageNum += 1;
     var child = makeLineage(childId, newName || (parent.name + ' II'), parent.id,
       childPop, parent.stats, parent.traits, parent.niche, n.eraIndex, n.turn);
-    n.lineages.push(child); n.ep -= data.SPECIATION_COST; n.activeLineageId = childId;
+    n.lineages.push(child); n.ep -= cost; n.activeLineageId = childId;
     unlockKnowledge(n, 'speciation');
     return { ok: true, state: n, error: null };
   }
 
   // ---------- Mutacja ----------
+  // Inteligencja mutuje tylko u linii z mózgiem — sam przypadek nie prowadzi do
+  // rozumności. Korzystna mutacja metabolizmu go obniża (tańsze utrzymanie).
   function rollMutation(l, rng) {
     if (rng() > 0.28) return null;
-    var keys = ['feeding', 'defense', 'reproduction', 'mobility', 'intelligence'];
+    var keys = ['feeding', 'defense', 'reproduction', 'mobility', 'metabolism'];
+    if (l.traits.indexOf('brain') !== -1) keys.push('intelligence');
     var key = keys[Math.floor(rng() * keys.length)];
-    var beneficial = rng() < 0.6; var delta = beneficial ? 1 : -1;
-    if (l.stats[key] + delta < 0) { delta = 1; beneficial = true; }
+    var beneficial = rng() < 0.6;
+    var sign = key === 'metabolism' ? -1 : 1;
+    var delta = beneficial ? sign : -sign;
+    if (l.stats[key] + delta < 0) { delta = -delta; beneficial = !beneficial; }
     l.stats[key] += delta;
     return { key: key, delta: delta, beneficial: beneficial, knowledge: beneficial ? 'mutation_good' : 'mutation_bad' };
   }
@@ -229,8 +275,38 @@
     if (cfg.land) return { food: env.land.food, predators: env.land.predators };
     return { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
   }
+  /*
+   * Statystyki efektywne w danych warunkach: bazowe + kompromisy zależne od
+   * niszy, tlenu i klimatu (trait.conditions) + kara niszy (NICHES.without).
+   * Zwraca { stats, notes } — notes wyjaśniają graczowi, co działa.
+   */
+  function conditionMet(c, niche, env) {
+    if (c.niches && c.niches.indexOf(niche) === -1) return false;
+    if (c.oxygenBelow != null && !(env && env.oxygen < c.oxygenBelow)) return false;
+    if (c.climate && !(env && env.climate === c.climate)) return false;
+    return true;
+  }
+  function effectiveStats(data, lineage, env) {
+    var st = clone(lineage.stats), notes = [], byId = traitsById(data);
+    (lineage.traits || []).forEach(function (id) {
+      var t = byId[id];
+      (t && t.conditions || []).forEach(function (c) {
+        if (!conditionMet(c, lineage.niche, env)) return;
+        for (var k in c.effects) st[k] = (st[k] || 0) + c.effects[k];
+        notes.push({ trait: t.name, note: c.note, effects: c.effects });
+      });
+    });
+    var w = (data.NICHES[lineage.niche] || {}).without;
+    if (w && (lineage.traits || []).indexOf(w.trait) === -1) {
+      for (var k in w.effects) st[k] = (st[k] || 0) + w.effects[k];
+      notes.push({ trait: data.NICHES[lineage.niche].label, note: w.note, effects: w.effects });
+    }
+    return { stats: st, notes: notes };
+  }
   function computeDynamics(data, env, lineage, ctx) {
     ctx = ctx || {};
+    var eff = effectiveStats(data, lineage, env);
+    var es = { stats: eff.stats };
     var ne = envForNiche(data, env, lineage.niche);
     var food = Math.max(0, ne.food + (ctx.foodBonus || 0));
     var predators = ne.predators + (ctx.predBonus || 0) + (ctx.predatorLevel || 0);
@@ -240,20 +316,24 @@
     if (env.climate === 'zimno' && lineage.traits.indexOf('endothermy') !== -1) climateMod = 1.0;
     var oxygenMod = clamp(1 + (10 - env.oxygen) * 0.04, 0.7, 1.4);
 
-    var foodIntake = lstat(lineage, 'feeding') * (food / 10) * climateMod;
-    var upkeep = lstat(lineage, 'metabolism') * oxygenMod;
+    // Aklimatyzacja: w turze migracji linia słabiej zdobywa pokarm.
+    var acclimatizing = ctx.nowTurn != null && lineage.migratedAt === ctx.nowTurn;
+    var acclim = acclimatizing ? data.MIGRATION.acclimatizationFood : 1;
+
+    var foodIntake = lstat(es, 'feeding') * (food / 10) * climateMod * acclim;
+    var upkeep = lstat(es, 'metabolism') * oxygenMod;
     var energy = foodIntake - upkeep;
-    var mobilityShield = lstat(lineage, 'mobility') * 0.4;
-    var predationPressure = Math.max(0, predators - lstat(lineage, 'defense') - mobilityShield);
+    var mobilityShield = lstat(es, 'mobility') * 0.4;
+    var predationPressure = Math.max(0, predators - lstat(es, 'defense') - mobilityShield);
     var predationLossRate = clamp(predationPressure * 0.035, 0, 0.45);
     var starvationLossRate = energy < 0 ? clamp(-energy * 0.03, 0, 0.5) : 0;
-    var birthRate = energy >= 0 ? clamp(0.03 * lstat(lineage, 'reproduction') * (1 + energy * 0.05), 0, 0.6) : 0;
-    return { energy: energy, predationPressure: predationPressure,
+    var birthRate = energy >= 0 ? clamp(0.03 * lstat(es, 'reproduction') * (1 + energy * 0.05), 0, 0.6) : 0;
+    return { energy: energy, predationPressure: predationPressure, acclimatizing: acclimatizing, notes: eff.notes,
       predationLossRate: predationLossRate, starvationLossRate: starvationLossRate, birthRate: birthRate };
   }
   function contextFor(data, state, extra) {
     var diff = difficultyOf(data, state);
-    var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult };
+    var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult, nowTurn: nowTurn(data, state) };
     if (extra) { ctx.foodBonus = extra.foodBonus || 0; ctx.predBonus = extra.predBonus || 0; }
     return ctx;
   }
@@ -268,10 +348,16 @@
     var predD = Math.round(pop * d.predationLossRate);
     var starvD = Math.round(pop * d.starvationLossRate);
     var proj = Math.max(0, pop + births - predD - starvD);
-    var cat = env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === lineage.niche) ? env.catastrophe : null;
+    var cat = hitsLineage(env.catastrophe, lineage) ? env.catastrophe : null;
+    var impact = cat ? catastropheImpact(cat, lineage, difficultyOf(data, state)) : null;
+    var catD = impact ? Math.round(proj * impact.severity) : 0;
+    proj -= catD;
     return { energy: round1(d.energy), predationPressure: round1(d.predationPressure),
-      births: births, predationDeaths: predD, starvationDeaths: starvD,
-      projectedPop: proj, delta: proj - pop, catastrophe: cat };
+      births: births, predationDeaths: predD, starvationDeaths: starvD, catastropheDeaths: catD,
+      projectedPop: proj, delta: proj - pop, catastrophe: cat,
+      catastropheLoss: impact ? Math.round(impact.severity * 100) : 0,
+      survivalReasons: impact ? impact.reasons : [],
+      acclimatizing: d.acclimatizing, notes: d.notes };
   }
 
   /* Prognoza z hipotetyczną cechą: efekty liczbowe ORAZ obecność cechy na liście
@@ -288,7 +374,7 @@
     if (state.status !== 'playing') return { state: state, report: null };
     var n = clone(state);
     var era = data.ERAS[n.eraIndex];
-    var env = era.turns[n.turn];
+    var env = currentTurnEnv(data, n);
     var diff = difficultyOf(data, n);
 
     var knowledge = [];
@@ -304,11 +390,16 @@
     var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
     var ctx = contextFor(data, n, ctxExtra);
 
+    var nichesPaid = {};
     aliveLineages(n).forEach(function (l) {
-      var r = simulateLineage(data, n, l, env, rng, knowledge, ctx, diff);
+      var r = simulateLineage(data, n, l, env, rng, knowledge, ctx, diff, nichesPaid);
       lineReports.push(r); totalEp += r.epGain; if (l.alive) anyAlive = true;
     });
-    if (anyAlive) totalEp += 12;
+    // Premie globalne: za przetrwanie i za inteligencję NAJLEPSZEJ linii — liczone
+    // raz, by specjacja nie mnożyła punktów.
+    var epBase = anyAlive ? data.EP_RULES.base : 0;
+    var epIntel = anyAlive ? Math.floor(maxIntelligence(n) / data.EP_RULES.intelligenceDiv) : 0;
+    totalEp += epBase + epIntel;
     n.ep += totalEp;
 
     // Koewolucja: presja drapieżników „dogania” dobrze bronione linie.
@@ -327,13 +418,14 @@
       else n.eraIndex = data.ERAS.length;
     }
     n.status = evaluateStatus(n, data);
+    n.env = n.status === 'playing' ? rollEnv(data, n.eraIndex, n.turn, rng) : null;
 
     var report = {
       eraIndex: prevEraIndex, eraName: era.name, turnIndex: state.turn,
       envTitle: env.title, envNote: env.note, climate: env.climate,
       catastrophe: env.catastrophe || null,
       event: event ? { name: event.name, desc: event.desc } : null,
-      lineReports: lineReports, epGain: totalEp, epBase: anyAlive ? 12 : 0,
+      lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel,
       predatorLevel: round1(n.predatorLevel),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
       intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
@@ -344,7 +436,7 @@
     return { state: n, report: report };
   }
 
-  function simulateLineage(data, n, l, env, rng, knowledge, ctx, diff) {
+  function simulateLineage(data, n, l, env, rng, knowledge, ctx, diff, nichesPaid) {
     var events = [];
     var mut = rollMutation(l, rng);
     if (mut) {
@@ -358,18 +450,21 @@
     var starvationDeaths = Math.round(popBefore * d.starvationLossRate);
     var pop = popBefore + births - predationDeaths - starvationDeaths;
 
-    var catDeaths = 0;
-    if (env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === l.niche)) {
-      var sev = clamp(catastropheSeverity(env.catastrophe, l.niche) * diff.catMult, 0, 0.95);
-      catDeaths = Math.round(Math.max(0, pop) * sev);
+    var catDeaths = 0, survivalReasons = [];
+    if (hitsLineage(env.catastrophe, l)) {
+      var impact = catastropheImpact(env.catastrophe, l, diff);
+      catDeaths = Math.round(Math.max(0, pop) * impact.severity);
       pop -= catDeaths;
-      events.push('Katastrofa (' + env.catastrophe.name + ') — ciężkie straty.');
+      survivalReasons = impact.reasons;
+      events.push('Katastrofa (' + env.catastrophe.name + ') — straty ' + Math.round(impact.severity * 100) + '% populacji.');
+      if (impact.reasons.length) events.push('Przetrwać pomogło: ' + impact.reasons.join('; ') + '.');
     }
 
     pop = Math.max(0, Math.round(pop));
     l.population = pop; l.popHistory.push(pop);
     if (pop > l.peakPopulation) l.peakPopulation = pop;
 
+    if (d.acclimatizing) events.push('Aklimatyzacja w nowej niszy — mniej pokarmu w tej turze.');
     if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
     if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
     if (env.climate === 'zimno') knowledge.push('cold');
@@ -380,21 +475,23 @@
       events.push('Ta linia wymarła.');
     }
 
-    // Rozbicie EP (P1) — czytelne, skąd pochodzą punkty.
+    // Rozbicie EP — czytelne, skąd pochodzą punkty. Premia za niszę raz na
+    // zajętą niszę (nagradza dywersyfikację, a nie liczbę linii).
     var growth = pop - popBefore;
-    var nicheBonus = (pop > 0) ? (data.NICHES[l.niche].epBonus || 0) : 0;
+    var nicheBonus = 0;
+    if (pop > 0 && !nichesPaid[l.niche]) { nicheBonus = data.NICHES[l.niche].epBonus || 0; nichesPaid[l.niche] = true; }
     var bd = {
-      growth: pop > 0 ? Math.max(0, Math.floor(growth / 15)) : 0,
-      population: pop > 0 ? Math.floor(pop / 150) : 0,
-      intelligence: pop > 0 ? Math.floor(lstat(l, 'intelligence') / 2) : 0,
+      growth: pop > 0 ? Math.max(0, Math.floor(growth / data.EP_RULES.perGrowth)) : 0,
+      population: pop > 0 ? Math.floor(pop / data.EP_RULES.perPopulation) : 0,
       niche: nicheBonus
     };
-    var epGain = bd.growth + bd.population + bd.intelligence + bd.niche;
+    var epGain = bd.growth + bd.population + bd.niche;
 
     return {
       lineageId: l.id, name: l.name, niche: l.niche,
       popBefore: popBefore, popAfter: pop,
       births: births, predationDeaths: predationDeaths, starvationDeaths: starvationDeaths, catDeaths: catDeaths,
+      survivalReasons: survivalReasons,
       energy: round1(d.energy), intelligence: lstat(l, 'intelligence'),
       epGain: epGain, epBreakdown: bd, alive: l.alive, events: events
     };
@@ -406,9 +503,38 @@
     return cat.severity;
   }
 
+  function hitsLineage(cat, l) { return !!cat && (cat.niche === 'all' || cat.niche === l.niche); }
+
+  /*
+   * Selektywność wymierań (ZALOZENIA 4.3): cechy lub statystyki z `survival`
+   * mnożą siłę katastrofy. Zwraca { severity, reasons } — reasons trafiają do
+   * raportu, by było jasne, DLACZEGO linia przetrwała lepiej.
+   */
+  function catastropheImpact(cat, l, diff) {
+    var sev = catastropheSeverity(cat, l.niche), reasons = [];
+    (cat.survival || []).forEach(function (f) {
+      var hit = false;
+      if (f.trait) hit = l.traits.indexOf(f.trait) !== -1;
+      else if (f.stat) {
+        var v = lstat(l, f.stat);
+        hit = (f.min == null || v >= f.min) && (f.max == null || v <= f.max);
+      }
+      if (hit) { sev *= f.mult; reasons.push(f.reason); }
+    });
+    return { severity: clamp(sev * ((diff && diff.catMult) || 1), 0, 0.95), reasons: reasons };
+  }
+
+  // Zwycięstwo: próg inteligencji w linii, która ma też cechę kultury (WIN_TRAIT).
+  function hasWon(n, data) {
+    return n.lineages.some(function (l) {
+      return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
+        (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+    });
+  }
+
   function evaluateStatus(n, data) {
     if (totalPopulation(n) <= 0) return 'lost';
-    if (maxIntelligence(n) >= n.intelligenceGoal) return 'won';
+    if (hasWon(n, data)) return 'won';
     if (n.eraIndex >= data.ERAS.length) return 'survived';
     return 'playing';
   }
@@ -422,6 +548,8 @@
     createInitialState: createInitialState,
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
+    catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
+    migrationCost: migrationCost, speciationCost: speciationCost, nowTurn: nowTurn,
     difficultyOf: difficultyOf,
     getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,
     totalPopulation: totalPopulation, maxIntelligence: maxIntelligence, maxDefense: maxDefense,

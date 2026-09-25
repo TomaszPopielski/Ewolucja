@@ -18,25 +18,46 @@
 
   var START_POPULATION = 120;
 
+  // Specjacja: koszt bazowy rośnie o STEP za każdą kolejną żywą linię.
   var SPECIATION_COST = 12;
+  var SPECIATION_COST_STEP = 6;
   var MIN_SPECIATION_POP = 60;
+
+  // Migracja: koszt = BASE − mobilność (min. MIN); w turze migracji linia się
+  // aklimatyzuje — zdobywa tylko ACCLIMATIZATION_FOOD pokarmu.
+  var MIGRATION = { baseCost: 10, minCost: 3, acclimatizationFood: 0.75 };
+
+  // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
+  // reprodukcyjny (liczebność, wzrost) + za inteligencję najlepszej linii.
+  // Skalibrowane symulacją (test „balans”): stały plan nie wygrywa zawsze.
+  var EP_RULES = { base: 10, perPopulation: 120, perGrowth: 12, intelligenceDiv: 2 };
+
+  // Zmienność środowiska (ZALOZENIA 3: faza środowiska). Po każdej turze silnik
+  // losuje odchylenia warunków następnej tury od wartości historycznych; gracz
+  // widzi je przed decyzją. `climateShift` — szansa zmiany klimatu o jeden stopień.
+  var ENV_VARIATION = { food: 2, predators: 2, oxygen: 1, climateShift: 0.2 };
+
+  // Zwycięstwo: próg inteligencji ORAZ ta cecha (kultura/technologia, ZALOZENIA 4.6).
+  var WIN_TRAIT = 'tool_use';
 
   // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
   var DIFFICULTIES = {
-    latwy:    { label: 'Łatwy',    startEp: 50, goal: 12, catMult: 0.6, predMult: 0.8, coevo: 0.5 },
-    normalny: { label: 'Normalny', startEp: 35, goal: 14, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
-    trudny:   { label: 'Trudny',   startEp: 30, goal: 15, catMult: 1.2, predMult: 1.1, coevo: 1.2 }
+    latwy:    { label: 'Łatwy',    startEp: 50, goal: 14, catMult: 0.6, predMult: 0.8, coevo: 0.5 },
+    normalny: { label: 'Normalny', startEp: 35, goal: 15, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
+    trudny:   { label: 'Trudny',   startEp: 30, goal: 17, catMult: 1.2, predMult: 1.1, coevo: 1.2 }
   };
 
   /*
    * Nisze ekologiczne z modyfikatorami względem wartości bazowych (woda) danej
    * tury. `requires` — cecha potrzebna, by zająć niszę. `land:true` — używa
-   * jawnych wartości turn.land.
+   * jawnych wartości turn.land. `without` — kara dla linii bez danej cechy.
    */
   var NICHES = {
     woda:       { label: 'Woda',       icon: '🌊', requires: null,    foodMult: 1.0, predMult: 1.0, epBonus: 0 },
     przybrzeze: { label: 'Przybrzeże', icon: '🪸', requires: null,    foodMult: 1.2, predMult: 1.25, epBonus: 1 },
-    lad:        { label: 'Ląd',        icon: '🏝️', requires: 'limbs', land: true,                    epBonus: 3 },
+    lad:        { label: 'Ląd',        icon: '🏝️', requires: 'limbs', land: true,                    epBonus: 3,
+      // Bez jaja lądowego rozród wciąż zależy od wody (jak u płazów).
+      without: { trait: 'amniotic_egg', effects: { reproduction: -2 }, note: 'bez jaja lądowego rozród zależy od wody' } },
     powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3,  epBonus: 2 }
   };
 
@@ -49,10 +70,16 @@
     rozrod: '🥚', termoregulacja: '🌡️', uklad_nerwowy: '🧠'
   };
 
+  /*
+   * `conditions` — kompromisy zależne od warunków (ZALOZENIA 4.2 i 4.3): efekty
+   * doliczane tylko, gdy warunek jest spełniony. Warunki: `niches` (lista nisz),
+   * `oxygenBelow` (tlen tury poniżej progu), `climate`. `note` — opis dla gracza.
+   */
   var TRAITS = [
     // --- Pokarm ---
     { id: 'filter_feeding', name: 'Filtrowanie pokarmu', icon: '💧', category: 'pokarm', cost: 10, requires: [],
-      effects: { feeding: 2 }, tradeoff: 'Skuteczne tylko przy dużej ilości planktonu.',
+      effects: { feeding: 2 }, tradeoff: 'Skuteczne tylko w wodzie, gdzie jest plankton.',
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { feeding: -2 }, note: 'poza wodą brak planktonu' }],
       desc: 'Odcedzanie drobnych cząstek pokarmu z wody — tania strategia odżywiania.' },
     { id: 'jaws', name: 'Szczęki', icon: '🦷', category: 'pokarm', cost: 16, requires: [],
       effects: { feeding: 3, metabolism: 1 }, tradeoff: 'Więcej pokarmu, ale wyższy metabolizm.',
@@ -64,6 +91,7 @@
     // --- Lokomocja ---
     { id: 'fins', name: 'Płetwy', icon: '🐟', category: 'lokomocja', cost: 10, requires: [],
       effects: { mobility: 2 }, tradeoff: 'Sprawne w wodzie, bezużyteczne na lądzie.',
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { mobility: -2 }, note: 'poza wodą płetwy nie pomagają' }],
       desc: 'Płetwy poprawiają manewrowość i ucieczkę przed drapieżnikami.' },
     { id: 'fast_muscle', name: 'Szybkie mięśnie', icon: '⚡', category: 'lokomocja', cost: 15, requires: ['fins'],
       effects: { mobility: 2, defense: 1, metabolism: 2 }, tradeoff: 'Zrywy prędkości są energochłonne.',
@@ -81,31 +109,34 @@
     // --- Obrona ---
     { id: 'scales', name: 'Łuski', icon: '🐍', category: 'obrona', cost: 10, requires: [],
       effects: { defense: 2 }, tradeoff: 'Lekka ochrona, ogranicza wymianę gazową przez skórę.',
+      conditions: [{ oxygenBelow: 10, effects: { metabolism: 1 }, note: 'przy niskim tlenie oddychanie kosztuje więcej' }],
       desc: 'Zrogowaciała skóra chroni przed urazami i wysychaniem.' },
     { id: 'shell', name: 'Pancerz', icon: '🐢', category: 'obrona', cost: 16, requires: [],
       effects: { defense: 4, mobility: -1, metabolism: 2 }, tradeoff: 'Świetna obrona kosztem ruchu i energii.',
       desc: 'Twardy pancerz zniechęca większość drapieżników.' },
     { id: 'camouflage', name: 'Kamuflaż', icon: '🦎', category: 'obrona', cost: 14, requires: ['eyes'],
       effects: { defense: 3 }, tradeoff: 'Zawodzi, gdy trzeba się aktywnie poruszać.',
+      conditions: [{ niches: ['powietrze'], effects: { defense: -3 }, note: 'w locie kamuflaż nie działa' }],
       desc: 'Ubarwienie zlewające się z otoczeniem to obrona bez kosztu ruchu.' },
 
     // --- Zmysły ---
     { id: 'eyes', name: 'Oczy', icon: '👁️', category: 'zmysly', cost: 12, requires: [],
-      effects: { feeding: 1, defense: 1 }, tradeoff: 'Rozwój narządu wymaga stabilnego pokarmu.',
+      effects: { feeding: 1, defense: 1, metabolism: 1 }, tradeoff: 'Utrzymanie narządu wzroku kosztuje energię.',
       desc: 'Wzrok ułatwia zdobywanie pokarmu i wczesne wykrycie zagrożeń.' },
     { id: 'lateral_line', name: 'Linia boczna', icon: '〰️', category: 'zmysly', cost: 10, requires: [],
       effects: { defense: 1, mobility: 1 }, tradeoff: 'Działa wyłącznie w środowisku wodnym.',
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { defense: -1, mobility: -1 }, note: 'poza wodą nie wykrywa drgań' }],
       desc: 'Narząd czuciowy wykrywa drgania wody — ostrzega przed drapieżnikiem.' },
 
     // --- Rozród ---
     { id: 'many_eggs', name: 'Liczne jaja', icon: '🥚', category: 'rozrod', cost: 12, requires: [],
-      effects: { reproduction: 3 }, tradeoff: 'Ilość zamiast jakości — duża śmiertelność potomstwa.',
+      effects: { reproduction: 3, metabolism: 1 }, tradeoff: 'Ilość zamiast jakości — produkcja wielu jaj kosztuje energię.',
       desc: 'Składanie wielu jaj zwiększa szansę, że część przetrwa.' },
     { id: 'amniotic_egg', name: 'Jajo lądowe', icon: '🐣', category: 'rozrod', cost: 20, requires: ['scales'],
-      effects: { reproduction: 2, defense: 1 }, tradeoff: 'Uniezależnia rozród od wody, ale kosztowne.',
+      effects: { reproduction: 2, defense: 1, metabolism: 1 }, tradeoff: 'Uniezależnia rozród od wody, ale jajo z zapasami jest kosztowne.',
       desc: 'Jajo z błonami i skorupą można składać na lądzie.' },
     { id: 'parental_care', name: 'Opieka nad potomstwem', icon: '🐧', category: 'rozrod', cost: 24, requires: ['many_eggs'],
-      effects: { reproduction: 2, intelligence: 1, metabolism: 1 }, tradeoff: 'Mniej potomstwa, lepiej chronionego.',
+      effects: { reproduction: -1, defense: 2, intelligence: 1, metabolism: 1 }, tradeoff: 'Mniej potomstwa, lepiej chronionego.',
       desc: 'Ochrona młodych podnosi ich przeżywalność i sprzyja uczeniu się.' },
 
     // --- Termoregulacja ---
@@ -139,6 +170,12 @@
 
   function land(food, predators) { return { food: food, predators: predators }; }
 
+  /*
+   * Katastrofy: `niche` ('all' albo nazwa niszy), `severity` (odsetek strat),
+   * `nicheSeverity` (siła w konkretnej niszy), `survival` — selektywność
+   * wymierania: cecha (`trait`) lub statystyka w zakresie (`stat`, `min`/`max`)
+   * mnoży straty przez `mult`; `reason` trafia do raportu.
+   */
   var ERAS = [
     {
       id: 'paleozoik', name: 'Paleozoik', dates: '541–252 mln lat temu',
@@ -152,7 +189,8 @@
           note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
         { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
           note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
-          catastrophe: { name: 'Wymieranie ordowickie', niche: 'woda', severity: 0.35, knowledge: 'extinction' } },
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'woda', severity: 0.35, knowledge: 'extinction',
+            survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka do cieplejszych wód' }] } },
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
           note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
         { title: 'Dewon — wiek ryb', oxygen: 11, food: 9, predators: 10, climate: 'umiarkowanie', land: land(9, 3),
@@ -165,7 +203,8 @@
           note: 'Erupcje trapów syberyjskich: gwałtowne ocieplenie, zakwaszone i niedotlenione oceany. ' +
             'Najmocniej cierpią morza, ale ląd także.',
           catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.55, nicheSeverity: { lad: 0.35 },
-            knowledge: 'extinction' } }
+            knowledge: 'extinction',
+            survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'niski metabolizm — mniejsze zapotrzebowanie na tlen' }] } }
       ]
     },
     {
@@ -186,7 +225,10 @@
           note: 'Rośliny kwiatowe i owady tworzą nowe źródła pokarmu.' },
         { title: 'Kreda — uderzenie asteroidy', oxygen: 10, food: 6, predators: 8, climate: 'zimno', land: land(6, 8),
           note: 'Asteroida i zima uderzeniowa kończą erę dinozaurów.',
-          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.5, knowledge: 'extinction' } }
+          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.5, knowledge: 'extinction',
+            survival: [
+              { stat: 'metabolism', max: 7, mult: 0.6, reason: 'mały, oszczędny organizm przetrwał zimę uderzeniową' },
+              { trait: 'omnivory', mult: 0.75, reason: 'wszystkożerność — elastyczna dieta w czasie głodu' }] } }
       ]
     },
     {
@@ -205,7 +247,10 @@
           note: 'Chłód premiuje izolację, zapasy i inteligencję.' },
         { title: 'Plejstocen — epoki lodowcowe', oxygen: 10, food: 7, predators: 8, climate: 'zimno', land: land(8, 8),
           note: 'Zlodowacenia to twarda szkoła — przetrwają najbardziej elastyczni.',
-          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'lad', severity: 0.3, knowledge: 'extinction' } },
+          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'lad', severity: 0.3, knowledge: 'extinction',
+            survival: [
+              { trait: 'insulation', mult: 0.6, reason: 'izolacja (futro/pióra) chroni przed mrozem' },
+              { trait: 'social', mult: 0.8, reason: 'życie w grupie — wspólne przetrwanie zimy' }] } },
         { title: 'Współczesność — próg rozumności', oxygen: 11, food: 10, predators: 6, climate: 'umiarkowanie', land: land(11, 6),
           note: 'Ostatnia tura: czy Twoja linia przekroczy próg inteligencji?' }
       ]
@@ -225,7 +270,7 @@
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 60, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 42, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -282,7 +327,8 @@
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
-    SPECIATION_COST: SPECIATION_COST, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    MIGRATION: MIGRATION, WIN_TRAIT: WIN_TRAIT, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:

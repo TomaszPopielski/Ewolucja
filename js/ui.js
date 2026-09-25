@@ -103,7 +103,7 @@
       card.className = 'scenario-card';
       card.innerHTML = '<span class="scenario-icon">' + sc.icon + '</span>' +
         '<span class="scenario-name">' + sc.name + '</span>' +
-        '<span class="scenario-diff">' + diff.label + ' · cel int. ' + (sc.goal != null ? sc.goal : diff.goal) + '</span>' +
+        '<span class="scenario-diff">' + diff.label + ' · cel: int. ' + (sc.goal != null ? sc.goal : diff.goal) + ' + narzędzia</span>' +
         '<span class="scenario-intro">' + sc.intro + '</span>';
       card.addEventListener('click', function () {
         newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
@@ -166,7 +166,7 @@
 
     var can = Engine.canSpeciate(DATA, state);
     el.btnSpeciate.disabled = !can.ok || state.status !== 'playing';
-    el.btnSpeciate.title = can.ok ? 'Rozdziel aktywną linię (koszt ' + DATA.SPECIATION_COST + ' EP)' : can.error;
+    el.btnSpeciate.title = can.ok ? 'Rozdziel aktywną linię (koszt ' + Engine.speciationCost(DATA, state) + ' EP)' : can.error;
 
     renderNicheButtons();
   }
@@ -185,7 +185,7 @@
       } else {
         var can = Engine.canMigrate(DATA, state, a, key);
         btn.disabled = !can.ok || state.status !== 'playing';
-        btn.title = can.ok ? 'Migruj do niszy: ' + cfg.label : can.error;
+        btn.title = can.ok ? 'Migruj do niszy: ' + cfg.label + ' (koszt ' + can.cost + ' EP, tura aklimatyzacji)' : can.error;
         if (can.ok) btn.addEventListener('click', function () { onMigrateTo(key); });
       }
       el.nicheButtons.appendChild(btn);
@@ -200,7 +200,7 @@
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); updateUndoButton();
   }
 
   // ===================== Render — aktywna linia =====================
@@ -267,12 +267,28 @@
         ' <span class="fc ' + (diff >= 0 ? 'pos' : 'neg') + '">(' + (diff >= 0 ? '+' : '') + diff + ')</span></div>';
     }
 
+    if (base.acclimatizing) {
+      html += '<div class="forecast-note">🧭 Aklimatyzacja w nowej niszy — w tej turze mniej pokarmu.</div>';
+    }
+    if (base.notes && base.notes.length) {
+      html += '<div class="forecast-note">⚖ Kompromisy teraz: ' + base.notes.map(function (n) {
+        return escapeHtml(n.trait) + ' — ' + escapeHtml(n.note) + ' (' + effectsText(n.effects) + ')';
+      }).join('; ') + '.</div>';
+    }
     if (base.catastrophe) {
       html += '<div class="forecast-warn">☄️ Uwaga: nadchodzi katastrofa (' +
         escapeHtml(base.catastrophe.name) + ') — uderzy w niszę ' +
-        (base.catastrophe.niche === 'all' ? 'wszystkich' : nicheLabel(base.catastrophe.niche)) + '.</div>';
+        (base.catastrophe.niche === 'all' ? 'wszystkich' : nicheLabel(base.catastrophe.niche)) +
+        '. Przewidywane straty: ok. ' + base.catastropheLoss + '% populacji' +
+        (base.survivalReasons.length ? ' (pomaga: ' + escapeHtml(base.survivalReasons.join('; ')) + ')' : '') + '.</div>';
     }
     el.forecastBody.innerHTML = html;
+  }
+
+  function effectsText(effects) {
+    return Object.keys(effects).map(function (k) {
+      return Engine.statLabel(k) + ' ' + (effects[k] > 0 ? '+' : '') + effects[k];
+    }).join(', ');
   }
 
   // ===================== Render — środowisko =====================
@@ -287,11 +303,21 @@
     el.envNote.textContent = env.note;
     var a = Engine.getActiveLineage(state);
     var cfg = DATA.NICHES[a.niche];
-    var nicheEnv = cfg.land ? env.land
-      : { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
-    el.envStats.innerHTML = chip('Klimat: ' + climateLabel(env.climate)) + chip('Tlen: ' + env.oxygen) +
-      chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food)) +
-      chip('Drapieżniki: ' + Math.round(nicheEnv.predators));
+    // Warunki tej tury (wylosowane) i typowe dla epoki — różnica pokazuje zmienność środowiska.
+    var typical = DATA.ERAS[state.eraIndex].turns[state.turn];
+    function inNiche(e) {
+      return cfg.land ? e.land : { food: e.food * (cfg.foodMult || 1), predators: e.predators * (cfg.predMult || 1) };
+    }
+    var nicheEnv = inNiche(env), typEnv = inNiche(typical);
+    function dev(v, t) {
+      var d = Math.round(v) - Math.round(t);
+      return d === 0 ? '' : ' <span class="env-dev">(' + (d > 0 ? '↑' : '↓') + ' typowo ' + Math.round(t) + ')</span>';
+    }
+    el.envStats.innerHTML = chip('Klimat: ' + climateLabel(env.climate) +
+        (env.climateShifted ? ' <span class="env-dev">(typowo ' + climateLabel(typical.climate) + ')</span>' : '')) +
+      chip('Tlen: ' + env.oxygen + dev(env.oxygen, typical.oxygen)) +
+      chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food) + dev(nicheEnv.food, typEnv.food)) +
+      chip('Drapieżniki: ' + Math.round(nicheEnv.predators) + dev(nicheEnv.predators, typEnv.predators));
     if (env.catastrophe) {
       el.envCatastrophe.hidden = false;
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
@@ -351,7 +377,10 @@
       '<span class="trait-cost">' + costLabel + '</span></div>' +
       '<div class="trait-desc">' + trait.desc + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
-      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + extra;
+      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' +
+      (trait.conditions || []).map(function (c) {
+        return '<div class="trait-condition">⚠ ' + c.note + ': ' + effectsText(c.effects) + '</div>';
+      }).join('') + extra;
 
     if (status === 'available' && state.status === 'playing') {
       btn.addEventListener('click', function () { onBuyTrait(trait.id); });
@@ -385,7 +414,7 @@
     var can = Engine.canSpeciate(DATA, state);
     if (!can.ok) { flash(can.error); return; }
     var base = Engine.getActiveLineage(state).name;
-    el.speciateHint.textContent = 'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + DATA.SPECIATION_COST +
+    el.speciateHint.textContent = 'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + Engine.speciationCost(DATA, state) +
       ' EP). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie — możesz wysłać ją w inną niszę.';
     el.speciateName.value = base + ' II';
     openModal(el.modalSpeciate); el.speciateName.focus(); el.speciateName.select();
@@ -450,7 +479,6 @@
         var parts = [];
         if (b.growth) parts.push('wzrost +' + b.growth);
         if (b.population) parts.push('populacja +' + b.population);
-        if (b.intelligence) parts.push('inteligencja +' + b.intelligence);
         if (b.niche) parts.push('nisza +' + b.niche);
         var ep = document.createElement('div'); ep.className = 'report-epbreak';
         ep.innerHTML = '<span>EP z tej linii: <strong>+' + lr.epGain + '</strong></span>' +
@@ -462,6 +490,7 @@
     var sum = document.createElement('div'); sum.className = 'report-summary';
     sum.appendChild(line('Łączna populacja', report.totalPopulation, 'plain'));
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
+    if (report.epIntel) sum.appendChild(line('Premia za inteligencję (najlepsza linia)', '+' + report.epIntel, 'pos'));
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
     if (report.predatorLevel > 2) {
       sum.appendChild(line('Presja drapieżników (koewolucja)', '↑ ' + report.predatorLevel, 'neg'));
@@ -557,7 +586,7 @@
         : 'Wszystkie linie wygasły');
     el.endSummary.textContent =
       s === 'won'
-        ? 'Jedna z Twoich linii osiągnęła próg inteligencji — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
+        ? 'Jedna z Twoich linii osiągnęła próg inteligencji i zaczęła używać narzędzi — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
         : s === 'survived'
         ? 'Twoje linie przetrwały ' + eraList(Engine.playedEras(DATA, state)) + ', ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
@@ -657,11 +686,11 @@
     var span = eras.length === 1 ? 'w erze ' + eras[0].name.toLowerCase().replace(/k$/, 'ku')
       : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
     return [
-    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' ' + span + '.' },
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i używania narzędzi ' + span + '.' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️.' }
+    { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik). Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️. Migracja kosztuje EP i turę aklimatyzacji.' }
     ];
   }
   var tutorialSteps = [];
@@ -701,7 +730,7 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
-    el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
+    el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i używania narzędzi ' +
       'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (⭐), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';

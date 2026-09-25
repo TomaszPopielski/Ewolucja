@@ -3,9 +3,19 @@
 Przegląd stanu gry (commit `0721bef`: scenariusze, trudność, cztery nisze,
 koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALOZENIA.md).
 
-> **Status:** etap 1 (poprawki P1) zrealizowany — punkty 1.1–1.7, 1.10, 4.1 i 4.2
-> są naprawione (✅) i mają testy regresji w `test/engine.test.js`. Kolejne etapy
-> (balans, edukacja, dostępność) — do zrobienia.
+> **Status:** etapy 1 (poprawki P1) i 2 (balans) zrealizowane — punkty oznaczone ✅
+> mają testy w `test/engine.test.js` (balans: `test/bots.js`). Kolejne etapy
+> (edukacja, dostępność i technika, treści) — do zrobienia.
+>
+> **Balans po etapie 2** (100 gier z ziarnami 1–100, % zwycięstw):
+>
+> | Gracz | Łatwy | Normalny | Trudny | Epoki lodowcowe |
+> |---|---|---|---|---|
+> | stały plan „kup wszystko” | 99 | 24 | 9 | — |
+> | stały plan: tylko ścieżka ⭐ | 100 | 43 | 4 | 37 |
+> | gracz korzystający z prognozy | 98 | 53 | 19 | — |
+>
+> Przed etapem 2 stały plan wygrywał 100% gier na normalnym, a „Epoki lodowcowe” 100%.
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
@@ -33,22 +43,22 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 | # | Pri | Problem | Propozycja |
 |---|---|---|---|
-| 2.1 | P1 | 🔬 **Darmowa, natychmiastowa migracja pozwala uniknąć katastrofy.** Prognoza ostrzega o nadchodzącym wymieraniu, a gracz przenosi linię na przybrzeże i wraca po turze (Perm: woda 65→22, przybrzeże 65→45, 0 ofiar katastrofy). Przy okazji uczy czegoś odwrotnego niż założenie „katastrofy odsiewają niedostosowanych”. | Migracja trwa turę albo kosztuje EP/część populacji; limit jednej migracji na turę; wymóg minimalnej mobilności (ZALOZENIA 4.1: mobilność = zdolność migracji). |
-| 2.2 | P1 | 🔬 **Specjacja mnoży EP.** Każda linia osobno dostaje EP za inteligencję i niszę, a potomek kopiuje statystyki rodzica (1 linia: +16 EP/turę, 4 linie: +44, 7 linii: +74). Specjacja za 12 EP zwraca się w 1–2 tury. | Premię za inteligencję liczyć raz (z najlepszej linii) albo skalować ją malejąco; koszt specjacji rosnący z liczbą żywych linii. |
-| 2.3 | P1 | 🔬 **Gra jest za łatwa i nie wymusza adaptacji.** Stały plan zakupów „pod ⭐” wygrywa w 300/300 losowych gier (15 z nich już w mezozoiku, zanim kenozoiczne kamienie milowe są dostępne). Scenariusz „Epoki lodowcowe” (trudny) wygrywa w 200/200. To przeczy pętli „obserwuj → decyduj → adaptuj”. | Kalibracja celu i kosztów; test „stały plan nie powinien wygrywać zawsze”; zwycięstwo dopiero od kenozoiku (lub wymóg `tool_use`); w scenariuszu lodowcowym realne zagrożenie głodem/zimnem. |
-| 2.4 | P2 | **Kompromisy w opisach nie działają w silniku** (ZALOZENIA 4.2: „nic nie jest darmowe”). Przykłady: Płetwy „bezużyteczne na lądzie”, Linia boczna „działa tylko w wodzie”, Filtrowanie „tylko przy dużej ilości planktonu”, Kamuflaż „zawodzi w ruchu”, Liczne jaja „duża śmiertelność”, Opieka „mniej potomstwa” (a daje +2 rozrodu). Oczy, Łuski i Jajo lądowe nie mają żadnego minusa. | Dodać do cech pole `nicheMods` / `conditions` (np. `lateral_line` działa tylko w `woda`/`przybrzeze`), a minusy wprowadzić do efektów. Pokazać je w prognozie. |
-| 2.5 | P2 | **Katastrofy uderzają jednakowo** (stała `severity` × trudność). Karta wiedzy mówi, że wymieranie „uderza najmocniej w linie niedostosowane”, ale mechanika tego nie odzwierciedla. | Modyfikatory przeżycia zależne od cech: stałocieplność/izolacja przy zlodowaceniach, mały metabolizm przy K–Pg, nisza powietrzna itp. Raport ma wyjaśniać, *dlaczego* linia przetrwała. |
-| 2.6 | P2 | Mutacje mogą podnieść **inteligencję**, więc cel da się osiągnąć losowo, a **metabolizm** nigdy nie mutuje. | Mutacje inteligencji rzadsze (albo tylko przy `brain`); dodać metabolizm do puli. |
+| 2.1 ✅ | P1 | 🔬 **Darmowa, natychmiastowa migracja pozwala uniknąć katastrofy.** Prognoza ostrzega o nadchodzącym wymieraniu, a gracz przenosi linię na przybrzeże i wraca po turze (Perm: woda 65→22, przybrzeże 65→45, 0 ofiar katastrofy). Przy okazji uczy czegoś odwrotnego niż założenie „katastrofy odsiewają niedostosowanych”. | Migracja trwa turę albo kosztuje EP/część populacji; limit jednej migracji na turę; wymóg minimalnej mobilności (ZALOZENIA 4.1: mobilność = zdolność migracji). |
+| 2.2 ✅ | P1 | 🔬 **Specjacja mnoży EP.** Każda linia osobno dostaje EP za inteligencję i niszę, a potomek kopiuje statystyki rodzica (1 linia: +16 EP/turę, 4 linie: +44, 7 linii: +74). Specjacja za 12 EP zwraca się w 1–2 tury. | Premię za inteligencję liczyć raz (z najlepszej linii) albo skalować ją malejąco; koszt specjacji rosnący z liczbą żywych linii. |
+| 2.3 ✅ | P1 | 🔬 **Gra jest za łatwa i nie wymusza adaptacji.** Stały plan zakupów „pod ⭐” wygrywa w 300/300 losowych gier (15 z nich już w mezozoiku, zanim kenozoiczne kamienie milowe są dostępne). Scenariusz „Epoki lodowcowe” (trudny) wygrywa w 200/200. To przeczy pętli „obserwuj → decyduj → adaptuj”. | Kalibracja celu i kosztów; test „stały plan nie powinien wygrywać zawsze”; zwycięstwo dopiero od kenozoiku (lub wymóg `tool_use`); w scenariuszu lodowcowym realne zagrożenie głodem/zimnem. |
+| 2.4 ✅ | P2 | **Kompromisy w opisach nie działają w silniku** (ZALOZENIA 4.2: „nic nie jest darmowe”). Przykłady: Płetwy „bezużyteczne na lądzie”, Linia boczna „działa tylko w wodzie”, Filtrowanie „tylko przy dużej ilości planktonu”, Kamuflaż „zawodzi w ruchu”, Liczne jaja „duża śmiertelność”, Opieka „mniej potomstwa” (a daje +2 rozrodu). Oczy, Łuski i Jajo lądowe nie mają żadnego minusa. | Dodać do cech pole `nicheMods` / `conditions` (np. `lateral_line` działa tylko w `woda`/`przybrzeze`), a minusy wprowadzić do efektów. Pokazać je w prognozie. |
+| 2.5 ✅ | P2 | **Katastrofy uderzają jednakowo** (stała `severity` × trudność). Karta wiedzy mówi, że wymieranie „uderza najmocniej w linie niedostosowane”, ale mechanika tego nie odzwierciedla. | Modyfikatory przeżycia zależne od cech: stałocieplność/izolacja przy zlodowaceniach, mały metabolizm przy K–Pg, nisza powietrzna itp. Raport ma wyjaśniać, *dlaczego* linia przetrwała. |
+| 2.6 ✅ | P2 | Mutacje mogą podnieść **inteligencję**, więc cel da się osiągnąć losowo, a **metabolizm** nigdy nie mutuje. | Mutacje inteligencji rzadsze (albo tylko przy `brain`); dodać metabolizm do puli. |
 | 2.7 | P2 | Koewolucja jest **globalna**: obrona linii wodnej podnosi presję drapieżników na lądzie i w powietrzu. | `predatorLevel` osobno dla każdej niszy. |
 | 2.8 | P3 | Klimat działa tak samo w każdej niszy (woda buforuje temperaturę). | Łagodniejszy wpływ zimna w wodzie, silniejszy na lądzie i w powietrzu. |
-| 2.9 | P3 | Ląd wymaga tylko Kończyn, choć karta wiedzy mówi też o „oddychaniu powietrzem i rozrodzie niezależnym od wody”. | Bez Jaja lądowego — kara do rozrodu na lądzie (płazy muszą wracać do wody). |
+| 2.9 ✅ | P3 | Ląd wymaga tylko Kończyn, choć karta wiedzy mówi też o „oddychaniu powietrzem i rozrodzie niezależnym od wody”. | Bez Jaja lądowego — kara do rozrodu na lądzie (płazy muszą wracać do wody). |
 
 ## 3. Luki względem założeń (ZALOZENIA.md)
 
 | # | Pri | Założenie | Stan | Propozycja |
 |---|---|---|---|---|
 | 3.1 | P1 | §6 Mini-quizy po erze z bonusem EP | brak | 2–3 pytania z kart wiedzy odblokowanych w danej erze; bonus EP za poprawne odpowiedzi; pytania w `data.js`. |
-| 3.2 | P2 | §6 Tryb nauczyciela jako **tryb** („zapauzowanie, cofnięcie tury, omówienie”) | cofanie jest zawsze włączone | Przełącznik trybu na starcie. Poza nim brak cofania tury, bo inaczej można w kółko losować mutacje i zdarzenia. W trybie nauczyciela dodać „omów turę” (powrót do raportu) i cofanie z ekranu końcowego. |
+| 3.2 | P2 | §6 Tryb nauczyciela jako **tryb** („zapauzowanie, cofnięcie tury, omówienie”) | cofanie jest zawsze włączone | Przełącznik trybu na starcie. Poza nim brak cofania tury, bo inaczej można w kółko losować mutacje, zdarzenia i (od etapu 2) warunki środowiska. W trybie nauczyciela dodać „omów turę” (powrót do raportu) i cofanie z ekranu końcowego. |
 | 3.3 | P2 | §5 Prekambr i Antropocen | gra startuje w paleozoiku i kończy na progu rozumności | Krótki prekambr (fotosynteza, wielokomórkowość, tlen) jako opcjonalny prolog; Antropocen jako epilog/ekran zwycięstwa. |
 | 3.4 | P2 | §4.1 Typ odżywiania (roślino-/mięso-/wszystkożerność) | tylko liczba „odżywianie” | Dieta jako atrybut modyfikujący, który pokarm liczy się w danej niszy (rośliny na lądzie od sylur/karbonu, zdobycz ↔ drapieżnictwo). |
 | 3.5 | P2 | §4.2 EP za „zajęcie nowej niszy” i „wygrane starcia” | premia za niszę naliczana co turę, brak EP za starcia | Jednorazowy bonus za pierwszą kolonizację niszy; EP za turę z niskimi stratami od drapieżników. |
@@ -97,7 +107,7 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 ## Proponowana kolejność prac
 
 1. ✅ **Sprint poprawek (P1, małe):** 1.1–1.4, 4.1–4.2, 1.6–1.7, README (1.10) i testy regresji (6.3).
-2. **Sprint balansu:** 2.1 (migracja), 2.2 (EP ze specjacji), 2.3 (kalibracja + test statystyczny), 2.4 (działające kompromisy), 2.5 (selektywne katastrofy).
+2. ✅ **Sprint balansu:** 2.1 (migracja), 2.2 (EP ze specjacji), 2.3 (kalibracja + test statystyczny), 2.4 (działające kompromisy), 2.5 (selektywne katastrofy).
 3. **Sprint edukacyjny:** quizy po erze (3.1), karta „ewolucja nie ma celu” (4.3), tryb nauczyciela jako tryb (3.2), rozszerzony eksport (4.7), oznaczanie uproszczeń (4.5).
 4. **Sprint dostępności i techniki:** 5.1–5.3, tryb dla daltonistów (3.7), PWA (3.8), i18n silnika (6.1), `npm test` + CI (6.2).
 5. **Rozwój treści:** prekambr/antropocen (3.3), dieta (3.4), scenariusze z własnymi celami (3.6), brakujące wymierania (4.4).
