@@ -6,7 +6,7 @@
  * z migracją, katastrofy i pozytywne zdarzenia, koewolucję (adaptacyjną presję
  * drapieżników), rozbicie EP i prognozę „co-jeśli”.
  *
- * Funkcje mutujące zwracają NOWY stan (kopię) — tryb nauczyciela cofa akcje.
+ * Funkcje mutujące zwracają NOWY stan (kopię) — umożliwia cofanie akcji.
  */
 (function (root, factory) {
   var engine = factory();

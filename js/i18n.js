@@ -25,7 +25,7 @@
       'start.nameLabel': 'Nazwij swój gatunek:',
       'start.namePlaceholder': 'np. Prazwierz morski',
       'start.button': 'Rozpocznij ewolucję',
-      'start.eduNote': 'Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu mechanizmów, nie odwzorowaniu konkretnych gatunków.',
+      'start.eduNote': 'Model opiera się na realnych mechanizmach ewolucji; uproszczenia są jawne. Większość rodowodów w historii Ziemi wymarła — Twój też może.',
 
       'status.ep': 'Punkty ewolucji',
       'status.population': 'Populacja',
@@ -42,7 +42,7 @@
       'species.forecast': 'Prognoza następnej tury',
       'species.envTitle': 'Środowisko następnej tury',
       'species.simulate': 'Przeżyj turę →',
-      'species.undo': '↶ Cofnij (tryb nauczyciela)',
+      'species.undo': '↶ Cofnij',
 
       'traits.title': 'Adaptacje — wydaj punkty ewolucji',
       'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. ⭐ oznacza drogę do inteligencji.',

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
-  <title>Ewolucja — gra edukacyjna</title>
+  <meta name="description" content="Ewolucja — strategiczna gra o głębokim czasie, doborze naturalnym i wymieraniu." />
+  <title>Ewolucja</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -28,10 +28,10 @@
       <div class="card intro-card">
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
-          Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
-          aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
-          zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
-          <strong>dobór naturalny</strong>.
+          Poprowadź rodowód przez setki milionów lat — w świecie, który nie ma wobec niego
+          żadnych planów. Wydawaj <strong>punkty ewolucji</strong> na cechy, godź się na
+          kompromisy, zajmuj nisze i spróbuj przetrwać wymierania masowe.
+          <strong>Dobór naturalny</strong> nie nagradza wysiłku — tylko dopasowanie.
         </p>
         <div class="intro-goal" id="intro-goal"></div>
         <form id="form-start" class="start-form">
@@ -106,7 +106,7 @@
           </div>
 
           <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
-          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
+          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij</button>
         </aside>
 
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
@@ -204,7 +204,7 @@
         <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
         <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
       </div>
-      <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
+      <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania — kronika Twojego rodowodu.</p>
       <textarea id="summary-text" class="summary-text" readonly rows="14"></textarea>
       <div class="modal-actions">
         <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>

@@ -1,15 +1,16 @@
 # Ewolucja 🧬
 
-Edukacyjna gra przeglądarkowa o **doborze naturalnym** i historii życia,
-inspirowana *Evolution: The Game of Intelligent Life* (1997).
+Strategiczna gra przeglądarkowa o **głębokim czasie**, doborze naturalnym
+i wymieraniu, inspirowana *Evolution: The Game of Intelligent Life* (1997).
 
-Poprowadź linię rozwojową zwierząt przez erę **paleozoiku** — od prostego
-organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
-na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa ewolucja.
+Prowadzisz rodowód przez setki milionów lat historii Ziemi — w świecie, który
+nie ma wobec niego żadnych planów. Wydawaj **punkty ewolucji** na cechy, godź się
+na kompromisy, zajmuj nisze i próbuj przetrwać wymierania masowe.
 
-> Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
-> mechanizmów, nie odwzorowaniu konkretnych gatunków. Pełne założenia
-> projektowe: [`ZALOZENIA.md`](./ZALOZENIA.md).
+> Projekt zmienia kierunek: z pomocy dydaktycznej dla szkół w dojrzałą,
+> wymagającą grę strategiczną dla dorosłych i starszej młodzieży (16+).
+> Rzetelność naukowa pozostaje fundamentem symulacji. Pełne założenia i plan
+> rozwoju: [`ZALOZENIA.md`](./ZALOZENIA.md).
 
 ## Jak uruchomić
 
@@ -84,8 +85,8 @@ przechodnia świadomą strategią.
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
-- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
-- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
+- **Samouczek** pierwszych kroków, **cofanie** akcji, **wykres populacji**.
+- **Eksport kroniki gry** (kopiuj / pobierz .txt).
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
@@ -100,5 +101,6 @@ js/i18n.js  — stringi interfejsu (warstwa i18n)
 ## Status
 
 Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
-tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+katastrofy i samouczek. Kolejne etapy (głębsza genetyka, rywalizujące klady,
+mapa z tektoniką, tryb Ironman, scenariusze historyczne) opisuje sekcja 10
+[`ZALOZENIA.md`](./ZALOZENIA.md).
