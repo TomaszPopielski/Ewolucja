@@ -118,7 +118,7 @@
 
     // --- Układ nerwowy (droga do inteligencji) ---
     { id: 'ganglia', name: 'Zwoje nerwowe', icon: '🕸️', category: 'uklad_nerwowy', cost: 15, requires: [], path: 'intelligence',
-      effects: { intelligence: 2, defense: 1 }, tradeoff: 'Szybsze reakcje, lekko wyższy metabolizm.',
+      effects: { intelligence: 2, defense: 1, metabolism: 1 }, tradeoff: 'Szybsze reakcje, lekko wyższy metabolizm.',
       desc: 'Skupiska komórek nerwowych przyspieszają przetwarzanie bodźców.' },
     { id: 'brain', name: 'Mózg', icon: '🧠', category: 'uklad_nerwowy', cost: 22, requires: ['ganglia'], path: 'intelligence',
       effects: { intelligence: 3, feeding: 1, metabolism: 2 }, tradeoff: 'Mózg jest kosztowny — wymaga dobrego odżywiania.',
@@ -161,9 +161,11 @@
           note: 'Ląd stoi otworem: z kończynami warto migrować.' },
         { title: 'Karbon — bujne lasy', oxygen: 15, food: 10, predators: 7, climate: 'cieplo', land: land(14, 4),
           note: 'Wysoki tlen i bujna roślinność sprzyjają życiu na lądzie.' },
-        { title: 'Perm — Wielkie Wymieranie', oxygen: 9, food: 7, predators: 9, climate: 'zimno', land: land(9, 5),
-          note: 'Największa katastrofa w dziejach życia uderza w morza.',
-          catastrophe: { name: 'Wymieranie permskie', niche: 'woda', severity: 0.55, knowledge: 'extinction' } }
+        { title: 'Perm — Wielkie Wymieranie', oxygen: 8, food: 7, predators: 9, climate: 'cieplo', land: land(8, 5),
+          note: 'Erupcje trapów syberyjskich: gwałtowne ocieplenie, zakwaszone i niedotlenione oceany. ' +
+            'Najmocniej cierpią morza, ale ląd także.',
+          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.55, nicheSeverity: { lad: 0.35 },
+            knowledge: 'extinction' } }
       ]
     },
     {
@@ -223,7 +225,7 @@
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 60, goal: 14, startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 60, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -271,7 +273,8 @@
       body: 'To gwałtowny zanik wielu gatunków w krótkim (geologicznie) czasie. Uderza najmocniej w linie ' +
         'niedostosowane do nowych warunków — dywersyfikacja (wiele linii w różnych niszach) zwiększa ' +
         'szansę, że któraś przetrwa.',
-      fossil: 'Wymieranie permskie (~252 mln lat temu) zgładziło ok. 90% gatunków morskich.' },
+      fossil: 'Wymieranie permskie (~252 mln lat temu), wywołane erupcjami trapów syberyjskich i ociepleniem, ' +
+        'zgładziło ok. 90% gatunków morskich i ok. 70% kręgowców lądowych.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
         'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }

@@ -3,6 +3,10 @@
 Przegląd stanu gry (commit `0721bef`: scenariusze, trudność, cztery nisze,
 koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALOZENIA.md).
 
+> **Status:** etap 1 (poprawki P1) zrealizowany — punkty 1.1–1.7, 1.10, 4.1 i 4.2
+> są naprawione (✅) i mają testy regresji w `test/engine.test.js`. Kolejne etapy
+> (balans, edukacja, dostępność) — do zrobienia.
+
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
 Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
@@ -14,16 +18,16 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 | # | Pri | Problem | Gdzie | Propozycja |
 |---|---|---|---|---|
-| 1.1 | P1 | Karta wiedzy **„Podbój lądu”** (`land`, z Tiktaalikiem) nigdy się nie odblokowuje — żaden kod nie wywołuje `unlockKnowledge(…, 'land')`. | `js/engine.js:170-174`, `js/data.js:254` | Odblokowywać przy zakupie `limbs` i przy pierwszej migracji na ląd. |
-| 1.2 | P1 | Samouczek podaje cel `DATA.INTELLIGENCE_GOAL` (14) niezależnie od scenariusza/trudności (łatwy = 12, „Epoki lodowcowe” = 14 przy trudnym 15) i mówi o „trzech erach”, choć scenariusz lodowcowy ma jedną. | `js/ui.js:650` | Budować kroki samouczka dynamicznie z `state.intelligenceGoal` i liczby pozostałych er. |
-| 1.3 | P1 | Ekran końcowy „przetrwanie” zawsze mówi „przetrwały paleozoik, mezozoik i kenozoik” — nieprawda dla scenariusza startującego w kenozoiku. | `js/ui.js:563` | Wypisywać ery od `startEra` (zapamiętać ją w stanie). |
-| 1.4 | P1 | Prognoza „co-jeśli” dodaje tylko efekty liczbowe cechy, ale nie dopisuje jej `id` do `traits` — np. **Stałocieplność** nie pokazuje ochrony przed zimnem, więc podgląd wprowadza w błąd. | `js/ui.js:263-265` | Przenieść podgląd do silnika (`Engine.forecastWithTrait`) i klonować linię razem z listą cech. |
-| 1.5 | P2 | 🔬 Po ostatniej turze `eraIndex = 3`, a `turn` zostaje 6 → `globalTurn` = 26 przy 20 turach ogółem; drzewo życia rysuje gałęzie poza osią. | `js/engine.js:302`, `js/ui.js:512` | Przy końcu gry zerować `turn` albo przycinać `nowT` do `totalTurns`. |
-| 1.6 | P2 | Scenariusz „Epoki lodowcowe” daje gatunek z kończynami, stałocieplny i z izolacją, ale startuje w niszy **woda**. | `js/engine.js:51`, `js/data.js:225-228` | Dodać do scenariusza pole `startNiche: 'lad'`. |
-| 1.7 | P2 | Opis **Zwojów nerwowych** mówi „lekko wyższy metabolizm”, a efekty nie zawierają metabolizmu. | `js/data.js:120-122` | Dodać `metabolism: 1` (albo poprawić opis). |
+| 1.1 ✅ | P1 | Karta wiedzy **„Podbój lądu”** (`land`, z Tiktaalikiem) nigdy się nie odblokowuje — żaden kod nie wywołuje `unlockKnowledge(…, 'land')`. | `js/engine.js:170-174`, `js/data.js:254` | Odblokowywać przy zakupie `limbs` i przy pierwszej migracji na ląd. |
+| 1.2 ✅ | P1 | Samouczek podaje cel `DATA.INTELLIGENCE_GOAL` (14) niezależnie od scenariusza/trudności (łatwy = 12, „Epoki lodowcowe” = 14 przy trudnym 15) i mówi o „trzech erach”, choć scenariusz lodowcowy ma jedną. | `js/ui.js:650` | Budować kroki samouczka dynamicznie z `state.intelligenceGoal` i liczby pozostałych er. |
+| 1.3 ✅ | P1 | Ekran końcowy „przetrwanie” zawsze mówi „przetrwały paleozoik, mezozoik i kenozoik” — nieprawda dla scenariusza startującego w kenozoiku. | `js/ui.js:563` | Wypisywać ery od `startEra` (zapamiętać ją w stanie). |
+| 1.4 ✅ | P1 | Prognoza „co-jeśli” dodaje tylko efekty liczbowe cechy, ale nie dopisuje jej `id` do `traits` — np. **Stałocieplność** nie pokazuje ochrony przed zimnem, więc podgląd wprowadza w błąd. | `js/ui.js:263-265` | Przenieść podgląd do silnika (`Engine.forecastWithTrait`) i klonować linię razem z listą cech. |
+| 1.5 ✅ | P2 | 🔬 Po ostatniej turze `eraIndex = 3`, a `turn` zostaje 6 → `globalTurn` = 26 przy 20 turach ogółem; drzewo życia rysuje gałęzie poza osią. | `js/engine.js:302`, `js/ui.js:512` | Przy końcu gry zerować `turn` albo przycinać `nowT` do `totalTurns`. |
+| 1.6 ✅ | P2 | Scenariusz „Epoki lodowcowe” daje gatunek z kończynami, stałocieplny i z izolacją, ale startuje w niszy **woda**. | `js/engine.js:51`, `js/data.js:225-228` | Dodać do scenariusza pole `startNiche: 'lad'`. |
+| 1.7 ✅ | P2 | Opis **Zwojów nerwowych** mówi „lekko wyższy metabolizm”, a efekty nie zawierają metabolizmu. | `js/data.js:120-122` | Dodać `metabolism: 1` (albo poprawić opis). |
 | 1.8 | P3 | Ta sama ikona 🦎 dla **Kończyn** i **Kamuflażu**. | `js/data.js:71`, `js/data.js:88` | Np. 🦵 dla kończyn, 🍃 dla kamuflażu. |
 | 1.9 | P3 | Raport oznacza wiersz jako niebezpieczny regexem `/Katastrofa/` po polskim tekście — przestanie działać po tłumaczeniu. | `js/ui.js:440`, `js/engine.js:326-348` | Silnik zwraca zdarzenia jako `{type, params}`, UI je tłumaczy. |
-| 1.10 | P3 | README jest nieaktualne: „przez erę paleozoiku”, „przez 8 tur ery”; zdublowana sekcja „Struktura projektu”. | `README.md` | Zaktualizować do 3 er / 20 tur i scalić sekcje. |
+| 1.10 ✅ | P3 | README jest nieaktualne: „przez erę paleozoiku”, „przez 8 tur ery”; zdublowana sekcja „Struktura projektu”. | `README.md` | Zaktualizować do 3 er / 20 tur i scalić sekcje. |
 
 ## 2. Balans i eksploity
 
@@ -59,8 +63,8 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 | # | Pri | Problem | Propozycja |
 |---|---|---|---|
-| 4.1 | P1 | **Wymieranie permskie oznaczone jako `zimno`.** Wymieranie P–T wiąże się z trapami syberyjskimi i gwałtownym **ociepleniem** (oraz zakwaszeniem i niedotlenieniem oceanów). | Klimat `cieplo`, niski tlen; nota o wulkanizmie i ociepleniu. |
-| 4.2 | P1 | Wymieranie permskie uderza tylko w niszę `woda`, a w rzeczywistości dotknęło też ląd (ok. 70% kręgowców lądowych). | `niche: 'all'` z mniejszą siłą na lądzie. |
+| 4.1 ✅ | P1 | **Wymieranie permskie oznaczone jako `zimno`.** Wymieranie P–T wiąże się z trapami syberyjskimi i gwałtownym **ociepleniem** (oraz zakwaszeniem i niedotlenieniem oceanów). | Klimat `cieplo`, niski tlen; nota o wulkanizmie i ociepleniu. |
+| 4.2 ✅ | P1 | Wymieranie permskie uderza tylko w niszę `woda`, a w rzeczywistości dotknęło też ląd (ok. 70% kręgowców lądowych). | `niche: 'all'` z mniejszą siłą na lądzie. |
 | 4.3 | P2 | Ryzyko utrwalania mitu **„ewolucja ma cel”** (ZALOZENIA §11): „droga do inteligencji ⭐”, „Kulminacja”, „Cel”. | Karta wiedzy „Ewolucja nie ma celu — cel ma gracz”, pokazywana na starcie i przy pierwszym zakupie ⭐; zmiana podpisu na „ścieżka gracza”. |
 | 4.4 | P2 | Brakuje dwóch z „wielkiej piątki” wymierań: późnodewońskiego i triasowo-jurajskiego. | Dodać jako katastrofy (dewon — morza, niedotlenienie; T–J — po triasie). |
 | 4.5 | P2 | Uproszczenia nie są oznaczone przy konkretnych mechanikach (ZALOZENIA §6: „uproszczenia oznaczane jako uproszczenia”). | Znacznik „ℹ uproszczenie” w kartach (np. nisza powietrzna już w mezozoiku, kolejność pióra→stałocieplność). |
@@ -92,7 +96,7 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 ## Proponowana kolejność prac
 
-1. **Sprint poprawek (P1, małe):** 1.1–1.4, 4.1–4.2, 1.6–1.7, README (1.10) i testy regresji (6.3).
+1. ✅ **Sprint poprawek (P1, małe):** 1.1–1.4, 4.1–4.2, 1.6–1.7, README (1.10) i testy regresji (6.3).
 2. **Sprint balansu:** 2.1 (migracja), 2.2 (EP ze specjacji), 2.3 (kalibracja + test statystyczny), 2.4 (działające kompromisy), 2.5 (selektywne katastrofy).
 3. **Sprint edukacyjny:** quizy po erze (3.1), karta „ewolucja nie ma celu” (4.3), tryb nauczyciela jako tryb (3.2), rozszerzony eksport (4.7), oznaczanie uproszczeń (4.5).
 4. **Sprint dostępności i techniki:** 5.1–5.3, tryb dla daltonistów (3.7), PWA (3.8), i18n silnika (6.1), `npm test` + CI (6.2).

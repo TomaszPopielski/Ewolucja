@@ -3,8 +3,8 @@
 Edukacyjna gra przeglądarkowa o **doborze naturalnym** i historii życia,
 inspirowana *Evolution: The Game of Intelligent Life* (1997).
 
-Poprowadź linię rozwojową zwierząt przez erę **paleozoiku** — od prostego
-organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
+Poprowadź linię rozwojową zwierząt przez trzy ery — **paleozoik, mezozoik
+i kenozoik** — od prostego organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
 na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa ewolucja.
 
 > Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
@@ -29,13 +29,14 @@ Gra działa w pełni po stronie przeglądarki i zapisuje postęp lokalnie
    ma koszt, efekty i **kompromis** — nic nie jest darmowe.
 3. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
    rozród i mutacje, a raport wyjaśni, *co się stało i dlaczego*.
-4. Powtarzaj przez 8 tur ery. **Cel:** doprowadzić gatunek do progu inteligencji.
+4. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
+   w późniejszej erze). **Cel:** doprowadzić gatunek do progu inteligencji.
    Uwaga — sama liczna populacja nie wystarczy; trzeba świadomie rozwijać
    **układ nerwowy** (zwoje → mózg → rozbudowany mózg), a to wymaga też
    przetrwania presji środowiska.
 
 Zakończenia: **zwycięstwo** (osiągnięto inteligencję), **przetrwanie**
-(gatunek przeżył erę, ale bez rozumności) lub **wymarcie**.
+(gatunek przeżył wszystkie rozgrywane ery, ale bez rozumności) lub **wymarcie**.
 
 Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
 paleontologia, ekologia).
@@ -45,9 +46,10 @@ paleontologia, ekologia).
 ```
 index.html         — struktura strony i ekranów
 css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, dostępność)
-js/data.js         — dane gry: cechy, era, karty wiedzy (konfiguracja)
+js/data.js         — dane gry: cechy, ery, scenariusze, karty wiedzy (konfiguracja)
 js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
 js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
+js/i18n.js         — stringi interfejsu (warstwa i18n)
 test/engine.test.js — testy silnika
 ```
 
@@ -64,8 +66,9 @@ node test/engine.test.js
 ```
 
 Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
-mechanikę mutacji, warunki zwycięstwa/porażki oraz to, że gra jest
-przechodnia świadomą strategią.
+mechanikę mutacji, warunki zwycięstwa/porażki, to, że gra jest
+przechodnia świadomą strategią, oraz regresje naprawionych błędów
+(zob. [`ULEPSZENIA.md`](./ULEPSZENIA.md)).
 
 ## Funkcje
 
@@ -90,12 +93,6 @@ przechodnia świadomą strategią.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
   (klawiatura, kontrasty, `prefers-reduced-motion`).
-
-## Struktura projektu (uzupełnienie)
-
-```
-js/i18n.js  — stringi interfejsu (warstwa i18n)
-```
 
 ## Status
 

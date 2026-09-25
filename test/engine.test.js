@@ -160,6 +160,67 @@ group('pełna rozgrywka — gra "na przetrwanie" nie wygrywa', function () {
   ok(s.status === 'survived' || s.status === 'lost', 'bez mózgu brak zwycięstwa (status ' + s.status + ')');
 });
 
+group('regresja: karta „Podbój lądu” się odblokowuje', function () {
+  var s = Engine.createInitialState(GameData, 'X', { startEp: 200 });
+  ok(s.unlockedKnowledge.indexOf('land') === -1, 'na starcie w wodzie brak karty land');
+  s = Engine.buyTrait(GameData, s, 'fins').state;
+  s = Engine.buyTrait(GameData, s, 'limbs').state;
+  ok(s.unlockedKnowledge.indexOf('land') !== -1, 'zakup kończyn odblokowuje kartę land');
+  var t = Engine.createInitialState(GameData, 'X', { startTraits: ['fins', 'limbs'] });
+  t = Engine.migrateLineage(GameData, t, 'L0', 'lad').state;
+  ok(t.unlockedKnowledge.indexOf('land') !== -1, 'migracja na ląd odblokowuje kartę land');
+  ok(GameData.KNOWLEDGE.land, 'karta land istnieje w danych');
+});
+
+group('regresja: prognoza z cechą uwzględnia obecność cechy', function () {
+  // Pierwsza tura kenozoiku z zimnem: Neogen — ochłodzenie (indeks 3).
+  var s = Engine.createInitialState(GameData, 'X', { startEra: 2, startTraits: ['scales'] });
+  s.turn = 3;
+  var l = active(s), endo = byId('endothermy');
+  var clonel = JSON.parse(JSON.stringify(l));
+  for (var k in endo.effects) clonel.stats[k] += endo.effects[k];
+  var statsOnly = Engine.forecast(GameData, s, clonel);
+  var withTrait = Engine.forecastWithTrait(GameData, s, l, endo);
+  ok(withTrait.energy > statsOnly.energy, 'stałocieplność w zimnie podnosi bilans energii w prognozie (' +
+    withTrait.energy + ' > ' + statsOnly.energy + ')');
+  eq(active(s).traits.indexOf('endothermy'), -1, 'prognoza nie zmienia stanu');
+});
+
+group('regresja: licznik tur po końcu gry', function () {
+  var s = Engine.createInitialState(GameData, 'X');
+  while (s.status === 'playing') s = Engine.simulateTurn(GameData, s, det).state;
+  eq(Engine.elapsedTurns(GameData, s), Engine.totalTurns(GameData), 'po końcu gry = wszystkie tury');
+  var m = Engine.createInitialState(GameData, 'X');
+  for (var i = 0; i < 10; i++) m = Engine.simulateTurn(GameData, m, det).state;
+  eq(Engine.elapsedTurns(GameData, m), 10, 'w trakcie gry = liczba rozegranych tur');
+});
+
+group('regresja: scenariusz — era startowa i nisza startowa', function () {
+  var sc = GameData.SCENARIOS.filter(function (x) { return x.id === 'ice'; })[0];
+  var s = Engine.createInitialState(GameData, 'X', { difficulty: sc.difficulty, startEra: sc.startEra,
+    startEp: sc.startEp, goal: sc.goal, startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id });
+  eq(active(s).niche, 'lad', 'epoki lodowcowe: start na lądzie');
+  eq(s.startEra, 2, 'stan pamięta erę startową');
+  eq(Engine.playedEras(GameData, s).length, 1, 'rozgrywane ery: tylko kenozoik');
+  eq(Engine.playedEras(GameData, Engine.createInitialState(GameData, 'Y')).length, 3, 'pełna gra: trzy ery');
+  var bad = Engine.createInitialState(GameData, 'Z', { startNiche: 'lad' });
+  eq(active(bad).niche, 'woda', 'nisza startowa bez wymaganej cechy jest ignorowana');
+});
+
+group('regresja: dane — Zwoje i wymieranie permskie', function () {
+  ok(byId('ganglia').effects.metabolism > 0, 'Zwoje nerwowe podnoszą metabolizm (zgodnie z opisem)');
+  var perm = GameData.ERAS[0].turns.filter(function (t) { return /Perm/.test(t.title); })[0];
+  eq(perm.climate, 'cieplo', 'perm: ocieplenie, nie zimno');
+  eq(perm.catastrophe.niche, 'all', 'perm: uderza też w ląd');
+  ok(Engine.catastropheSeverity(perm.catastrophe, 'lad') < Engine.catastropheSeverity(perm.catastrophe, 'woda'),
+    'perm: na lądzie słabiej niż w morzu');
+  // Linia lądowa ponosi straty w katastrofie permskiej.
+  var s = Engine.createInitialState(GameData, 'X', { startTraits: ['fins', 'limbs'], startNiche: 'lad' });
+  s.turn = GameData.ERAS[0].turns.indexOf(perm);
+  var r = Engine.simulateTurn(GameData, s, noMut).report;
+  ok(r.lineReports[0].catDeaths > 0, 'perm: straty na lądzie (' + r.lineReports[0].catDeaths + ')');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

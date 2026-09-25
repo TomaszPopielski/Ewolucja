@@ -92,7 +92,7 @@
 
   function scenarioOpts(sc) {
     return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp,
-      goal: sc.goal, startTraits: sc.startTraits, scenarioId: sc.id };
+      goal: sc.goal, startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id };
   }
   function renderScenarios() {
     el.scenarioCards.innerHTML = '';
@@ -260,9 +260,7 @@
       (base.energy >= 0 ? 'pos' : 'neg') + '">' + base.energy + '</span></div>';
 
     if (previewTrait) {
-      var clonel = JSON.parse(JSON.stringify(l));
-      for (var k in previewTrait.effects) clonel.stats[k] = (clonel.stats[k] || 0) + previewTrait.effects[k];
-      var withT = Engine.forecast(DATA, state, clonel);
+      var withT = Engine.forecastWithTrait(DATA, state, l, previewTrait);
       var diff = withT.delta - base.delta;
       html += '<div class="forecast-preview"><strong>Z cechą „' + escapeHtml(previewTrait.name) + '”:</strong> ' +
         'populacja ' + (withT.delta >= 0 ? '+' : '') + withT.delta +
@@ -509,7 +507,7 @@
   function buildTreeSvg() {
     var lineages = state.lineages, rowH = 46, topPad = 24, leftPad = 90, rightPad = 140, innerW = 620;
     var maxT = Engine.totalTurns(DATA);
-    var nowT = Engine.globalTurn(DATA, state.eraIndex >= DATA.ERAS.length ? DATA.ERAS.length - 0 : state.eraIndex, state.turn);
+    var nowT = Engine.elapsedTurns(DATA, state);
     var rows = {}, order = [], childrenOf = {};
     lineages.forEach(function (l) { var p = l.parentId || '__root'; (childrenOf[p] = childrenOf[p] || []).push(l); });
     function bornGT(l) { return Engine.globalTurn(DATA, l.bornEra, l.bornTurn); }
@@ -555,12 +553,13 @@
     var s = state.status;
     el.endEmblem.textContent = s === 'won' ? '🧠' : (s === 'survived' ? '🐾' : '🦴');
     el.endTitle.textContent = s === 'won' ? 'Narodziny inteligencji!' :
-      (s === 'survived' ? 'Gatunek przetrwał wszystkie ery' : 'Wszystkie linie wygasły');
+      (s === 'survived' ? (Engine.playedEras(DATA, state).length > 1 ? 'Gatunek przetrwał wszystkie ery' : 'Gatunek przetrwał erę')
+        : 'Wszystkie linie wygasły');
     el.endSummary.textContent =
       s === 'won'
         ? 'Jedna z Twoich linii osiągnęła próg inteligencji — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
         : s === 'survived'
-        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
+        ? 'Twoje linie przetrwały ' + eraList(Engine.playedEras(DATA, state)) + ', ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
@@ -569,6 +568,12 @@
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
     showScreen('end');
+  }
+  // „paleozoik, mezozoik i kenozoik” — nazwy er małą literą, jak w zdaniu.
+  function eraList(eras) {
+    var names = eras.map(function (e) { return e.name.toLowerCase(); });
+    if (names.length <= 1) return names.join('');
+    return names.slice(0, -1).join(', ') + ' i ' + names[names.length - 1];
   }
   function endStat(label, value) {
     var li = document.createElement('li'); li.innerHTML = '<span>' + label + '</span><strong>' + value + '</strong>';
@@ -646,18 +651,25 @@
   }
 
   // ===================== Samouczek =====================
-  var tutorialSteps = [
-    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + DATA.INTELLIGENCE_GOAL + ' w ciągu trzech er.' },
+  // Kroki budowane dla bieżącej gry — cel i liczba er zależą od scenariusza i trudności.
+  function buildTutorialSteps() {
+    var eras = Engine.playedEras(DATA, state);
+    var span = eras.length === 1 ? 'w erze ' + eras[0].name.toLowerCase().replace(/k$/, 'ku')
+      : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
+    return [
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' ' + span + '.' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
     { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
     { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️.' }
-  ];
+    ];
+  }
+  var tutorialSteps = [];
   var tutorialIdx = 0;
   function maybeStartTutorial() {
     var done; try { done = localStorage.getItem(TUTORIAL_KEY); } catch (e) { done = null; }
     if (done) return;
-    tutorialIdx = 0; showTutorialStep(); el.tutorial.hidden = false;
+    tutorialSteps = buildTutorialSteps(); tutorialIdx = 0; showTutorialStep(); el.tutorial.hidden = false;
   }
   function showTutorialStep() {
     var s = tutorialSteps[tutorialIdx];

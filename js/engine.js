@@ -35,9 +35,17 @@
     var g = 0; for (var i = 0; i < eraIndex; i++) g += data.ERAS[i].turns.length; return g + turn;
   }
   function totalTurns(data) { return data.ERAS.reduce(function (s, e) { return s + e.turns.length; }, 0); }
+  // Liczba rozegranych tur (globalnie), przycięta do długości gry — po ostatniej
+  // turze eraIndex wychodzi poza listę er, a turn zostaje na długości ostatniej ery.
+  function elapsedTurns(data, state) {
+    if (state.eraIndex >= data.ERAS.length) return totalTurns(data);
+    return globalTurn(data, state.eraIndex, state.turn);
+  }
+  // Ery rozgrywane w tej grze (od ery startowej scenariusza).
+  function playedEras(data, state) { return data.ERAS.slice(state.startEra || 0); }
 
   /*
-   * opts: { difficulty, startEra, startEp, goal, startTraits, scenarioId }
+   * opts: { difficulty, startEra, startEp, goal, startTraits, startNiche, scenarioId }
    */
   function createInitialState(data, speciesName, opts) {
     opts = opts || {};
@@ -58,11 +66,17 @@
         if (t && root.traits.indexOf(id) === -1) { root.traits.push(id); applyEffects(root, t.effects); }
       });
     }
+    // Nisza startowa scenariusza — tylko jeśli linia spełnia jej wymóg.
+    if (opts.startNiche && data.NICHES[opts.startNiche]) {
+      var nreq = data.NICHES[opts.startNiche].requires;
+      if (!nreq || root.traits.indexOf(nreq) !== -1) root.niche = opts.startNiche;
+    }
 
     return {
       version: 4,
       difficulty: diffKey,
       scenario: opts.scenarioId || 'full',
+      startEra: startEra,
       eraIndex: startEra,
       turn: 0,
       totalTurns: totalTurns(data),
@@ -72,7 +86,7 @@
       lineages: [root],
       activeLineageId: 'L0',
       nextLineageNum: 1,
-      unlockedKnowledge: ['intro'],
+      unlockedKnowledge: root.niche === 'lad' ? ['intro', 'land'] : ['intro'],
       status: 'playing',
       history: []
     };
@@ -132,7 +146,9 @@
     if (!l) return { ok: false, state: state, error: 'Nieznana linia.' };
     var can = canMigrate(data, state, l, niche);
     if (!can.ok) return { ok: false, state: state, error: can.error };
-    var n = clone(state); getLineage(n, lineageId).niche = niche; return { ok: true, state: n, error: null };
+    var n = clone(state); getLineage(n, lineageId).niche = niche;
+    if (niche === 'lad') unlockKnowledge(n, 'land');
+    return { ok: true, state: n, error: null };
   }
 
   // ---------- Cechy ----------
@@ -171,6 +187,7 @@
     if (trait.category === 'uklad_nerwowy') unlockKnowledge(state, 'intelligence');
     if (trait.id === 'endothermy') unlockKnowledge(state, 'cold');
     if (trait.id === 'limbs' || trait.id === 'amniotic_egg' || trait.id === 'flight') unlockKnowledge(state, 'niche');
+    if (trait.id === 'limbs') unlockKnowledge(state, 'land');
   }
 
   // ---------- Specjacja ----------
@@ -257,6 +274,14 @@
       projectedPop: proj, delta: proj - pop, catastrophe: cat };
   }
 
+  /* Prognoza z hipotetyczną cechą: efekty liczbowe ORAZ obecność cechy na liście
+     (np. stałocieplność chroni przed zimnem). */
+  function forecastWithTrait(data, state, lineage, trait) {
+    var l = clone(lineage);
+    if (l.traits.indexOf(trait.id) === -1) { l.traits.push(trait.id); applyEffects(l, trait.effects); }
+    return forecast(data, state, l);
+  }
+
   // ---------- Symulacja tury ----------
   function simulateTurn(data, state, rng) {
     rng = rng || Math.random;
@@ -335,7 +360,7 @@
 
     var catDeaths = 0;
     if (env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === l.niche)) {
-      var sev = clamp(env.catastrophe.severity * diff.catMult, 0, 0.95);
+      var sev = clamp(catastropheSeverity(env.catastrophe, l.niche) * diff.catMult, 0, 0.95);
       catDeaths = Math.round(Math.max(0, pop) * sev);
       pop -= catDeaths;
       events.push('Katastrofa (' + env.catastrophe.name + ') — ciężkie straty.');
@@ -375,6 +400,12 @@
     };
   }
 
+  // Siła katastrofy w danej niszy (nicheSeverity nadpisuje wartość domyślną).
+  function catastropheSeverity(cat, niche) {
+    if (cat.nicheSeverity && cat.nicheSeverity[niche] != null) return cat.nicheSeverity[niche];
+    return cat.severity;
+  }
+
   function evaluateStatus(n, data) {
     if (totalPopulation(n) <= 0) return 'lost';
     if (maxIntelligence(n) >= n.intelligenceGoal) return 'won';
@@ -390,6 +421,7 @@
   return {
     createInitialState: createInitialState,
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
+    elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     difficultyOf: difficultyOf,
     getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,
     totalPopulation: totalPopulation, maxIntelligence: maxIntelligence, maxDefense: maxDefense,
@@ -397,7 +429,7 @@
     availableNiches: availableNiches, canMigrate: canMigrate, migrateLineage: migrateLineage,
     traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
-    forecast: forecast, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
+    forecast: forecast, forecastWithTrait: forecastWithTrait, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, clamp: clamp, computeDynamics: computeDynamics }
   };
 });
