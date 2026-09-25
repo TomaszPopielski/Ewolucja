@@ -10,6 +10,7 @@
   var DATA = window.GameData;
   var Engine = window.Engine;
   var T = window.GameI18n.t;
+  var Art = window.GameArt;
   var SAVE_KEY = 'ewolucja.save.v4';
   var TUTORIAL_KEY = 'ewolucja.tutorialDone';
 
@@ -48,7 +49,9 @@
     btnCodex: $('btn-codex'), btnRestart: $('btn-restart'),
     tutorial: $('tutorial'), tutorialProgress: $('tutorial-progress'),
     tutorialTitle: $('tutorial-title'), tutorialText: $('tutorial-text'),
-    btnTutorialSkip: $('btn-tutorial-skip'), btnTutorialNext: $('btn-tutorial-next')
+    btnTutorialSkip: $('btn-tutorial-skip'), btnTutorialNext: $('btn-tutorial-next'),
+    startHero: $('start-hero'), scene: $('scene'), sceneTitle: $('scene-title'), sceneTags: $('scene-tags'),
+    sceneLegend: $('scene-legend'), portrait: $('portrait'), intelMeter: $('intel-meter'), endGallery: $('end-gallery')
   };
 
   var STAT_META = [
@@ -121,6 +124,8 @@
     el.era.textContent = era.name + ' ' + tno + '/' + era.turns.length;
     el.era.title = era.dates || '';
     el.intel.textContent = Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal;
+    el.intelMeter.style.width = Math.min(100, (Engine.maxIntelligence(state) / state.intelligenceGoal) * 100) + '%';
+    document.body.setAttribute('data-era', era.id);
   }
   function setAnimated(node, value) {
     if (node.textContent !== String(value)) {
@@ -140,8 +145,8 @@
       if (i === state.turn) step.classList.add('current');
       if (t.catastrophe) step.classList.add('catastrophe');
       step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '');
-      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? '☄️' : '') + '</span>' +
-        t.title.split(' — ')[0];
+      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? ' ☄️' : '') + '</span>' +
+        '<span class="era-step-name">' + t.title.split(' — ')[0] + '</span>';
       el.timeline.appendChild(step);
     });
   }
@@ -158,7 +163,9 @@
       if (!l.alive) chip.classList.add('extinct');
       if (l.id === state.activeLineageId) chip.classList.add('active');
       chip.disabled = !l.alive;
-      chip.innerHTML = (l.alive ? nicheIcon(l.niche) + ' ' : '🦴 ') + escapeHtml(l.name) +
+      chip.style.setProperty('--lin', lineageColor(l));
+      chip.innerHTML = '<span class="lineage-dot" aria-hidden="true"></span>' +
+        (l.alive ? nicheIcon(l.niche) + ' ' : '🦴 ') + escapeHtml(l.name) +
         '<span class="lineage-chip-pop">' + (l.alive ? l.population : 'wymarła') + '</span>';
       if (l.alive) chip.addEventListener('click', function () { onSelectLineage(l.id); });
       el.lineageChips.appendChild(chip);
@@ -193,14 +200,14 @@
   }
   function onSelectLineage(id) {
     state = Engine.setActiveLineage(state, id); save();
-    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv();
+    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); renderScene();
   }
   function onMigrateTo(niche) {
     var a = Engine.getActiveLineage(state);
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); updateUndoButton();
+    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); renderScene(); updateUndoButton();
   }
 
   // ===================== Render — aktywna linia =====================
@@ -208,8 +215,49 @@
     var l = Engine.getActiveLineage(state);
     el.speciesName.textContent = l.name;
     el.speciesNiche.innerHTML = 'Nisza: <strong>' + nicheIcon(l.niche) + ' ' + nicheLabel(l.niche) + '</strong>';
+    renderPortrait(l);
     renderStats(l);
     renderSparkline(l);
+  }
+
+  // ===================== Grafika — kolory, portret, scena =====================
+  function lineageColor(l) {
+    var idx = state.lineages.indexOf(l);
+    if (idx === -1) state.lineages.forEach(function (x, i) { if (x.id === l.id) idx = i; });
+    return Art.colorFor(Math.max(0, idx));
+  }
+  function renderPortrait(l) {
+    el.portrait.style.setProperty('--lin', lineageColor(l));
+    el.portrait.innerHTML = Art.portrait(l, { color: lineageColor(l), label: 'Wygląd linii ' + l.name });
+  }
+  function sceneEnv() {
+    var env = Engine.currentTurnEnv(DATA, state);
+    if (env) return env;
+    var era = Engine.currentEra(DATA, state);
+    return era.turns[era.turns.length - 1];
+  }
+  function renderScene() {
+    var env = sceneEnv();
+    var era = Engine.currentEra(DATA, state);
+    var groups = state.lineages.map(function (l) {
+      return { lineage: l, color: lineageColor(l), active: l.id === state.activeLineageId };
+    });
+    el.scene.innerHTML = Art.scene({
+      prefix: 'g', era: era.id, env: env, groups: groups,
+      predatorLevel: state.predatorLevel || 0,
+      seed: Engine.globalTurn(DATA, state.eraIndex, state.turn) * 7919 + 17
+    });
+    el.sceneTitle.textContent = env.title;
+    var tags = [climateLabel(env.climate), '🫧 tlen ' + env.oxygen, '🦠 pokarm ' + env.food, '🦈 drapieżniki ' + env.predators];
+    el.sceneTags.innerHTML = tags.map(function (t) { return '<span>' + t + '</span>'; }).join('') +
+      (env.catastrophe ? '<span class="scene-tag-danger">☄️ ' + escapeHtml(env.catastrophe.name) + '</span>' : '');
+    el.sceneLegend.innerHTML = state.lineages.filter(function (l) { return l.alive; }).map(function (l) {
+      return '<span class="scene-legend-item' + (l.id === state.activeLineageId ? ' active' : '') + '" style="--lin:' + lineageColor(l) + '">' +
+        '<i></i>' + escapeHtml(l.name) + ' · ' + l.population + '</span>';
+    }).join('');
+    var box = el.scene.parentNode;
+    box.classList.toggle('is-catastrophe', !!env.catastrophe);
+    box.setAttribute('aria-label', 'Ilustracja środowiska: ' + env.title);
   }
   function renderStats(lineage) {
     el.statsList.innerHTML = '';
@@ -227,7 +275,7 @@
 
   // ===================== Render — wykres populacji =====================
   function renderSparkline(lineage) {
-    var d = lineage.popHistory, w = 260, h = 46, pad = 4;
+    var d = lineage.popHistory, w = 260, h = 46, pad = 4, col = lineageColor(lineage);
     if (!d || d.length < 2) {
       el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h +
         '"><line x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) +
@@ -242,9 +290,9 @@
     var last = pts[pts.length - 1].split(',');
     var area = 'M' + pad + ',' + (h - pad) + ' L' + pts.join(' L') + ' L' + (w - pad) + ',' + (h - pad) + ' Z';
     el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
-      '<path d="' + area + '" fill="var(--brand)" opacity="0.12"/>' +
-      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
-      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="var(--brand)"/></svg>';
+      '<path d="' + area + '" fill="' + col + '" opacity="0.18"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="' + col + '"/></svg>';
   }
 
   // ===================== Render — prognoza (co-jeśli) =====================
@@ -327,6 +375,7 @@
     btn.type = 'button';
     btn.className = 'trait ' + status + (trait.path === 'intelligence' ? ' path-intel' : '');
     btn.dataset.traitId = trait.id;
+    btn.dataset.cat = trait.category;
     btn.disabled = (status !== 'available') || state.status !== 'playing';
 
     var costLabel;
@@ -348,8 +397,8 @@
     }
 
     var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">⭐</span> ' : '';
-    var ico = trait.icon ? trait.icon + ' ' : '';
-    btn.innerHTML = '<div class="trait-head"><span class="trait-name">' + star + ico + trait.name + '</span>' +
+    var ico = trait.icon ? '<span class="trait-icon" aria-hidden="true">' + trait.icon + '</span>' : '';
+    btn.innerHTML = '<div class="trait-head">' + ico + '<span class="trait-name">' + star + trait.name + '</span>' +
       '<span class="trait-cost">' + costLabel + '</span></div>' +
       '<div class="trait-desc">' + trait.desc + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
@@ -381,7 +430,10 @@
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); renderScene(); updateUndoButton();
+    var card = el.traits.querySelector('[data-trait-id="' + traitId + '"]');
+    if (card) card.classList.add('just-bought');
+    el.portrait.classList.remove('evolve'); void el.portrait.offsetWidth; el.portrait.classList.add('evolve');
   }
   function onSpeciate() {
     var can = Engine.canSpeciate(DATA, state);
@@ -407,7 +459,7 @@
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
-    renderActiveLineage(); renderForecast(); renderEnv(); renderTraits(); updateUndoButton();
+    renderActiveLineage(); renderForecast(); renderEnv(); renderScene(); renderTraits(); updateUndoButton();
     el.btnSimulate.disabled = (state.status !== 'playing');
   }
 
@@ -430,11 +482,14 @@
     var multi = report.lineReports.length > 1;
     report.lineReports.forEach(function (lr) {
       var block = document.createElement('div'); block.className = 'report-lineage';
+      var lin = Engine.getLineage(state, lr.lineageId);
       if (multi) {
         var head = document.createElement('div'); head.className = 'report-lineage-head';
         head.textContent = (lr.alive ? nicheIcon(lr.niche) + ' ' : '🦴 ') + lr.name;
+        if (lin) head.style.setProperty('--lin', lineageColor(lin));
         block.appendChild(head);
       }
+      block.appendChild(flowBar(lr));
       lr.events.forEach(function (txt) {
         var d = document.createElement('div'); d.className = 'report-event';
         if (/Katastrofa/.test(txt)) d.className += ' danger';
@@ -482,6 +537,25 @@
     el.btnReportClose.textContent = (state.status === 'playing') ? T('report.next') : T('report.summary');
     openModal(el.modalReport);
   }
+  // Pasek przepływu populacji: stan wyjściowy, narodziny i straty (proporcjonalnie).
+  function flowBar(lr) {
+    var parts = [
+      { v: Math.max(0, lr.popBefore - lr.predationDeaths - lr.starvationDeaths - lr.catDeaths), c: 'keep', t: 'Przetrwały' },
+      { v: lr.births, c: 'birth', t: 'Narodziny' },
+      { v: lr.predationDeaths, c: 'pred', t: 'Drapieżniki' },
+      { v: lr.starvationDeaths, c: 'starve', t: 'Głód' },
+      { v: lr.catDeaths, c: 'cat', t: 'Katastrofa' }
+    ];
+    var total = parts.reduce(function (a, p) { return a + p.v; }, 0) || 1;
+    var bar = document.createElement('div'); bar.className = 'report-flow';
+    bar.setAttribute('role', 'img');
+    bar.setAttribute('aria-label', parts.filter(function (p) { return p.v > 0; }).map(function (p) { return p.t + ': ' + p.v; }).join(', '));
+    bar.innerHTML = parts.filter(function (p) { return p.v > 0; }).map(function (p) {
+      return '<span class="flow-' + p.c + '" style="flex-grow:' + p.v + '" title="' + p.t + ': ' + p.v + '"></span>';
+    }).join('');
+    if (total <= 1 && !lr.popBefore) bar.hidden = true;
+    return bar;
+  }
   function eraMilestone(name) {
     var e = DATA.ERAS.filter(function (x) { return x.name === name; })[0];
     return e ? e.milestone : '';
@@ -507,7 +581,7 @@
     openModal(el.modalTree);
   }
   function buildTreeSvg() {
-    var lineages = state.lineages, rowH = 46, topPad = 24, leftPad = 90, rightPad = 140, innerW = 620;
+    var lineages = state.lineages, rowH = 52, topPad = 28, leftPad = 90, rightPad = 170, innerW = 600;
     var maxT = Engine.totalTurns(DATA);
     var nowT = Engine.globalTurn(DATA, state.eraIndex >= DATA.ERAS.length ? DATA.ERAS.length - 0 : state.eraIndex, state.turn);
     var rows = {}, order = [], childrenOf = {};
@@ -534,16 +608,20 @@
       var y = yOf(l.id), xStart = xOf(bornGT(l));
       var endGT = (l.extinctGlobalTurn != null) ? l.extinctGlobalTurn : nowT;
       var xEnd = xOf(endGT); if (xEnd - xStart < 10) xEnd = xStart + 10;
-      var color = l.alive ? 'var(--brand)' : 'var(--ink-soft)';
+      var color = l.alive ? lineageColor(l) : 'var(--ink-soft)';
       var isActive = (l.id === state.activeLineageId);
       if (l.parentId) {
-        svg += '<line x1="' + xStart + '" y1="' + yOf(l.parentId) + '" x2="' + xStart + '" y2="' + y + '" stroke="var(--line)" stroke-width="2"/>';
+        var py = yOf(l.parentId), mid = (py + y) / 2;
+        svg += '<path d="M' + xStart + ',' + py + ' C' + xStart + ',' + mid + ' ' + xStart + ',' + mid + ' ' + (xStart + 14) + ',' + y +
+          '" fill="none" stroke="' + color + '" stroke-width="2" opacity=".6"/>';
       }
       svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
         '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
-      svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
-        '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
-        '<text x="' + (xEnd + 10) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
+      svg += '<g data-lineage="' + l.id + '">' +
+        (isActive ? '<circle cx="' + xEnd + '" cy="' + y + '" r="17" fill="none" stroke="var(--accent)" stroke-width="2"/>' : '') +
+        '<g transform="translate(' + xEnd + ',' + y + ') scale(.28)"' + (l.alive ? '' : ' opacity=".5"') + '>' +
+        Art.glyph(l, { color: l.alive ? lineageColor(l) : '#8a8a84' }) + '</g>' +
+        '<text x="' + (xEnd + 22) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
         escapeHtml(l.name) + (l.alive ? ' ' + nicheIcon(l.niche) + ' (' + l.population + ')' : ' †') + '</text></g>';
     });
     return svg + '</svg>';
@@ -562,6 +640,12 @@
         : s === 'survived'
         ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
+    document.body.setAttribute('data-end', s);
+    el.endGallery.innerHTML = state.lineages.map(function (l, i) {
+      return '<figure class="end-portrait' + (l.alive ? '' : ' extinct') + '">' +
+        Art.portrait(l, { color: lineageColor(l), key: 'end' + i, label: l.name }) +
+        '<figcaption>' + escapeHtml(l.name) + '<small>' + (l.alive ? nicheIcon(l.niche) + ' int. ' + l.stats.intelligence : 'wymarła') + '</small></figcaption></figure>';
+    }).join('');
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
     endStat('Liczba linii rozwojowych', state.lineages.length);
@@ -686,6 +770,20 @@
   function openConfirm(msg, cb) { el.confirmMessage.textContent = msg; confirmCallback = cb; openModal(el.modalConfirm); }
   function resolveConfirm(yes) { closeModal(el.modalConfirm); var cb = confirmCallback; confirmCallback = null; if (yes && cb) cb(); }
 
+  // Scena tytułowa: od prostych form w morzu do kręgowców wychodzących na ląd.
+  function renderStartHero() {
+    var demo = [
+      { lineage: { id: 'h1', name: 'a', alive: true, niche: 'woda', population: 160, traits: [] }, color: Art.colorFor(0) },
+      { lineage: { id: 'h2', name: 'b', alive: true, niche: 'woda', population: 60, traits: ['fins', 'eyes', 'jaws'] }, color: Art.colorFor(2) },
+      { lineage: { id: 'h3', name: 'c', alive: true, niche: 'przybrzeze', population: 90, traits: ['shell', 'eyes'] }, color: Art.colorFor(1) },
+      { lineage: { id: 'h4', name: 'd', alive: true, niche: 'lad', population: 70, traits: ['fins', 'limbs', 'scales', 'eyes'] }, color: Art.colorFor(3) }
+    ];
+    el.startHero.innerHTML = Art.scene({
+      prefix: 'h', era: 'paleozoik', seed: 42, groups: demo,
+      env: { oxygen: 12, food: 11, predators: 3, climate: 'cieplo', land: { food: 11, predators: 0 } }
+    });
+  }
+
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
@@ -695,6 +793,7 @@
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
 
     renderScenarios();
+    renderStartHero();
     // Enter w polu nazwy startuje domyślny scenariusz (pełna ewolucja).
     el.formStart.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -720,12 +819,12 @@
     el.btnTutorialNext.addEventListener('click', tutorialNext);
     el.btnTutorialSkip.addEventListener('click', endTutorial);
 
-    function doRestart() { clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
+    function doRestart() { document.body.removeAttribute('data-end'); document.body.removeAttribute('data-era'); clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
     el.btnRestart.addEventListener('click', function () {
       if (state && state.status === 'playing') openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
       else doRestart();
     });
-    el.btnPlayAgain.addEventListener('click', function () { state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); });
+    el.btnPlayAgain.addEventListener('click', function () { document.body.removeAttribute('data-end'); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); });
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;

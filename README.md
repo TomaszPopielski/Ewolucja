@@ -48,6 +48,7 @@ css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, 
 js/data.js         — dane gry: cechy, era, karty wiedzy (konfiguracja)
 js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
 js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
+js/art.js          — proceduralna grafika SVG: organizmy z cech, scena ekosystemu
 test/engine.test.js — testy silnika
 ```
 
@@ -69,6 +70,10 @@ przechodnia świadomą strategią.
 
 ## Funkcje
 
+- **Żywa grafika** (proceduralne SVG, bez plików graficznych) — portret linii
+  składany z jej cech, animowana scena ekosystemu każdej tury (klimat, pokarm,
+  tlen, drapieżniki, katastrofy, wszystkie linie w swoich niszach), motywy er.
+  Szczegóły i dalsze etapy: [`GRAFIKA.md`](./GRAFIKA.md).
 - **Scenariusze i poziomy trudności** — trzy scenariusze (pełna ewolucja, podbój
   lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami

@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2f7d5b" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%232f7d5b'/%3E%3Cpath d='M22 12c14 10 14 30 0 40M42 12c-14 10-14 30 0 40M24 22h16M22 32h20M24 42h16' stroke='%23fff' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
   <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
   <title>Ewolucja — gra edukacyjna</title>
   <link rel="stylesheet" href="css/styles.css" />
@@ -12,7 +14,9 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">🧬</span>
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="30" height="30"><circle cx="32" cy="32" r="30" fill="var(--brand)"/><path d="M22 12c14 10 14 30 0 40M42 12c-14 10-14 30 0 40M24 22h16M22 32h20M24 42h16" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+      </span>
       <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
     <nav class="topbar-actions">
@@ -26,6 +30,7 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <div class="card intro-card">
+        <div class="start-hero" id="start-hero" aria-hidden="true"></div>
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
@@ -65,10 +70,20 @@
         <div class="status-item status-goal">
           <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
+          <span class="status-meter" aria-hidden="true"><span id="intel-meter"></span></span>
         </div>
       </div>
 
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
+
+      <figure class="scene" id="scene-box">
+        <div class="scene-art" id="scene"></div>
+        <figcaption class="scene-caption">
+          <span class="scene-title" id="scene-title">—</span>
+          <span class="scene-tags" id="scene-tags"></span>
+        </figcaption>
+        <div class="scene-legend" id="scene-legend" aria-hidden="true"></div>
+      </figure>
 
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
@@ -82,6 +97,7 @@
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
           <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
+          <div class="portrait" id="portrait"></div>
           <p class="species-name" id="species-name-display">—</p>
           <p class="species-niche" id="species-niche">—</p>
 
@@ -123,6 +139,7 @@
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <div class="end-gallery" id="end-gallery"></div>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
@@ -229,6 +246,7 @@
   <script src="js/i18n.js"></script>
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/art.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>
