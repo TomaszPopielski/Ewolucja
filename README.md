@@ -45,13 +45,18 @@ Vite i sam z pliku nie zadziała.
    w późniejszej erze). Warunki każdej tury są losowane wokół historycznych —
    sprawdzaj panel środowiska i prognozę przed decyzją.
    **Cel:** doprowadzić linię do progu inteligencji **i używania narzędzi**
-   (kultura i technologia — możliwe dopiero w kenozoiku).
+   (kultura i technologia — możliwe dopiero w kenozoiku) w linii liczącej
+   **co najmniej 50 osobników**.
    Uwaga — sama liczna populacja nie wystarczy; trzeba świadomie rozwijać
-   **układ nerwowy** (zwoje → mózg → rozbudowany mózg), a to wymaga też
-   przetrwania presji środowiska.
+   **układ nerwowy** (zwoje → mózg → rozbudowany mózg). Mózg jest jednak
+   kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
+   osobników to nie gatunek rozumny.
 
-Zakończenia: **zwycięstwo** (inteligencja + narzędzia), **przetrwanie**
-(gatunek przeżył wszystkie rozgrywane ery, ale bez rozumności) lub **wymarcie**.
+Zakończenia: **zwycięstwo** (inteligencja + narzędzia w żywotnej populacji),
+**przetrwanie** (gatunek przeżył wszystkie rozgrywane ery, ale bez rozumności)
+lub **wymarcie**. Poniżej 20 osobników populacja słabiej się rozmnaża (efekt
+Allee), a jeśli na koniec gry żadna linia nie przekracza tego progu, gatunek
+uznaje się za wymarły.
 
 Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
 paleontologia, ekologia).

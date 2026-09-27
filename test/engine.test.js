@@ -401,6 +401,32 @@ group('mała populacja nie jest nieśmiertelna (losowe zaokrąglanie, efekt Alle
     'startowa populacja nie jest krytyczna');
 });
 
+group('żywotna populacja: zwycięstwo i koniec gry', function () {
+  var s = Engine.createInitialState(GameData, 'X'), l = active(s);
+  l.stats.intelligence = 99; l.traits.push(GameData.WIN_TRAIT);
+  l.population = GameData.WIN_MIN_POP - 1;
+  eq(Engine.hasWon(s, GameData), false, 'rozum i narzędzia, ale garstka osobników — jeszcze nie zwycięstwo');
+  eq(Engine.goalBlockedByPopulation(s, GameData), true, 'UI wie, że brakuje tylko liczebności');
+  l.population = GameData.WIN_MIN_POP;
+  eq(Engine.hasWon(s, GameData), true, 'żywotna populacja z rozumem i narzędziami wygrywa');
+  // Koniec ostatniej ery z populacją poniżej progu żywotności = wymarcie.
+  var end = Engine.createInitialState(GameData, 'X');
+  end.eraIndex = GameData.ERAS.length - 1; end.turn = GameData.ERAS[end.eraIndex].turns.length - 1;
+  end.env = null; active(end).population = 3;
+  var fin = Engine.simulateTurn(GameData, end, Bots.seededRng(3)).state;
+  if (Engine.totalPopulation(fin) > 0) {
+    eq(fin.status, 'lost', 'garstka osobników na końcu gry to wymarcie funkcjonalne');
+    eq(fin.endReason, 'nonviable', 'powód: populacja poniżej progu żywotności');
+  }
+  var lost = 0, N = 100;
+  for (var k = 1; k <= N; k++) {
+    var r = Bots.seededRng(k), p = Engine.createInitialState(GameData, 'X');
+    while (p.status === 'playing') p = Engine.simulateTurn(GameData, p, r).state;
+    if (p.status === 'lost') lost++;
+  }
+  ok(lost >= 50, 'normalny: bierny gracz zwykle przegrywa (' + lost + '%)');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

@@ -7,17 +7,24 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > mają testy w `test/engine.test.js` (balans: `test/bots.js`). Kolejne etapy
 > (edukacja, dostępność i technika, treści) — do zrobienia.
 >
-> **Balans po etapie 2** (100 gier z ziarnami 1–100, % zwycięstw):
+> **Balans po etapie 2 i warunku żywotnej populacji** (100 gier z ziarnami 1–100, % zwycięstw):
 >
 > | Gracz | Łatwy | Normalny | Trudny | Epoki lodowcowe |
 > |---|---|---|---|---|
-> | stały plan „kup wszystko” | 97 | 23 | 1 | — |
-> | stały plan: tylko ścieżka ⭐ | 99 | 56 | 7 | 54 |
-> | gracz korzystający z prognozy | 98 | 85 | 20 | — |
+> | stały plan „kup wszystko” | 0 | 0 | 0 | — |
+> | stały plan: tylko ścieżka ⭐ | 0 | 0 | 0 | 24 |
+> | gracz korzystający z prognozy | 92 | 50 | 14 | 0 |
+> | „nic nie rób” (odsetek przegranych) | — | 75 | — | — |
 >
-> Po naprawie zaokrąglania strat (losowe zaokrąglanie, efekt Allee poniżej
-> `MIN_VIABLE_POP`) i z botem „prognoza” kupującym cechę ścieżki, gdy prognoza
-> spada najwyżej o 20% (wcześniej 10%).
+> Zwycięstwo wymaga co najmniej `WIN_MIN_POP` = 50 osobników w linii z
+> rozumem i narzędziami, a na koniec gry linie poniżej `MIN_VIABLE_POP` = 20
+> osobników liczą się jako wymarłe. Straty zaokrąglane są losowo, a poniżej
+> progu żywotności działa efekt Allee. Stałe plany wygrywały dotąd niemal
+> wyłącznie garstką osobników, więc teraz nie wygrywają. Bot „prognoza”
+> pilnuje bilansu energii i liczebności. Poziom trudny i scenariusz lodowcowy
+> przekalibrowano (trudny: 35 EP, drapieżniki ×1,0, katastrofy ×1,1,
+> koewolucja ×1,1; lodowcowy: 76 EP). Scenariusz lodowcowy to wyścig o EP
+> na pięć cech w sześć tur, więc jego wynik jest bardzo czuły na startowe EP.
 >
 > Przed etapem 2 stały plan wygrywał 100% gier na normalnym, a „Epoki lodowcowe” 100%.
 

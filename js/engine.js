@@ -428,6 +428,7 @@
       else n.eraIndex = data.ERAS.length;
     }
     n.status = evaluateStatus(n, data);
+    n.endReason = n.status === 'lost' ? (totalPopulation(n) > 0 ? 'nonviable' : 'extinct') : null;
     n.env = n.status === 'playing' ? rollEnv(data, n.eraIndex, n.turn, rng) : null;
 
     var report = {
@@ -537,18 +538,31 @@
     return { severity: clamp(sev * ((diff && diff.catMult) || 1), 0, 0.95), reasons: reasons };
   }
 
-  // Zwycięstwo: próg inteligencji w linii, która ma też cechę kultury (WIN_TRAIT).
+  // Linia spełnia warunki „rozumu”: próg inteligencji i cecha kultury (WIN_TRAIT).
+  function meetsWinTraits(n, data, l) {
+    return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
+      (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+  }
+  // Zwycięstwo: warunki „rozumu” w linii o żywotnej liczebności (WIN_MIN_POP) —
+  // kilka ostatnich osobników to nie gatunek, który zbuduje kulturę.
   function hasWon(n, data) {
     return n.lineages.some(function (l) {
-      return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
-        (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+      return meetsWinTraits(n, data, l) && l.population >= (data.WIN_MIN_POP || 0);
     });
+  }
+  // Cel osiągnięty poza liczebnością — UI podpowiada, że trzeba odbudować populację.
+  function goalBlockedByPopulation(n, data) {
+    return !hasWon(n, data) && n.lineages.some(function (l) { return meetsWinTraits(n, data, l); });
+  }
+  // Na koniec gry linie poniżej minimalnej żywotnej populacji są funkcjonalnie wymarłe.
+  function hasViableLineage(n, data) {
+    return n.lineages.some(function (l) { return l.alive && l.population >= (data.MIN_VIABLE_POP || 1); });
   }
 
   function evaluateStatus(n, data) {
     if (totalPopulation(n) <= 0) return 'lost';
     if (hasWon(n, data)) return 'won';
-    if (n.eraIndex >= data.ERAS.length) return 'survived';
+    if (n.eraIndex >= data.ERAS.length) return hasViableLineage(n, data) ? 'survived' : 'lost';
     return 'playing';
   }
 
@@ -562,6 +576,7 @@
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
+    goalBlockedByPopulation: goalBlockedByPopulation, hasViableLineage: hasViableLineage,
     migrationCost: migrationCost, speciationCost: speciationCost, nowTurn: nowTurn,
     difficultyOf: difficultyOf,
     getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,

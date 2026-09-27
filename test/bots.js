@@ -4,9 +4,10 @@
  * - „plan”     — stały plan: kupuje wszystko po kolei, gdy tylko go stać;
  * - „star”     — stały plan: tylko ścieżka do inteligencji (⭐) i jej wymagania;
  * - „adaptive” — gracz, który patrzy na prognozę (jak człowiek): kupuje cechy
- *                ścieżki, gdy nie grożą załamaniem populacji, a w przeciwnym razie
- *                cechę, która najbardziej poprawia prognozę; migruje, gdy inna
- *                nisza daje wyraźnie lepszą prognozę.
+ *                ścieżki, gdy nie grożą głodem ani spadkiem populacji poniżej
+ *                żywotnej liczebności, a poza tym cechy wyraźnie poprawiające
+ *                prognozę lub bilans energii; migruje, gdy inna nisza daje
+ *                wyraźnie lepszą prognozę.
  *
  * Losowość z ziarnem (mulberry32), więc wyniki są powtarzalne.
  */
@@ -46,22 +47,24 @@ function buyInOrder(s, plan) {
 }
 
 function adaptiveTurn(s) {
-  for (var k = 0; k < 8; k++) {
+  for (var k = 0; k < 10; k++) {
     var a = E.getActiveLineage(s), f = E.forecast(D, s, a);
     if (!f) break;
-    var pop = a.population, bought = false;
-    for (var i = 0; i < STAR.length && !bought; i++) {
-      var t = trait(STAR[i]);
-      if (E.traitStatus(s, t) !== 'available') continue;
-      // Próg 0,8: cecha ścieżki, jeśli prognoza nie spada o więcej niż 20%.
-      if (E.forecastWithTrait(D, s, a, t).projectedPop >= pop * 0.8) { s = E.buyTrait(D, s, t.id).state; bought = true; }
-    }
-    if (bought) continue;
-    var best = null, bestDelta = f.delta + Math.max(3, pop * 0.05);
+    var pop = a.population, best = null, bestScore = -Infinity;
     D.TRAITS.forEach(function (t) {
       if (E.traitStatus(s, t) !== 'available') return;
-      var d = E.forecastWithTrait(D, s, a, t).delta;
-      if (d > bestDelta) { bestDelta = d; best = t; }
+      var w = E.forecastWithTrait(D, s, a, t), score, star = STAR.indexOf(t.id);
+      if (star !== -1) {
+        // Cecha ścieżki tylko wtedy, gdy nie zagładza linii i nie zbija populacji
+        // poniżej żywotnej liczebności potrzebnej do zwycięstwa.
+        if (w.energy < 0 || w.projectedPop < Math.max(D.WIN_MIN_POP + 10, pop * 0.9)) return;
+        score = 1000 - star;
+      } else {
+        // Inna cecha — gdy wyraźnie poprawia prognozę lub bilans energii.
+        score = w.projectedPop - f.projectedPop + (w.energy - f.energy) * 5 - t.cost * 0.1;
+        if (score <= 2) return;
+      }
+      if (score > bestScore) { bestScore = score; best = t; }
     });
     if (!best) break;
     s = E.buyTrait(D, s, best.id).state;

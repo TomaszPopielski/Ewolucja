@@ -30,10 +30,12 @@ i otwarte PR-y (#1, #3).
 > krytycznie małej populacji. Linia z 3 osobnikami wymiera teraz w ~70%
 > przypadków w ciągu 10 tur (wcześniej w 0%). Na normalnym: stały plan
 > wygrywa w 23%, ścieżka ⭐ w 56%, gracz korzystający z prognozy w 85%.
-> **Nadal otwarte:** bierny gracz spada do kilku osobników, ale 20 tur
-> zwykle nie wystarcza, by wymarł (wymiera w ~2% partii). Kończy grę jako
-> „przetrwanie” z garstką osobników. Rozwiązaniem jest punkt 3
-> rekomendacji: wynik zależny od żywotnej populacji.
+> Dodano też **warunek żywotnej populacji** (punkt 3 rekomendacji):
+> zwycięstwo wymaga co najmniej 50 osobników, a linia poniżej 20 osobników
+> na koniec gry liczy się jako wymarła. Bierny gracz przegrywa teraz w 75%
+> partii na normalnym. Stałe plany zakupów nie wygrywają wcale, bo
+> wcześniej wygrywały wyłącznie garstką osobników. Gracz dbający o energię
+> i liczebność wygrywa w 92/50/14% partii (łatwy/normalny/trudny).
 > Opis poniżej dotyczy stanu **sprzed** tych zmian.
 
 ---
