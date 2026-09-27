@@ -42,6 +42,38 @@ for (const scheme of ['light', 'dark']) {
     await page.waitForSelector('#screen-game:not([hidden])');
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${outDir}/game-${tag}.png`, fullPage: vpName === 'desktop' });
+
+    if (vpName === 'desktop') {
+      // Raport tury i kodeks — okna modalne.
+      await page.click('#btn-simulate');
+      await page.waitForSelector('#modal-report:not([hidden])');
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${outDir}/report-${tag}.png` });
+      await page.click('#btn-report-close');
+      await page.click('#btn-codex');
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${outDir}/codex-${tag}.png` });
+
+      // Katalog wszystkich ikon (arkusz do oceny stylu).
+      await page.evaluate(() => {
+        const art = window.GameArt;
+        const cats = ['pokarm', 'lokomocja', 'obrona', 'zmysly', 'rozrod', 'termoregulacja', 'uklad_nerwowy'];
+        const traitCat = {};
+        window.GameData.TRAITS.forEach((t) => { traitCat[t.id] = t.category; });
+        const cells = art.iconKeys().map((k) => {
+          const [kind, id] = k.split(':');
+          const attr = kind === 'trait' ? ` data-cat="${traitCat[id]}"` : kind === 'cat' ? ` data-cat="${id}"`
+            : kind === 'niche' ? ` data-niche="${id}"` : '';
+          return `<figure${attr} style="margin:0;text-align:center;font-size:12px;color:var(--ink-soft)">` +
+            `<div style="font-size:44px;color:var(--ink)">${art.icon(k)}</div><figcaption>${k}</figcaption></figure>`;
+        }).join('');
+        void cats;
+        document.body.innerHTML = '<main style="padding:24px"><h1>Katalog ikon</h1>' +
+          '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:18px 10px">' + cells + '</div></main>';
+      });
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${outDir}/icons-${scheme}.png`, fullPage: true });
+    }
     await ctx.close();
   }
 }

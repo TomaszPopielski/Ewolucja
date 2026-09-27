@@ -10,6 +10,7 @@
   var DATA = window.GameData;
   var Engine = window.Engine;
   var T = window.GameI18n.t;
+  var ART = window.GameArt; // warstwa graficzna (src/art); bez niej — zapasowe emoji
   var SAVE_KEY = 'ewolucja.save.v4';
   var TUTORIAL_KEY = 'ewolucja.tutorialDone';
 
@@ -18,6 +19,8 @@
   var UNDO_LIMIT = 50;
 
   var $ = function (id) { return document.getElementById(id); };
+  // Ikona SVG z warstwy graficznej albo zapasowy znak, gdy jej brak.
+  function ico(key, fallback, cls) { return (ART && ART.icon(key, cls)) || (fallback || ''); }
   var el = {
     screenStart: $('screen-start'), screenGame: $('screen-game'), screenEnd: $('screen-end'),
     formStart: $('form-start'), speciesInput: $('species-name'), introGoal: $('intro-goal'),
@@ -101,7 +104,8 @@
       var card = document.createElement('button');
       card.type = 'button';
       card.className = 'scenario-card';
-      card.innerHTML = '<span class="scenario-icon">' + sc.icon + '</span>' +
+      card.dataset.scenario = sc.id;
+      card.innerHTML = '<span class="scenario-icon">' + ico('scenario:' + sc.id, sc.icon) + '</span>' +
         '<span class="scenario-name">' + sc.name + '</span>' +
         '<span class="scenario-diff">' + diff.label + ' · cel int. ' + (sc.goal != null ? sc.goal : diff.goal) + '</span>' +
         '<span class="scenario-intro">' + sc.intro + '</span>';
@@ -140,14 +144,17 @@
       if (i === state.turn) step.classList.add('current');
       if (t.catastrophe) step.classList.add('catastrophe');
       step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '');
-      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? '☄️' : '') + '</span>' +
+      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? ico('ui:meteor', '☄️') : '') + '</span>' +
         t.title.split(' — ')[0];
       el.timeline.appendChild(step);
     });
   }
 
   // ===================== Render — linie / nisze =====================
-  function nicheIcon(n) { return (DATA.NICHES[n] && DATA.NICHES[n].icon) || '🌊'; }
+  function nicheIcon(n) {
+    var fb = (DATA.NICHES[n] && DATA.NICHES[n].icon) || '🌊';
+    return ART ? '<span class="niche-ico" data-niche="' + n + '">' + ico('niche:' + n, fb) + '</span>' : fb;
+  }
   function nicheLabel(n) { return (DATA.NICHES[n] && DATA.NICHES[n].label) || n; }
   function renderLineageBar() {
     el.lineageChips.innerHTML = '';
@@ -158,7 +165,7 @@
       if (!l.alive) chip.classList.add('extinct');
       if (l.id === state.activeLineageId) chip.classList.add('active');
       chip.disabled = !l.alive;
-      chip.innerHTML = (l.alive ? nicheIcon(l.niche) + ' ' : '🦴 ') + escapeHtml(l.name) +
+      chip.innerHTML = (l.alive ? nicheIcon(l.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(l.name) +
         '<span class="lineage-chip-pop">' + (l.alive ? l.population : 'wymarła') + '</span>';
       if (l.alive) chip.addEventListener('click', function () { onSelectLineage(l.id); });
       el.lineageChips.appendChild(chip);
@@ -179,7 +186,8 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'niche-btn' + (a.niche === key ? ' current' : '');
-      btn.innerHTML = cfg.icon + ' ' + cfg.label;
+      btn.dataset.niche = key;
+      btn.innerHTML = ico('niche:' + key, cfg.icon) + ' ' + cfg.label;
       if (a.niche === key) {
         btn.disabled = true; btn.title = 'Aktualna nisza';
       } else {
@@ -270,7 +278,7 @@
     }
 
     if (base.catastrophe) {
-      html += '<div class="forecast-warn">☄️ Uwaga: nadchodzi katastrofa (' +
+      html += '<div class="forecast-warn">' + ico('ui:meteor', '☄️') + ' Uwaga: nadchodzi katastrofa (' +
         escapeHtml(base.catastrophe.name) + ') — uderzy w niszę ' +
         (base.catastrophe.niche === 'all' ? 'wszystkich' : nicheLabel(base.catastrophe.niche)) + '.</div>';
     }
@@ -297,11 +305,14 @@
     if (env.catastrophe) {
       el.envCatastrophe.hidden = false;
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
-      el.envCatastrophe.textContent = '☄️ ' + env.catastrophe.name + ' — niszczy niszę ' + cn + '!';
+      el.envCatastrophe.innerHTML = ico('ui:meteor', '☄️') + ' ' + escapeHtml(env.catastrophe.name) + ' — niszczy niszę ' + cn + '!';
     } else el.envCatastrophe.hidden = true;
   }
   function chip(t) { return '<li>' + t + '</li>'; }
-  function climateLabel(c) { return c === 'zimno' ? '❄️ zimno' : (c === 'cieplo' ? '☀️ ciepło' : '⛅ umiarkowanie'); }
+  function climateLabel(c) {
+    return c === 'zimno' ? ico('ui:snow', '❄️', 'ico-cold') + ' zimno'
+      : (c === 'cieplo' ? ico('ui:sun', '☀️', 'ico-warm') + ' ciepło' : ico('ui:mild', '⛅') + ' umiarkowanie');
+  }
 
   // ===================== Render — drzewo cech =====================
   function renderTraits() {
@@ -312,8 +323,9 @@
       if (!inCat.length) return;
       var section = document.createElement('div');
       section.className = 'trait-category';
+      section.dataset.cat = catKey;
       var h3 = document.createElement('h3');
-      h3.textContent = (DATA.CATEGORY_ICONS[catKey] ? DATA.CATEGORY_ICONS[catKey] + ' ' : '') + DATA.CATEGORIES[catKey];
+      h3.innerHTML = ico('cat:' + catKey, DATA.CATEGORY_ICONS[catKey] || '') + ' ' + escapeHtml(DATA.CATEGORIES[catKey]);
       section.appendChild(h3);
       var grid = document.createElement('div'); grid.className = 'trait-grid';
       inCat.forEach(function (trait) { grid.appendChild(renderTraitCard(trait, lineage)); });
@@ -330,30 +342,32 @@
     btn.disabled = (status !== 'available') || state.status !== 'playing';
 
     var costLabel;
-    if (status === 'owned') costLabel = '✓ zdobyta';
-    else if (status === 'locked') costLabel = '🔒 zablokowana';
-    else if (status === 'era_locked') costLabel = '⏳ ' + DATA.ERAS[trait.minEra].name;
+    if (status === 'owned') costLabel = ico('ui:check', '✓') + ' zdobyta';
+    else if (status === 'locked') costLabel = ico('ui:lock', '🔒') + ' zablokowana';
+    else if (status === 'era_locked') costLabel = ico('ui:hourglass', '⏳') + ' ' + DATA.ERAS[trait.minEra].name;
     else costLabel = trait.cost + ' EP';
 
     var extra = '';
     if (status === 'locked') {
       var missing = trait.requires.filter(function (id) { return lineage.traits.indexOf(id) === -1; });
-      extra = '<div class="trait-req">🔒 Najpierw zdobądź: <strong>' + reqNames(missing) +
-        '</strong> (koszt: ' + trait.cost + ' EP)</div>';
+      extra = '<div class="trait-req">' + ico('ui:lock', '🔒') + '<span>Najpierw zdobądź: <strong>' + reqNames(missing) +
+        '</strong> (koszt: ' + trait.cost + ' EP)</span></div>';
     } else if (status === 'era_locked') {
-      extra = '<div class="trait-req">⏳ Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
-        '</strong> (koszt: ' + trait.cost + ' EP)</div>';
+      extra = '<div class="trait-req">' + ico('ui:hourglass', '⏳') + '<span>Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
+        '</strong> (koszt: ' + trait.cost + ' EP)</span></div>';
     } else if (status === 'too_expensive') {
       extra = '<div class="trait-req warn">Brakuje ' + (trait.cost - state.ep) + ' EP</div>';
     }
 
-    var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">⭐</span> ' : '';
-    var ico = trait.icon ? trait.icon + ' ' : '';
-    btn.innerHTML = '<div class="trait-head"><span class="trait-name">' + star + ico + trait.name + '</span>' +
+    btn.dataset.cat = trait.category;
+    var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">' + ico('ui:star', '⭐', 'ico-star') + '</span> ' : '';
+    var badge = ART ? '<span class="trait-badge">' + ico('trait:' + trait.id, trait.icon) + '</span>' : '';
+    var nameIco = ART ? '' : (trait.icon ? trait.icon + ' ' : '');
+    btn.innerHTML = '<div class="trait-head">' + badge + '<span class="trait-name">' + star + nameIco + trait.name + '</span>' +
       '<span class="trait-cost">' + costLabel + '</span></div>' +
       '<div class="trait-desc">' + trait.desc + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
-      '<div class="trait-tradeoff">⚖ ' + trait.tradeoff + '</div>' + extra;
+      '<div class="trait-tradeoff">' + ico('ui:balance', '⚖') + '<span>' + trait.tradeoff + '</span></div>' + extra;
 
     if (status === 'available' && state.status === 'playing') {
       btn.addEventListener('click', function () { onBuyTrait(trait.id); });
@@ -416,14 +430,14 @@
     // Baner zmiany ery.
     if (report.eraChanged) {
       el.reportEra.hidden = false;
-      el.reportEra.innerHTML = '🏛️ Nowa era: <strong>' + report.newEraName + '</strong><br>' +
+      el.reportEra.innerHTML = ico('ui:ammonite', '🏛️') + ' Nowa era: <strong>' + report.newEraName + '</strong><br>' +
         '<span class="report-era-milestone">' + eraMilestone(report.newEraName) + '</span>';
     } else el.reportEra.hidden = true;
 
     // Baner pozytywnego zdarzenia.
     if (report.event) {
       el.reportEvent.hidden = false;
-      el.reportEvent.textContent = '🍀 ' + report.event.name + ' — ' + report.event.desc;
+      el.reportEvent.innerHTML = ico('ui:sprout', '🍀') + ' ' + escapeHtml(report.event.name + ' — ' + report.event.desc);
     } else el.reportEvent.hidden = true;
 
     el.reportBody.innerHTML = '';
@@ -432,7 +446,7 @@
       var block = document.createElement('div'); block.className = 'report-lineage';
       if (multi) {
         var head = document.createElement('div'); head.className = 'report-lineage-head';
-        head.textContent = (lr.alive ? nicheIcon(lr.niche) + ' ' : '🦴 ') + lr.name;
+        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(lr.name);
         block.appendChild(head);
       }
       lr.events.forEach(function (txt) {
@@ -473,14 +487,18 @@
     el.reportKnowledge.innerHTML = '';
     report.knowledge.forEach(function (key) {
       var k = DATA.KNOWLEDGE[key]; if (!k) return;
-      var card = document.createElement('div'); card.className = 'knowledge-card';
-      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
-        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
-      el.reportKnowledge.appendChild(card);
+      el.reportKnowledge.appendChild(knowledgeCard(key, k));
     });
 
     el.btnReportClose.textContent = (state.status === 'playing') ? T('report.next') : T('report.summary');
     openModal(el.modalReport);
+  }
+  function knowledgeCard(key, k) {
+    var card = document.createElement('div'); card.className = 'knowledge-card';
+    card.innerHTML = (ART ? ico('know:' + key, '') : '') +
+      '<h4>' + (ART ? '' : (k.icon || '💡') + ' ') + k.title + '</h4><p>' + k.body + '</p>' +
+      (k.fossil ? '<p class="knowledge-fossil">' + ico('ui:fossil', '🦴') + ' ' + T('codex.fossil') + k.fossil + '</p>' : '');
+    return card;
   }
   function eraMilestone(name) {
     var e = DATA.ERAS.filter(function (x) { return x.name === name; })[0];
@@ -541,10 +559,15 @@
       }
       svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
         '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
+      // Ikona niszy jako zagnieżdżony <svg> przed nazwą (wewnątrz <text> nie wolno).
+      var nIco = (ART && l.alive) ? ico('niche:' + l.niche, '') : '';
+      var labelX = xEnd + (nIco ? 30 : 10);
       svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
         '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
-        '<text x="' + (xEnd + 10) + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
-        escapeHtml(l.name) + (l.alive ? ' ' + nicheIcon(l.niche) + ' (' + l.population + ')' : ' †') + '</text></g>';
+        (nIco ? '<g data-niche="' + l.niche + '" color="var(--ink)" transform="translate(' + (xEnd + 10) + ' ' + (y - 8) + ')">' +
+          nIco.replace('<svg ', '<svg width="16" height="16" ') + '</g>' : '') +
+        '<text x="' + labelX + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
+        escapeHtml(l.name) + (l.alive ? (nIco ? '' : ' ' + DATA.NICHES[l.niche].icon) + ' (' + l.population + ')' : ' †') + '</text></g>';
     });
     return svg + '</svg>';
   }
@@ -553,14 +576,15 @@
   function showEnd() {
     clearSave();
     var s = state.status;
-    el.endEmblem.textContent = s === 'won' ? '🧠' : (s === 'survived' ? '🐾' : '🦴');
+    el.endEmblem.dataset.status = s;
+    el.endEmblem.innerHTML = s === 'won' ? ico('ui:bulb', '🧠') : (s === 'survived' ? ico('ui:paw', '🐾') : ico('ui:bone', '🦴'));
     el.endTitle.textContent = s === 'won' ? 'Narodziny inteligencji!' :
       (s === 'survived' ? 'Gatunek przetrwał wszystkie ery' : 'Wszystkie linie wygasły');
     el.endSummary.textContent =
       s === 'won'
         ? 'Jedna z Twoich linii osiągnęła próg inteligencji — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
         : s === 'survived'
-        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce ⭐.'
+        ? 'Twoje linie przetrwały paleozoik, mezozoik i kenozoik, ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce oznaczonej gwiazdką.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
@@ -636,10 +660,7 @@
     Object.keys(DATA.KNOWLEDGE).forEach(function (key) {
       if (unlocked.indexOf(key) === -1) return; any = true;
       var k = DATA.KNOWLEDGE[key];
-      var card = document.createElement('div'); card.className = 'knowledge-card';
-      card.innerHTML = '<h4>💡 ' + k.title + '</h4><p>' + k.body + '</p>' +
-        (k.fossil ? '<p class="knowledge-fossil">' + T('codex.fossil') + k.fossil + '</p>' : '');
-      el.codexBody.appendChild(card);
+      el.codexBody.appendChild(knowledgeCard(key, k));
     });
     if (!any) el.codexBody.innerHTML = '<p class="codex-empty">Kodeks jest jeszcze pusty — graj, aby odkrywać pojęcia.</p>';
     openModal(el.modalCodex);
@@ -650,8 +671,8 @@
     { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + DATA.INTELLIGENCE_GOAL + ' w ciągu trzech er.' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu ⭐', text: 'Cechy oznaczone ⭐ prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: 🌊 woda, 🪸 przybrzeże, 🏝️ ląd (wymaga kończyn), 🕊️ powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe ☄️.' }
+    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Sama liczna populacja nie wystarczy!' },
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe {meteor}.' }
   ];
   var tutorialIdx = 0;
   function maybeStartTutorial() {
@@ -662,9 +683,15 @@
   function showTutorialStep() {
     var s = tutorialSteps[tutorialIdx];
     el.tutorialTitle.textContent = s.title;
-    el.tutorialText.textContent = s.text;
+    el.tutorialText.innerHTML = tutorialTokens(escapeHtml(s.text));
     el.tutorialProgress.textContent = (tutorialIdx + 1) + ' / ' + tutorialSteps.length;
     el.btnTutorialNext.textContent = (tutorialIdx === tutorialSteps.length - 1) ? T('tutorial.done') : T('tutorial.next');
+  }
+  // Żetony {star}, {meteor}, {woda}… w tekstach samouczka → ikony (albo emoji).
+  function tutorialTokens(html) {
+    var map = { star: ico('ui:star', '⭐', 'ico-star'), meteor: ico('ui:meteor', '☄️', 'ico-danger') };
+    Object.keys(DATA.NICHES).forEach(function (n) { map[n] = nicheIcon(n); });
+    return html.replace(/\{(\w+)\}/g, function (m, k) { return map[k] || m; });
   }
   function tutorialNext() {
     if (tutorialIdx < tutorialSteps.length - 1) { tutorialIdx++; showTutorialStep(); }
@@ -689,9 +716,9 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
-    el.introGoal.innerHTML = '🎯 <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
+    el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji ' +
       'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
-      'Rozwijaj układ nerwowy (⭐), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
+      'Rozwijaj układ nerwowy (' + ico('ui:star', '⭐', 'ico-star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
 
     renderScenarios();

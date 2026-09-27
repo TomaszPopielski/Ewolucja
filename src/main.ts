@@ -6,6 +6,8 @@
  * (GameI18n, GameData, Engine), a ui.js startuje po załadowaniu DOM.
  * Nowy kod — warstwa graficzna — powstaje obok, w TypeScripcie (src/).
  */
+import './fonts.css';
+import './art/register';
 import '../js/i18n.js';
 import '../js/data.js';
 import '../js/engine.js';

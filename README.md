@@ -83,7 +83,7 @@ przechodnia świadomą strategią.
   lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
   geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **24 cechy** (z ikonami) w drzewie zależności z kosztami i kompromisami; ścieżka
+- **24 cechy** (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka
   do inteligencji oznaczona ⭐.
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
   każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
@@ -106,9 +106,11 @@ przechodnia świadomą strategią.
 ```
 js/i18n.js       — stringi interfejsu (warstwa i18n)
 src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę graficzną
-src/             — nowy kod (TypeScript), m.in. warstwa graficzna
+src/art/         — warstwa graficzna (TypeScript): ikony SVG, paleta
+src/fonts.css    — krój szeryfowy (Source Serif 4, OFL), wklejany offline
+docs/STYL.md     — zasady stylu „ilustracja naukowa”
 scripts/         — narzędzia (zrzuty ekranu)
-vite.config.ts   — budowa do jednego pliku dist/index.html
+vite.config.mts  — budowa do jednego pliku dist/index.html
 dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 ```
 
