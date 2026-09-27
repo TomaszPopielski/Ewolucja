@@ -18,6 +18,10 @@
 
   var START_POPULATION = 120;
 
+  // Minimalna żywotna populacja (efekt Allee): poniżej tego progu rozród słabnie
+  // proporcjonalnie do liczebności — trudniej o partnera, rośnie chów wsobny.
+  var MIN_VIABLE_POP = 20;
+
   // Specjacja: koszt bazowy rośnie o STEP za każdą kolejną żywą linię.
   var SPECIATION_COST = 12;
   var SPECIATION_COST_STEP = 6;
@@ -39,12 +43,14 @@
 
   // Zwycięstwo: próg inteligencji ORAZ ta cecha (kultura/technologia, ZALOZENIA 4.6).
   var WIN_TRAIT = 'tool_use';
+  // …w linii liczącej co najmniej tyle osobników (żywotny gatunek, nie garstka).
+  var WIN_MIN_POP = 50;
 
   // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
   var DIFFICULTIES = {
     latwy:    { label: 'Łatwy',    startEp: 50, goal: 14, catMult: 0.6, predMult: 0.8, coevo: 0.5 },
     normalny: { label: 'Normalny', startEp: 35, goal: 15, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
-    trudny:   { label: 'Trudny',   startEp: 30, goal: 17, catMult: 1.2, predMult: 1.1, coevo: 1.2 }
+    trudny:   { label: 'Trudny',   startEp: 35, goal: 17, catMult: 1.1, predMult: 1.0, coevo: 1.1 }
   };
 
   /*
@@ -270,7 +276,7 @@
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 42, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 76, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -326,9 +332,9 @@
   };
 
   return {
-    BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION,
+    BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
-    MIGRATION: MIGRATION, WIN_TRAIT: WIN_TRAIT, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
+    MIGRATION: MIGRATION, WIN_TRAIT: WIN_TRAIT, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:

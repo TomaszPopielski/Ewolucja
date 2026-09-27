@@ -18,6 +18,9 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function round1(v) { return Math.round(v * 10) / 10; }
+  /* Losowe zaokrąglanie: 0,4 osobnika to 0 lub 1 z szansą 40%. Wartość oczekiwana
+     się zgadza, a mała populacja nie staje się „nieśmiertelna” (Math.round(2 × 0,22) = 0). */
+  function sround(x, rng) { var f = Math.floor(x); return f + (rng() < x - f ? 1 : 0); }
   function dedupe(a) { var s = {}, o = []; a.forEach(function (x) { if (!s[x]) { s[x] = 1; o.push(x); } }); return o; }
   function traitsById(data) { var m = {}; data.TRAITS.forEach(function (t) { m[t.id] = t; }); return m; }
 
@@ -338,13 +341,19 @@
     return ctx;
   }
 
+  /* Efekt Allee: poniżej minimalnej żywotnej populacji rozród słabnie. */
+  function alleeFactor(data, pop) {
+    var mvp = data.MIN_VIABLE_POP || 0;
+    return (mvp > 0 && pop < mvp) ? pop / mvp : 1;
+  }
+
   /* Prognoza „co-jeśli” — bez mutacji i zdarzeń, ale z koewolucją i trudnością. */
   function forecast(data, state, lineage) {
     var env = currentTurnEnv(data, state);
     if (!env) return null;
     var d = computeDynamics(data, env, lineage, contextFor(data, state));
     var pop = lineage.population;
-    var births = Math.round(pop * d.birthRate);
+    var births = Math.round(pop * d.birthRate * alleeFactor(data, pop));
     var predD = Math.round(pop * d.predationLossRate);
     var starvD = Math.round(pop * d.starvationLossRate);
     var proj = Math.max(0, pop + births - predD - starvD);
@@ -357,7 +366,8 @@
       projectedPop: proj, delta: proj - pop, catastrophe: cat,
       catastropheLoss: impact ? Math.round(impact.severity * 100) : 0,
       survivalReasons: impact ? impact.reasons : [],
-      acclimatizing: d.acclimatizing, notes: d.notes };
+      acclimatizing: d.acclimatizing, notes: d.notes,
+      critical: pop > 0 && Math.min(pop, proj) < (data.MIN_VIABLE_POP || 0) };
   }
 
   /* Prognoza z hipotetyczną cechą: efekty liczbowe ORAZ obecność cechy na liście
@@ -418,6 +428,7 @@
       else n.eraIndex = data.ERAS.length;
     }
     n.status = evaluateStatus(n, data);
+    n.endReason = n.status === 'lost' ? (totalPopulation(n) > 0 ? 'nonviable' : 'extinct') : null;
     n.env = n.status === 'playing' ? rollEnv(data, n.eraIndex, n.turn, rng) : null;
 
     var report = {
@@ -445,15 +456,15 @@
     }
     var popBefore = l.population;
     var d = computeDynamics(data, env, l, ctx);
-    var births = Math.round(popBefore * d.birthRate);
-    var predationDeaths = Math.round(popBefore * d.predationLossRate);
-    var starvationDeaths = Math.round(popBefore * d.starvationLossRate);
+    var births = sround(popBefore * d.birthRate * alleeFactor(data, popBefore), rng);
+    var predationDeaths = sround(popBefore * d.predationLossRate, rng);
+    var starvationDeaths = sround(popBefore * d.starvationLossRate, rng);
     var pop = popBefore + births - predationDeaths - starvationDeaths;
 
     var catDeaths = 0, survivalReasons = [];
     if (hitsLineage(env.catastrophe, l)) {
       var impact = catastropheImpact(env.catastrophe, l, diff);
-      catDeaths = Math.round(Math.max(0, pop) * impact.severity);
+      catDeaths = sround(Math.max(0, pop) * impact.severity, rng);
       pop -= catDeaths;
       survivalReasons = impact.reasons;
       events.push('Katastrofa (' + env.catastrophe.name + ') — straty ' + Math.round(impact.severity * 100) + '% populacji.');
@@ -464,6 +475,9 @@
     l.population = pop; l.popHistory.push(pop);
     if (pop > l.peakPopulation) l.peakPopulation = pop;
 
+    if (pop > 0 && pop < (data.MIN_VIABLE_POP || 0)) {
+      events.push('Populacja krytycznie mała (poniżej ' + data.MIN_VIABLE_POP + ') — słabnie rozród, grozi wymarcie.');
+    }
     if (d.acclimatizing) events.push('Aklimatyzacja w nowej niszy — mniej pokarmu w tej turze.');
     if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
     if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
@@ -524,18 +538,31 @@
     return { severity: clamp(sev * ((diff && diff.catMult) || 1), 0, 0.95), reasons: reasons };
   }
 
-  // Zwycięstwo: próg inteligencji w linii, która ma też cechę kultury (WIN_TRAIT).
+  // Linia spełnia warunki „rozumu”: próg inteligencji i cecha kultury (WIN_TRAIT).
+  function meetsWinTraits(n, data, l) {
+    return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
+      (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+  }
+  // Zwycięstwo: warunki „rozumu” w linii o żywotnej liczebności (WIN_MIN_POP) —
+  // kilka ostatnich osobników to nie gatunek, który zbuduje kulturę.
   function hasWon(n, data) {
     return n.lineages.some(function (l) {
-      return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
-        (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+      return meetsWinTraits(n, data, l) && l.population >= (data.WIN_MIN_POP || 0);
     });
+  }
+  // Cel osiągnięty poza liczebnością — UI podpowiada, że trzeba odbudować populację.
+  function goalBlockedByPopulation(n, data) {
+    return !hasWon(n, data) && n.lineages.some(function (l) { return meetsWinTraits(n, data, l); });
+  }
+  // Na koniec gry linie poniżej minimalnej żywotnej populacji są funkcjonalnie wymarłe.
+  function hasViableLineage(n, data) {
+    return n.lineages.some(function (l) { return l.alive && l.population >= (data.MIN_VIABLE_POP || 1); });
   }
 
   function evaluateStatus(n, data) {
     if (totalPopulation(n) <= 0) return 'lost';
     if (hasWon(n, data)) return 'won';
-    if (n.eraIndex >= data.ERAS.length) return 'survived';
+    if (n.eraIndex >= data.ERAS.length) return hasViableLineage(n, data) ? 'survived' : 'lost';
     return 'playing';
   }
 
@@ -549,6 +576,7 @@
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
+    goalBlockedByPopulation: goalBlockedByPopulation, hasViableLineage: hasViableLineage,
     migrationCost: migrationCost, speciationCost: speciationCost, nowTurn: nowTurn,
     difficultyOf: difficultyOf,
     getLineage: getLineage, getActiveLineage: getActiveLineage, aliveLineages: aliveLineages,
@@ -558,6 +586,6 @@
     traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
     forecast: forecast, forecastWithTrait: forecastWithTrait, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
-    _internals: { rollMutation: rollMutation, clamp: clamp, computeDynamics: computeDynamics }
+    _internals: { rollMutation: rollMutation, sround: sround, alleeFactor: alleeFactor, clamp: clamp, computeDynamics: computeDynamics }
   };
 });

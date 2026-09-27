@@ -394,6 +394,14 @@
         '. Przewidywane straty: ok. ' + base.catastropheLoss + '% populacji' +
         (base.survivalReasons.length ? ' (pomaga: ' + escapeHtml(base.survivalReasons.join('; ')) + ')' : '') + '.</div>';
     }
+    if (Engine.goalBlockedByPopulation(state, DATA)) {
+      html += '<div class="forecast-warn">' + ico('ui:target', '🎯') + ' Inteligencja i narzędzia są, ale do zwycięstwa potrzeba co najmniej ' +
+        DATA.WIN_MIN_POP + ' osobników w tej linii — odbuduj populację.</div>';
+    }
+    if (base.critical) {
+      html += '<div class="forecast-warn">' + ico('ui:paw', '🐾') + ' Populacja krytycznie mała (poniżej ' +
+        DATA.MIN_VIABLE_POP + ' osobników): rozród słabnie, a każda strata może zakończyć linię.</div>';
+    }
     el.forecastBody.innerHTML = html;
   }
 
@@ -810,12 +818,16 @@
     el.endEmblem.innerHTML = s === 'won' ? ico('ui:bulb', '🧠') : (s === 'survived' ? ico('ui:paw', '🐾') : ico('ui:bone', '🦴'));
     el.endTitle.textContent = s === 'won' ? 'Narodziny inteligencji!' :
       (s === 'survived' ? (Engine.playedEras(DATA, state).length > 1 ? 'Gatunek przetrwał wszystkie ery' : 'Gatunek przetrwał erę')
-        : 'Wszystkie linie wygasły');
+        : (state.endReason === 'nonviable' ? 'Populacja nie przetrwała' : 'Wszystkie linie wygasły'));
     el.endSummary.textContent =
       s === 'won'
         ? 'Jedna z Twoich linii osiągnęła próg inteligencji i zaczęła używać narzędzi — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
+        : s === 'survived' && Engine.goalBlockedByPopulation(state, DATA)
+        ? 'Twoja linia osiągnęła próg inteligencji i używa narzędzi, ale jest zbyt nieliczna (poniżej ' + DATA.WIN_MIN_POP + ' osobników), by dać początek kulturze. Rozum to za mało — potrzebny jest też żywotny gatunek.'
         : s === 'survived'
         ? 'Twoje linie przetrwały ' + eraList(Engine.playedEras(DATA, state)) + ', ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce oznaczonej gwiazdką.'
+        : state.endReason === 'nonviable'
+        ? 'Na koniec gry żadna linia nie liczyła choćby ' + DATA.MIN_VIABLE_POP + ' osobników. Tak mała populacja jest skazana na wymarcie (słaby rozród, chów wsobny) — dbaj o bilans energii i liczebność, nie tylko o cechy.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
@@ -972,10 +984,10 @@
     var span = eras.length === 1 ? 'w erze ' + eras[0].name.toLowerCase().replace(/k$/, 'ku')
       : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
     return [
-    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i używania narzędzi ' + span + '.' },
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i używania narzędzi ' + span + ', utrzymując żywotną populację (co najmniej ' + DATA.WIN_MIN_POP + ' osobników).' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik). Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
+    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
     { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe {meteor}. Migracja kosztuje EP i turę aklimatyzacji.' }
     ];
   }
@@ -1022,8 +1034,8 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
-    el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i używania narzędzi ' +
-      'przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
+    el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i używania narzędzi, ' +
+      'utrzymując co najmniej ' + DATA.WIN_MIN_POP + ' osobników, przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (' + ico('ui:star', '⭐', 'ico-star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
 
