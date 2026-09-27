@@ -328,6 +328,8 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .fc.neg { color: var(--danger); }
 .forecast-preview { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: .82rem; }
 .forecast-warn { margin-top: 6px; font-size: .8rem; color: var(--danger); font-weight: 600; --wash: var(--danger); }
+.forecast-note { margin-top: 6px; font-size: .78rem; color: var(--ink-soft); }
+.env-dev { font-size: .72rem; color: var(--ink-soft); }
 .forecast-none { font-size: .82rem; color: var(--ink-soft); }
 .env-catastrophe {
   background: var(--danger); color: #fff; border-radius: 6px; padding: 6px 10px;
@@ -472,7 +474,7 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
   /* podziałka co 5 punktów, jak na przymiarze */
   background-image: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%);
 }
-.stat-fill { height: 100%; background: var(--brand); border-radius: 1px; transition: width .3s ease; }
+.stat-fill { display: block; height: 100%; background: var(--brand); border-radius: 1px; transition: width .3s ease; }
 .stat-fill.metabolism { background: var(--accent); }
 .stat-fill.intelligence { background: var(--ep); }
 .stat-num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -526,6 +528,7 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .effect-chip.down { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
 .trait-tradeoff { font-size: .76rem; color: var(--accent); font-family: var(--serif); font-style: italic; display: flex; gap: 5px; align-items: flex-start; --wash: var(--accent); }
 .trait-tradeoff .ico { margin-top: 1px; }
+.trait-condition { font-size: .72rem; color: var(--ink-soft); }
 .trait-req { font-size: .72rem; color: var(--ink-soft); display: flex; gap: 4px; align-items: flex-start; }
 .trait-req .ico { font-size: .95rem; }
 .trait-req.warn { color: var(--danger); }
