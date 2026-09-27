@@ -378,6 +378,29 @@ group('zmienność środowiska (faza środowiska)', function () {
   eq(Object.keys(climates).join(), GameData.ERAS[0].turns[catTurn].climate, 'katastrofa: klimat historyczny');
 });
 
+group('mała populacja nie jest nieśmiertelna (losowe zaokrąglanie, efekt Allee)', function () {
+  var sround = Engine._internals.sround, rng = Bots.seededRng(7), sum = 0;
+  for (var i = 0; i < 10000; i++) sum += sround(0.4, rng);
+  ok(Math.abs(sum / 10000 - 0.4) < 0.02, 'losowe zaokrąglanie zachowuje wartość oczekiwaną (' + (sum / 10000) + ')');
+  eq(sround(3, rng), 3, 'liczba całkowita bez zmian');
+  var allee = Engine._internals.alleeFactor, mvp = GameData.MIN_VIABLE_POP;
+  eq(allee(GameData, mvp), 1, 'od progu żywotności rozród bez kary');
+  ok(allee(GameData, mvp / 2) < 1, 'poniżej progu rozród słabnie');
+  // Kilka osobników pod presją: dawniej straty zaokrąglały się do 0 (0% wymarć).
+  var lost = 0, N = 100;
+  for (var k = 1; k <= N; k++) {
+    var r = Bots.seededRng(k), s = Engine.createInitialState(GameData, 'X');
+    active(s).population = 3;
+    for (var t = 0; t < 10 && s.status === 'playing'; t++) s = Engine.simulateTurn(GameData, s, r).state;
+    if (s.status === 'lost') lost++;
+  }
+  ok(lost >= 40, 'linia z 3 osobnikami realnie może wymrzeć w 10 tur (' + lost + '%)');
+  var crit = Engine.createInitialState(GameData, 'X'); active(crit).population = mvp - 1;
+  eq(Engine.forecast(GameData, crit, active(crit)).critical, true, 'prognoza ostrzega o krytycznie małej populacji');
+  eq(Engine.forecast(GameData, Engine.createInitialState(GameData, 'X'), active(Engine.createInitialState(GameData, 'X'))).critical, false,
+    'startowa populacja nie jest krytyczna');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

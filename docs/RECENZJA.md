@@ -23,6 +23,19 @@ i otwarte PR-y (#1, #3).
 > tamta recenzja nie wskazuje (sekcja 2.2), a sam PR #3 oceniam jako jedną
 > z niescalonych wersji (sekcja 4).
 
+> **Aktualizacja (27.09.2026):** PR #3 został scalony, a nieśmiertelność z
+> zaokrągleń (sekcja 2.2) naprawiona. Straty i narodziny zaokrąglane są
+> losowo (wartość oczekiwana się zgadza), poniżej `MIN_VIABLE_POP` = 20
+> osobników rozród słabnie (efekt Allee), a prognoza i raport ostrzegają o
+> krytycznie małej populacji. Linia z 3 osobnikami wymiera teraz w ~70%
+> przypadków w ciągu 10 tur (wcześniej w 0%). Na normalnym: stały plan
+> wygrywa w 23%, ścieżka ⭐ w 56%, gracz korzystający z prognozy w 85%.
+> **Nadal otwarte:** bierny gracz spada do kilku osobników, ale 20 tur
+> zwykle nie wystarcza, by wymarł (wymiera w ~2% partii). Kończy grę jako
+> „przetrwanie” z garstką osobników. Rozwiązaniem jest punkt 3
+> rekomendacji: wynik zależny od żywotnej populacji.
+> Opis poniżej dotyczy stanu **sprzed** tych zmian.
+
 ---
 
 ## Werdykt

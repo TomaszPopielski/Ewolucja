@@ -53,7 +53,8 @@ function adaptiveTurn(s) {
     for (var i = 0; i < STAR.length && !bought; i++) {
       var t = trait(STAR[i]);
       if (E.traitStatus(s, t) !== 'available') continue;
-      if (E.forecastWithTrait(D, s, a, t).projectedPop >= pop * 0.9) { s = E.buyTrait(D, s, t.id).state; bought = true; }
+      // Próg 0,8: cecha ścieżki, jeśli prognoza nie spada o więcej niż 20%.
+      if (E.forecastWithTrait(D, s, a, t).projectedPop >= pop * 0.8) { s = E.buyTrait(D, s, t.id).state; bought = true; }
     }
     if (bought) continue;
     var best = null, bestDelta = f.delta + Math.max(3, pop * 0.05);

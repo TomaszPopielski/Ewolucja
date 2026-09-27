@@ -11,9 +11,13 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 >
 > | Gracz | Łatwy | Normalny | Trudny | Epoki lodowcowe |
 > |---|---|---|---|---|
-> | stały plan „kup wszystko” | 99 | 24 | 9 | — |
-> | stały plan: tylko ścieżka ⭐ | 100 | 43 | 4 | 37 |
-> | gracz korzystający z prognozy | 98 | 53 | 19 | — |
+> | stały plan „kup wszystko” | 97 | 23 | 1 | — |
+> | stały plan: tylko ścieżka ⭐ | 99 | 56 | 7 | 54 |
+> | gracz korzystający z prognozy | 98 | 85 | 20 | — |
+>
+> Po naprawie zaokrąglania strat (losowe zaokrąglanie, efekt Allee poniżej
+> `MIN_VIABLE_POP`) i z botem „prognoza” kupującym cechę ścieżki, gdy prognoza
+> spada najwyżej o 20% (wcześniej 10%).
 >
 > Przed etapem 2 stały plan wygrywał 100% gier na normalnym, a „Epoki lodowcowe” 100%.
 

@@ -394,6 +394,10 @@
         '. Przewidywane straty: ok. ' + base.catastropheLoss + '% populacji' +
         (base.survivalReasons.length ? ' (pomaga: ' + escapeHtml(base.survivalReasons.join('; ')) + ')' : '') + '.</div>';
     }
+    if (base.critical) {
+      html += '<div class="forecast-warn">' + ico('ui:paw', '🐾') + ' Populacja krytycznie mała (poniżej ' +
+        DATA.MIN_VIABLE_POP + ' osobników): rozród słabnie, a każda strata może zakończyć linię.</div>';
+    }
     el.forecastBody.innerHTML = html;
   }
 
