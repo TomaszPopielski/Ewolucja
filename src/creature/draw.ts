@@ -45,6 +45,10 @@ export interface SceneOptions {
   climate?: string;
   /** Bez animacji (ograniczenie ruchu): stała poza. */
   still?: boolean;
+  /** Okres pętli animacji [s] przy wypiekaniu klatek — wyłącza zdarzenia niecykliczne. */
+  cycle?: number;
+  /** Mnożnik grubości konturu (domyślnie 1). */
+  lineWeight?: number;
 }
 
 // ------------------------------------------------------------------ geometria
@@ -84,6 +88,12 @@ interface Plan {
   land: number; air: number; water: number;
   /** Uniesienie przodu ciała (ręka chwytna na lądzie) — przednia kończyna staje się ręką. */
   raise: number;
+  /**
+   * Podstawowa częstość ruchu [rad/s]. Wszystkie ruchy cykliczne (falowanie,
+   * chód, skrzydła) są jej całkowitymi wielokrotnościami, więc animacja
+   * zamyka się w pętli o okresie 2π/omega — można ją „wypiec” do klatek.
+   */
+  omega: number;
 }
 
 interface Body {
@@ -96,7 +106,7 @@ interface Body {
 
 const N_SEG = 34;
 
-function buildBody(spec: CreatureSpec, plan: Plan, fast: number, time: number, still: boolean): Body {
+function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean): Body {
   const { f, l, fl, en, br, bb } = plan;
   const L = 200 * spec.proportions.length;
   const girth = spec.proportions.girth;
@@ -108,7 +118,7 @@ function buildBody(spec: CreatureSpec, plan: Plan, fast: number, time: number, s
   const fishA = (t: number) => 1.5 + 11 * t * t;
   const tetraA = (t: number) => 1 + 6 * t * t;
   const landA = (t: number) => 1.2 * t * t;
-  const speed = (3 + 1.8 * fast) * (1 - 0.55 * plan.land);
+  const speed = plan.omega;
   const k = lerp(1.25, 0.85, f);
 
   const ts: number[] = [], P: V[] = [], W: number[] = [];
@@ -226,9 +236,15 @@ function bodyOutline(body: Body): V[] {
   return pts;
 }
 
+/**
+ * Mnożnik grubości konturu na czas jednego rysunku. Małe osobniki w dioramie
+ * potrzebują proporcjonalnie grubszej kreski, żeby tusz nie znikał.
+ */
+let lineK = 1;
+
 function inkLine(ctx: Ctx, s: Style, width: number) {
   ctx.strokeStyle = s.stroke;
-  ctx.lineWidth = width;
+  ctx.lineWidth = width * lineK;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.setLineDash(s.ghost ? [3, 2.5] : []);
@@ -304,10 +320,10 @@ function drawDorsalFin(ctx: Ctx, body: Body, s: Style, k: number, color: string)
   inkLine(ctx, s, 0.5); ctx.strokeStyle = s.soft; ctx.stroke();
 }
 
-function drawPectoralFin(ctx: Ctx, body: Body, s: Style, k: number, time: number, color: string, tAt = 0.22, len = 17) {
+function drawPectoralFin(ctx: Ctx, body: Body, s: Style, k: number, phase: number, color: string, tAt = 0.22, len = 17) {
   const a = at(body, tAt);
   const base = sub(a.p, mul(a.n, a.w * 0.35));
-  const ang = Math.atan2(a.tan.y, a.tan.x) + 0.55 + 0.25 * Math.sin(time * 4.2);
+  const ang = Math.atan2(a.tan.y, a.tan.x) + 0.55 + 0.25 * Math.sin(phase);
   const tip = add(base, polar(ang, len * k));
   const side = add(base, polar(ang + 0.55, len * 0.62 * k));
   ctx.beginPath();
@@ -329,7 +345,7 @@ function legPose(body: Body, plan: Plan, tAt: number, front: boolean, phase: num
   const hip = sub(a.p, mul(a.n, a.w * 0.45));
   const k = (1 + 0.35 * plan.en) * (1 - 0.35 * plan.air);
   const l1 = 16 * k, l2 = 15 * k;
-  const walk = still ? 0 : time * lerp(2.2, 5.5, plan.land);
+  const walk = still ? 0 : time * plan.omega * (1 + plan.land);
   const ph = walk + phase;
   const swing = (0.42 * plan.land + 0.35 * plan.water) * Math.sin(ph);
   const lift = still ? 0 : Math.max(0, Math.cos(ph)) * 0.5 * plan.land;
@@ -348,7 +364,7 @@ function legPose(body: Body, plan: Plan, tAt: number, front: boolean, phase: num
   }
   // Ręka (postawa wyprostowana): ramię zwisa, przedramię wysunięte do przodu.
   if (front && plan.raise > 0.01) {
-    const armSwing = still ? 0 : 0.12 * Math.sin(time * 1.3);
+    const armSwing = still ? 0 : 0.12 * Math.sin(time * plan.omega);
     th1 = lerp(th1, Math.PI / 2 + 0.25 + armSwing, plan.raise);
     th2 = lerp(th2, 0.35 + armSwing, plan.raise);
   }
@@ -402,7 +418,7 @@ function drawWing(ctx: Ctx, body: Body, plan: Plan, s: Style, color: string, tim
   const a = at(body, 0.3);
   const shoulder = add(a.p, mul(a.n, a.w * 0.35));
   const flying = plan.air;
-  const beat = still ? 0.55 : Math.sin(time * 6.5);
+  const beat = still ? 0.55 : Math.sin(time * plan.omega * 2);
   // Rzut skrzydła w widoku z boku: rozpiętość skraca się z kątem uniesienia.
   const beta = lerp(0.35, 0.3 + 0.95 * beat, flying);
   const span = lerp(30, 105, flying);
@@ -469,12 +485,17 @@ export interface CreatureDrawOptions extends SceneOptions {
 /** Jak nisko sięgają stopy względem środka ciała (stała poza) — stawia zwierzę na gruncie. */
 export function footDrop(spec: CreatureSpec, pres: Presence): number {
   const plan = planFor(spec, pres);
-  const body = buildBody(spec, plan, 0, 0, true);
+  const body = buildBody(spec, plan, 0, true);
   const rear = legPose(body, plan, 0.64, false, 0, 0, true);
   const front = legPose(body, plan, 0.3, true, 0, 0, true);
   const lowestBody = Math.max(...body.lower.map((p) => p.y));
   const feet = plan.raise > 0.5 ? rear.foot.y : Math.max(rear.foot.y, front.foot.y);
   return lerp(lowestBody, Math.max(lowestBody, feet + 1.5), pres.limbs);
+}
+
+/** Okres pętli ruchu zwierzęcia [s] (patrz Plan.omega). */
+export function cycleSeconds(spec: CreatureSpec, pres: Presence): number {
+  return (Math.PI * 2) / planFor(spec, pres).omega;
 }
 
 export function planFor(spec: CreatureSpec, pres: Presence): Plan {
@@ -485,15 +506,22 @@ export function planFor(spec: CreatureSpec, pres: Presence): Plan {
     br: pres.brain, bb: pres.big_brain,
     land: onLand * pres.limbs, air: inAir,
     water: (1 - onLand) * (1 - inAir),
+    omega: lerp(lerp(3 + 1.8 * pres.fast_muscle, 2.75, onLand * pres.limbs), 3.25, inAir),
     raise: pres.grasping_hand * pres.limbs * onLand * (1 - pres.flight) * (0.55 + 0.45 * pres.big_brain)
   };
 }
 
 export function drawCreature(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: CreatureDrawOptions) {
+  const prevK = lineK;
+  lineK = o.lineWeight || 1;
+  try { drawCreatureInner(ctx, spec, theme, o); } finally { lineK = prevK; }
+}
+
+function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: CreatureDrawOptions) {
   const pres = o.pres;
   const plan = planFor(spec, pres);
   const time = o.time;
-  const body = buildBody(spec, plan, pres.fast_muscle, time, !!o.still);
+  const body = buildBody(spec, plan, time, !!o.still);
   const st = styles(theme);
   const color = spec.bodyColor;
   const outline = bodyOutline(body);
@@ -689,8 +717,9 @@ export function drawCreature(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Crea
   // --- 7. strona bliższa: płetwa piersiowa, nogi, skrzydło, narzędzie
   feature(ctx, 'fins', o, st, (s, amt) => {
     if (finK > 0.05) {
-      drawPectoralFin(ctx, body, s, amt * finK, time, color);
-      drawPectoralFin(ctx, body, s, amt * finK * 0.6, time + 0.7, color, 0.6, 12);
+      const ph = o.still ? 0 : time * plan.omega;
+      drawPectoralFin(ctx, body, s, amt * finK, ph, color);
+      drawPectoralFin(ctx, body, s, amt * finK * 0.6, ph + 2, color, 0.6, 12);
     }
   });
   if (hasLegs) {
@@ -736,7 +765,7 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
   const tip = add(snout, mul(head.n, -head.w * 0.1));
   const jaws = pres.jaws;
   const cyc = (time % 3.6) / 3.6;
-  const open = o.still ? 0.12 * jaws : jaws * (cyc > 0.82 ? Math.sin((cyc - 0.82) / 0.18 * Math.PI) * 0.35 : 0.04);
+  const open = (o.still || o.cycle) ? 0.12 * jaws : jaws * (cyc > 0.82 ? Math.sin((cyc - 0.82) / 0.18 * Math.PI) * 0.35 : 0.04);
   if (open > 0.02) {
     const d = sub(tip, mouthEnd); const ang = Math.atan2(d.y, d.x);
     const low = add(mouthEnd, polar(ang + open, Math.hypot(d.x, d.y)));
@@ -773,7 +802,7 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
       const r = rng(spec.seed ^ 0xf1);
       ctx.fillStyle = s.ghost ? s.stroke : hexA(theme.ink, 0.55);
       for (let q = 0; q < 7; q++) {
-        const ph = (time * 0.35 + r()) % 1;
+        const ph = (time * (o.cycle ? 1 / o.cycle : 0.35) + r()) % 1;
         const start = add(tip, v(22 + r() * 18, (r() - 0.5) * 22));
         const p = lerpV(start, tip, ph);
         ctx.beginPath(); ctx.arc(p.x, p.y, 0.9 + r() * 0.6, 0, Math.PI * 2); ctx.fill();
@@ -789,7 +818,7 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
   if (eyes > 0.01 || ghostEye > 0.01) {
     feature(ctx, 'eyes', o, st, (s, amt) => {
       const r = (2.4 + 1.2 * pres.brain) * Math.max(0.3, amt) * spec.proportions.head;
-      const blink = o.still ? 0 : ((time % 4.7) < 0.14 ? 1 : 0);
+      const blink = (o.still || o.cycle) ? 0 : ((time % 4.7) < 0.14 ? 1 : 0);
       ctx.save(); ctx.translate(eyeC.x, eyeC.y); ctx.scale(1, blink ? 0.15 : 1);
       ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fillStyle = s.ghost ? s.fill('#000', 1) : theme.paper; ctx.fill();
@@ -804,7 +833,7 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
   }
 
   // oddech stałocieplnych na mrozie
-  if (pres.endothermy > 0.5 && o.climate === 'zimno' && !o.still) {
+  if (pres.endothermy > 0.5 && o.climate === 'zimno' && !o.still && !o.cycle) {
     const cyc2 = (time % 2.4) / 2.4;
     if (cyc2 < 0.6) {
       const k = cyc2 / 0.6;

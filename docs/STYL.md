@@ -83,3 +83,33 @@ Każda cecha gry ma widoczny odpowiednik; test pilnuje, by nowa cecha w
 
 Podziałka w rogu ryciny pokazuje orientacyjny rozmiar ciała. Galeria
 wszystkich planów budowy powstaje przy `npm run shots` (`creatures-*.png`).
+
+## Diorama środowiska (`src/diorama/`)
+
+Scena nad panelami gry pokazuje świat aktywnej linii. Jest rysowana w PixiJS
+(licencja MIT), a jej zawartość wynika wyłącznie z danych gry:
+
+| Dane gry | Na scenie |
+|---|---|
+| Nisza aktywnej linii | woda, przybrzeże (z lądem na horyzoncie), ląd, powietrze |
+| Era | roślinność i drobna fauna: liliowce, gąbki, trylobity, lepidodendrony, skrzypy → amonity, koralowce, araukarie, sagowce → kelp, drzewa liściaste, trawy |
+| Populacja linii | liczba osobników w ławicy/stadzie (∝ √populacji) |
+| Inne linie w tej niszy | ich osobniki w innej barwie (specjacja) |
+| Pokarm tury | plankton, pyłki, owady |
+| Presja drapieżników | 0–3 drapieżniki; ofiary uciekają przed ich wypadami |
+| Klimat tury | śnieg i chłodny odcień; ciepłe światło i pył |
+| Zapowiedź katastrofy w niszy | rdzawy odcień sceny i ostrzeżenie w podpisie |
+
+- `scenery.ts`: malowanie warstw (tło, daleki, środkowy, pierwszy plan) w
+  stylu tusz + ton. Warstwy są zapętlone i przesuwają się z efektem głębi.
+- `bake.ts`: klatki animacji zwierzęcia wypiekane z tego samego rysunku co rycina.
+- `diorama.ts`: scena, ruch stada (spójność, rozproszenie, ucieczka) i przejścia
+  (przenikanie przy zmianie linii, niszy lub tury).
+
+Wydajność i dostępność:
+- Gdy WebGL działa programowo (bez karty graficznej), diorama od razu używa
+  renderera Canvas. Bez WebGL i Canvas gra działa bez dioramy.
+- Jeśli po rozgrzaniu scena nie utrzymuje ~40 kl./s, sama obniża jakość
+  (wyłącza falowanie wody i gęstość pikseli).
+- `prefers-reduced-motion`: nieruchoma scena. Poza ekranem animacja stoi.
+- Płótno jest ukryte przed czytnikami ekranu; treść niesie podpis sceny.

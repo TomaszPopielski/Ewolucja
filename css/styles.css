@@ -357,6 +357,25 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 }
 .lineage-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* --- Diorama środowiska (PixiJS) --- */
+.diorama {
+  position: relative; height: 220px; margin-bottom: 16px; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--bg-elev); box-shadow: var(--shadow);
+}
+.diorama-canvas { display: block; }
+.diorama.diorama-off { display: none; }
+.diorama-caption {
+  position: absolute; left: 10px; bottom: 8px; margin: 0; max-width: calc(100% - 20px);
+  padding: 3px 10px; border-radius: 14px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  font-size: .78rem; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+}
+.diorama-caption strong { font-family: var(--serif); }
+.diorama-warn { color: var(--danger); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+@media (max-width: 820px) { .diorama { height: 160px; } .diorama-caption { font-size: .72rem; } }
+
 /* --- Rycina: żywy portret aktywnej linii --- */
 .creature-figure { margin: 0 0 14px; }
 .creature-portrait {

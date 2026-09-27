@@ -31,6 +31,7 @@
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
     speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
     portrait: $('creature-portrait'), portraitCaption: $('creature-caption'),
+    diorama: $('diorama'), dioramaCaption: $('diorama-caption'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -202,14 +203,14 @@
   }
   function onSelectLineage(id) {
     state = Engine.setActiveLineage(state, id); save();
-    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv();
+    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); renderDiorama();
   }
   function onMigrateTo(niche) {
     var a = Engine.getActiveLineage(state);
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); updateUndoButton();
+    renderActiveLineage(); renderLineageBar(); renderForecast(); renderEnv(); renderDiorama(); updateUndoButton();
   }
 
   // ===================== Render — aktywna linia =====================
@@ -311,8 +312,7 @@
     el.envNote.textContent = env.note;
     var a = Engine.getActiveLineage(state);
     var cfg = DATA.NICHES[a.niche];
-    var nicheEnv = cfg.land ? env.land
-      : { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
+    var nicheEnv = nicheEnvFor(env, a.niche);
     el.envStats.innerHTML = chip('Klimat: ' + climateLabel(env.climate)) + chip('Tlen: ' + env.oxygen) +
       chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food)) +
       chip('Drapieżniki: ' + Math.round(nicheEnv.predators));
@@ -321,6 +321,34 @@
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
       el.envCatastrophe.innerHTML = ico('ui:meteor', '☄️') + ' ' + escapeHtml(env.catastrophe.name) + ' — niszczy niszę ' + cn + '!';
     } else el.envCatastrophe.hidden = true;
+  }
+  function nicheEnvFor(env, niche) {
+    var cfg = DATA.NICHES[niche];
+    return cfg.land ? env.land
+      : { food: env.food * (cfg.foodMult || 1), predators: env.predators * (cfg.predMult || 1) };
+  }
+
+  // ===================== Render — diorama środowiska =====================
+  function renderDiorama() {
+    if (!el.diorama) return;
+    if (!ART || !ART.diorama) { el.diorama.hidden = true; return; }
+    var a = Engine.getActiveLineage(state);
+    var era = Engine.currentEra(DATA, state);
+    var env = Engine.currentTurnEnv(DATA, state);
+    var ne = env ? nicheEnvFor(env, a.niche) : { food: 6, predators: 3 };
+    var cat = env && env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === a.niche);
+    ART.diorama.update(el.diorama, {
+      era: era.id, niche: a.niche, climate: env ? env.climate : undefined,
+      food: ne.food, predators: ne.predators, catastrophe: !!cat,
+      lineages: state.lineages.filter(function (l) { return l.alive && l.niche === a.niche; }).map(function (l) {
+        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id };
+      })
+    });
+    var others = state.lineages.filter(function (l) { return l.alive && l.niche === a.niche && l.id !== a.id; }).length;
+    el.dioramaCaption.innerHTML = nicheIcon(a.niche) + ' <strong>' + escapeHtml(nicheLabel(a.niche)) + '</strong> · ' +
+      escapeHtml(env ? env.title : era.name) + (env ? ' · ' + climateLabel(env.climate) : '') +
+      (others ? ' · ' + ico('ui:branch', '') + ' +' + others + (others === 1 ? ' linia' : ' linie') : '') +
+      (cat ? ' · <span class="diorama-warn">' + ico('ui:meteor', '☄️', 'ico-danger') + ' ' + escapeHtml(env.catastrophe.name) + '</span>' : '');
   }
   function chip(t) { return '<li>' + t + '</li>'; }
   function climateLabel(c) {
@@ -409,7 +437,7 @@
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); renderDiorama(); updateUndoButton();
   }
   function onSpeciate() {
     var can = Engine.canSpeciate(DATA, state);
@@ -435,7 +463,7 @@
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
-    renderActiveLineage(); renderForecast(); renderEnv(); renderTraits(); updateUndoButton();
+    renderActiveLineage(); renderForecast(); renderEnv(); renderDiorama(); renderTraits(); updateUndoButton();
     el.btnSimulate.disabled = (state.status !== 'playing');
   }
 

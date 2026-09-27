@@ -94,6 +94,8 @@ przechodnia świadomą strategią.
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
+- **Diorama środowiska** — animowana scena niszy i ery: populacja jako ławica
+  lub stado, pokarm, drapieżniki i klimat tury wynikają wprost z symulacji.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
   widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
@@ -110,6 +112,7 @@ js/i18n.js       — stringi interfejsu (warstwa i18n)
 src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę graficzną
 src/art/         — warstwa graficzna (TypeScript): ikony SVG, paleta
 src/creature/    — żywy portret zwierzęcia składanego z cech (Canvas 2D)
+src/diorama/     — diorama środowiska nad panelami (PixiJS)
 src/fonts.css    — krój szeryfowy (Source Serif 4, OFL), wklejany offline
 docs/STYL.md     — zasady stylu „ilustracja naukowa”
 scripts/         — narzędzia (zrzuty ekranu)
