@@ -12,11 +12,12 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">🧬</span>
+      <span class="brand-mark" aria-hidden="true" data-icon="ui:brand" data-icon-only>🧬</span>
       <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
     <nav class="topbar-actions">
-      <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex">Kodeks wiedzy</button>
+      <button id="btn-settings" class="btn btn-ghost btn-icon" type="button" aria-label="Ustawienia grafiki" title="Ustawienia grafiki" data-icon="ui:settings" data-icon-only>⚙</button>
+      <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex" data-icon="ui:book">Kodeks wiedzy</button>
       <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
     </nav>
   </header>
@@ -26,6 +27,9 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <div class="card intro-card">
+        <section class="diorama start-hero" id="start-diorama" aria-label="Kambryjskie morze — początek Twojej linii">
+          <p class="diorama-caption"><strong>Kambr</strong> · 539 mln lat temu — tu zaczyna się Twoja linia</p>
+        </section>
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
@@ -74,20 +78,28 @@
         <div class="lineage-chips" id="lineage-chips"></div>
         <div class="lineage-actions">
           <div id="niche-buttons" class="niche-buttons" aria-label="Nisza aktywnej linii"></div>
-          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate">🌿 Specjacja</button>
-          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree">🌳 Drzewo życia</button>
+          <button id="btn-speciate" class="btn btn-ghost" type="button" data-i18n="lineage.speciate" data-icon="ui:branch">Specjacja</button>
+          <button id="btn-tree" class="btn btn-ghost" type="button" data-i18n="lineage.tree" data-icon="ui:tree">Drzewo życia</button>
         </div>
       </div>
+
+      <section class="diorama" id="diorama" aria-label="Diorama środowiska aktywnej linii">
+        <p class="diorama-caption" id="diorama-caption"></p>
+      </section>
 
       <div class="game-grid">
         <aside class="panel panel-species" aria-labelledby="species-panel-title">
           <h2 id="species-panel-title" class="panel-title" data-i18n="species.title">Aktywna linia</h2>
           <p class="species-name" id="species-name-display">—</p>
           <p class="species-niche" id="species-niche">—</p>
+          <figure class="creature-figure">
+            <div id="creature-portrait" class="creature-portrait"></div>
+            <figcaption class="creature-caption" id="creature-caption"></figcaption>
+          </figure>
 
           <div class="sparkline-box">
             <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
-            <div id="sparkline" class="sparkline" aria-hidden="true"></div>
+            <div id="sparkline" class="sparkline popchart" role="img"></div>
           </div>
 
           <div class="forecast-box" id="forecast-box">
@@ -123,10 +135,22 @@
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <figure class="creature-figure end-figure" id="end-figure">
+          <div id="end-portrait" class="creature-portrait" data-height="210"></div>
+          <figcaption class="creature-caption" id="end-caption"></figcaption>
+        </figure>
+        <section class="end-path" id="end-path-box" aria-labelledby="end-path-title">
+          <h2 class="end-section-title" id="end-path-title">Droga ewolucji</h2>
+          <ol class="end-path-list" id="end-path"></ol>
+        </section>
+        <section class="end-chart" aria-labelledby="end-chart-title">
+          <h2 class="end-section-title" id="end-chart-title">Populacja w czasie</h2>
+          <div id="end-chart" class="popchart" role="img"></div>
+        </section>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
-          <button id="btn-summary" class="btn btn-ghost" type="button">📄 Podsumowanie</button>
+          <button id="btn-summary" class="btn btn-ghost" type="button" data-icon="ui:document">Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
       </div>
@@ -149,8 +173,8 @@
   <div id="modal-codex" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="codex-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="codex-title" class="modal-title" data-i18n="codex.title">Kodeks wiedzy</h2>
-        <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+        <h2 id="codex-title" class="modal-title" data-i18n="codex.title" data-icon="ui:book">Kodeks wiedzy</h2>
+        <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
       </div>
       <p class="panel-hint" data-i18n="codex.hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
       <div id="codex-body" class="codex-body"></div>
@@ -161,8 +185,12 @@
   <div id="modal-tree" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="tree-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="tree-title" class="modal-title" data-i18n="tree.title">🌳 Drzewo życia</h2>
-        <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+        <h2 id="tree-title" class="modal-title" data-i18n="tree.title" data-icon="ui:tree">Drzewo życia</h2>
+        <div class="tree-tools">
+          <button id="btn-tree-zoom-out" class="btn btn-ghost btn-icon" type="button" aria-label="Pomniejsz drzewo">−</button>
+          <button id="btn-tree-zoom-in" class="btn btn-ghost btn-icon" type="button" aria-label="Powiększ drzewo">+</button>
+          <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+        </div>
       </div>
       <p class="panel-hint" data-i18n="tree.hint"></p>
       <div id="tree-container" class="tree-container"></div>
@@ -172,7 +200,7 @@
   <!-- Modal: specjacja -->
   <div id="modal-speciate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="speciate-title">
     <div class="modal-box">
-      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title">🌿 Specjacja</h2>
+      <h2 id="speciate-title" class="modal-title" data-i18n="speciate.title" data-icon="ui:branch">Specjacja</h2>
       <p class="panel-hint" id="speciate-hint"></p>
       <form id="form-speciate">
         <label for="speciate-name" class="speciate-label" data-i18n="speciate.label">Nazwa nowej gałęzi:</label>
@@ -201,14 +229,40 @@
   <div id="modal-summary" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="summary-title">
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
-        <h2 id="summary-title" class="modal-title">📄 Podsumowanie gry</h2>
-        <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij">✕</button>
+        <h2 id="summary-title" class="modal-title" data-icon="ui:document">Podsumowanie gry</h2>
+        <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
       </div>
       <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
       <textarea id="summary-text" class="summary-text" readonly rows="14"></textarea>
       <div class="modal-actions">
         <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>
         <button id="btn-summary-download" class="btn btn-ghost" type="button">Pobierz plik .txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ustawienia grafiki -->
+  <div id="modal-settings" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="settings-title" class="modal-title" data-icon="ui:settings">Ustawienia grafiki</h2>
+        <button id="btn-settings-x" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+      </div>
+      <fieldset class="settings-group">
+        <legend>Jakość grafiki</legend>
+        <label class="settings-opt"><input type="radio" name="quality" value="auto"><span><strong>Automatyczna</strong><small>Pełna jakość; sama się obniża, gdy komputer nie nadąża.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="high"><span><strong>Wysoka</strong><small>Ostre krawędzie, falowanie wody, świecące snopy światła.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="medium"><span><strong>Średnia</strong><small>Animacje bez efektów specjalnych, mniej cząstek i osobników.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="low"><span><strong>Niska</strong><small>Diorama jako nieruchoma ilustracja — dla słabszych komputerów.</small></span></label>
+      </fieldset>
+      <fieldset class="settings-group">
+        <legend>Animacja tury</legend>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="show"><span><strong>Pokazuj</strong><small>Przed raportem krótki przebieg tury (można go pominąć).</small></span></label>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="skip"><span><strong>Pomijaj</strong><small>Raport od razu po kliknięciu „Przeżyj turę”.</small></span></label>
+      </fieldset>
+      <p class="settings-note" id="settings-note"></p>
+      <div class="modal-actions">
+        <button id="btn-settings-close" class="btn btn-primary" type="button">Gotowe</button>
       </div>
     </div>
   </div>
@@ -226,9 +280,6 @@
     </div>
   </div>
 
-  <script src="js/i18n.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/ui.js"></script>
+  <script type="module" src="./src/main.ts"></script>
 </body>
 </html>
