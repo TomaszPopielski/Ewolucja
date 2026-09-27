@@ -13,14 +13,24 @@ na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa ewolu
 
 ## Jak uruchomić
 
-Nie wymaga instalacji ani budowania. Wystarczy otworzyć plik **`index.html`**
-w przeglądarce (Chrome, Firefox, Edge, Safari):
+**Zagraj od razu:** otwórz plik **`dist/index.html`** w przeglądarce (Chrome,
+Firefox, Edge, Safari) — dwuklikiem, bez instalacji i bez serwera. To gotowa,
+zbudowana wersja gry w jednym pliku; działa także offline i zapisuje postęp
+lokalnie (`localStorage`).
 
-- kliknij dwukrotnie `index.html`, **albo**
-- uruchom lokalny serwer, np.: `python3 -m http.server` i wejdź na `http://localhost:8000`.
+**Praca nad kodem** (wymaga Node.js 20+):
 
-Gra działa w pełni po stronie przeglądarki i zapisuje postęp lokalnie
-(`localStorage`) — można ją także używać offline.
+```bash
+npm install
+npm run dev      # podgląd na żywo: http://localhost:5173
+npm run build    # sprawdzenie typów + budowa dist/index.html (jeden plik)
+npm test         # testy silnika
+npm run shots    # zrzuty ekranu zbudowanej gry (Chromium; katalog screenshots/)
+```
+
+Po zmianach w kodzie uruchom `npm run build` i zatwierdź też `dist/index.html`,
+żeby wersja „dwuklikowa” była aktualna. Główny `index.html` jest źródłem dla
+Vite i sam z pliku nie zadziała.
 
 ## Jak grać
 
@@ -60,7 +70,7 @@ rozbudowy bez zmian w kodzie.
 Silnik ma zestaw testów bez zależności zewnętrznych:
 
 ```bash
-node test/engine.test.js
+npm test          # albo: node test/engine.test.js
 ```
 
 Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
@@ -94,7 +104,12 @@ przechodnia świadomą strategią.
 ## Struktura projektu (uzupełnienie)
 
 ```
-js/i18n.js  — stringi interfejsu (warstwa i18n)
+js/i18n.js       — stringi interfejsu (warstwa i18n)
+src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę graficzną
+src/             — nowy kod (TypeScript), m.in. warstwa graficzna
+scripts/         — narzędzia (zrzuty ekranu)
+vite.config.ts   — budowa do jednego pliku dist/index.html
+dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 ```
 
 ## Status

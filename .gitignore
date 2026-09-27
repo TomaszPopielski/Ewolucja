@@ -1,7 +1,8 @@
-# Zależności (instalowane lokalnie tylko do testów w przeglądarce)
+# Zależności
 node_modules/
-package.json
-package-lock.json
+
+# Zrzuty ekranu z `npm run shots` (lokalne)
+screenshots/
 
 # Systemowe / edytory
 .DS_Store
