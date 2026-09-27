@@ -20,11 +20,35 @@ function legacyGlobals(): Plugin {
   };
 }
 
+/*
+ * PixiJS w wersji „odchudzonej”: diorama używa tylko rendererów WebGL i Canvas
+ * i nie potrzebuje rozszerzeń przeglądarkowych (dostępność, zdarzenia, DOM).
+ * Te moduły są ładowane dynamicznie, ale przy budowie do jednego pliku i tak
+ * trafiłyby do paczki — podmieniamy je na puste zaślepki (~90 KB mniej).
+ * Diorama rejestruje potrzebny system filtrów sama (import 'pixi.js/filters')
+ * i tworzy aplikację z opcją skipExtensionImports.
+ */
+function pixiSlim(): Plugin {
+  const STUBS: [RegExp, string][] = [
+    [/pixi\.js[\\/]lib[\\/]rendering[\\/]renderers[\\/]gpu[\\/]WebGPURenderer\.mjs$/,
+      'export class WebGPURenderer { constructor() { throw new Error("WebGPU wyłączony w tej grze"); } }'],
+    [/pixi\.js[\\/]lib[\\/]environment-browser[\\/]browserAll\.mjs$/, 'export {};']
+  ];
+  return {
+    name: 'ewolucja-pixi-slim',
+    enforce: 'pre',
+    load(id) {
+      for (const [re, code] of STUBS) if (re.test(id)) return code;
+      return null;
+    }
+  };
+}
+
 // Budowanie do JEDNEGO pliku dist/index.html (JS i CSS wklejone inline),
 // żeby gra dalej otwierała się dwuklikiem, offline, bez serwera.
 export default defineConfig({
   base: './',
-  plugins: [legacyGlobals(), viteSingleFile()],
+  plugins: [legacyGlobals(), pixiSlim(), viteSingleFile()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

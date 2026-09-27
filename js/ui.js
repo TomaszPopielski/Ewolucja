@@ -37,6 +37,8 @@
     endFigure: $('end-figure'), endPortrait: $('end-portrait'), endCaption: $('end-caption'),
     endPath: $('end-path'), endPathBox: $('end-path-box'), endChart: $('end-chart'),
     btnTreeZoomIn: $('btn-tree-zoom-in'), btnTreeZoomOut: $('btn-tree-zoom-out'),
+    btnSettings: $('btn-settings'), modalSettings: $('modal-settings'), settingsNote: $('settings-note'),
+    btnSettingsClose: $('btn-settings-close'), btnSettingsX: $('btn-settings-x'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -554,7 +556,8 @@
       setTurnBusy(false);
       pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
     }
-    if (!play || !ART || !ART.diorama || !el.diorama || el.diorama.hidden) { applyTurn(); return; }
+    var skipAnim = ART && ART.settings && ART.settings.get().turnAnimation === 'skip';
+    if (!play || skipAnim || !ART || !ART.diorama || !el.diorama || el.diorama.hidden || !ART.diorama.canAnimate(el.diorama)) { applyTurn(); return; }
     setTurnBusy(true);
     // Diorama poza ekranem → przewiń do niej, by gracz zobaczył przebieg tury.
     var rect = el.diorama.getBoundingClientRect();
@@ -756,7 +759,8 @@
       var dPath = l.parentId
         ? 'M' + xStart + ' ' + yOf(l.parentId) + ' C' + (xStart + 14) + ' ' + yOf(l.parentId) + ' ' + (xStart + 4) + ' ' + y + ' ' + (xStart + 26) + ' ' + y + ' L' + (xEnd - 24) + ' ' + y
         : 'M' + xStart + ' ' + y + ' L' + (xEnd - 24) + ' ' + y;
-      svg += '<path d="' + dPath + '" pathLength="1" class="' + cls + '" stroke-width="' + w + '" style="animation-delay:' + delay + '"/>';
+      // Żywe gałęzie „rosną” (pathLength=1 + animacja kreski); wymarłe są przerywane, bez animacji.
+      svg += '<path d="' + dPath + '"' + (l.alive ? ' pathLength="1"' : '') + ' class="' + cls + '" stroke-width="' + w + '" style="animation-delay:' + delay + '"/>';
       // węzeł: miniatura w okrągłej ramce
       var thumb = (ART && ART.creature) ? ART.creature.thumb(l, 64, 44) : '';
       defs += '<clipPath id="tclip-' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="22"/></clipPath>';
@@ -906,6 +910,29 @@
     openModal(el.modalCodex);
   }
 
+  // ===================== Ustawienia grafiki =====================
+  function showSettings() {
+    var s = ART.settings.get();
+    Array.prototype.forEach.call(el.modalSettings.querySelectorAll('input[type=radio]'), function (inp) {
+      inp.checked = (s[inp.name] === inp.value);
+    });
+    updateSettingsNote();
+    openModal(el.modalSettings);
+    var sel = el.modalSettings.querySelector('input:checked'); if (sel) sel.focus();
+  }
+  function updateSettingsNote() {
+    var r = ART.settings.renderer();
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.settingsNote.textContent =
+      (r ? 'Diorama rysowana przez: ' + (r === 'webgl' ? 'WebGL (karta graficzna)' : 'Canvas (procesor)') + '. ' : 'Diorama jest wyłączona albo niedostępna. ') +
+      (reduced ? 'System ma włączone „ograniczanie ruchu” — animacje są zatrzymane niezależnie od tych ustawień.' : '');
+  }
+  function onSettingChange(e) {
+    var patch = {}; patch[e.target.name] = e.target.value;
+    ART.settings.set(patch);
+    setTimeout(updateSettingsNote, 600);
+  }
+
   // ===================== Samouczek =====================
   var tutorialSteps = [
     { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + DATA.INTELLIGENCE_GOAL + ' w ciągu trzech er.' },
@@ -982,6 +1009,12 @@
     el.btnCodexClose.addEventListener('click', function () { closeModal(el.modalCodex); });
     el.btnTreeClose.addEventListener('click', function () { closeModal(el.modalTree); });
     el.btnTreeZoomIn.addEventListener('click', function () { setTreeZoom(1); });
+    if (ART && ART.settings) {
+      el.btnSettings.addEventListener('click', showSettings);
+      el.btnSettingsClose.addEventListener('click', function () { closeModal(el.modalSettings); });
+      el.btnSettingsX.addEventListener('click', function () { closeModal(el.modalSettings); });
+      el.modalSettings.addEventListener('change', onSettingChange);
+    } else el.btnSettings.hidden = true;
     el.btnTreeZoomOut.addEventListener('click', function () { setTreeZoom(-1); });
     el.btnOpenCodexEnd.addEventListener('click', showCodex);
     el.btnSummary.addEventListener('click', showSummary);
@@ -1009,8 +1042,9 @@
       else if (!el.modalSummary.hidden) closeModal(el.modalSummary);
       else if (!el.modalSpeciate.hidden) closeModal(el.modalSpeciate);
       else if (!el.modalConfirm.hidden) resolveConfirm(false);
+      else if (!el.modalSettings.hidden) closeModal(el.modalSettings);
     });
-    [el.modalCodex, el.modalTree, el.modalSpeciate, el.modalSummary].forEach(function (m) {
+    [el.modalCodex, el.modalTree, el.modalSpeciate, el.modalSummary, el.modalSettings].forEach(function (m) {
       m.addEventListener('click', function (e) { if (e.target === m) closeModal(m); });
     });
 

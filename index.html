@@ -16,6 +16,7 @@
       <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
     <nav class="topbar-actions">
+      <button id="btn-settings" class="btn btn-ghost btn-icon" type="button" aria-label="Ustawienia grafiki" title="Ustawienia grafiki" data-icon="ui:settings" data-icon-only>⚙</button>
       <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex" data-icon="ui:book">Kodeks wiedzy</button>
       <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
     </nav>
@@ -236,6 +237,32 @@
       <div class="modal-actions">
         <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>
         <button id="btn-summary-download" class="btn btn-ghost" type="button">Pobierz plik .txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ustawienia grafiki -->
+  <div id="modal-settings" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="settings-title" class="modal-title" data-icon="ui:settings">Ustawienia grafiki</h2>
+        <button id="btn-settings-x" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+      </div>
+      <fieldset class="settings-group">
+        <legend>Jakość grafiki</legend>
+        <label class="settings-opt"><input type="radio" name="quality" value="auto"><span><strong>Automatyczna</strong><small>Pełna jakość; sama się obniża, gdy komputer nie nadąża.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="high"><span><strong>Wysoka</strong><small>Ostre krawędzie, falowanie wody, świecące snopy światła.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="medium"><span><strong>Średnia</strong><small>Animacje bez efektów specjalnych, mniej cząstek i osobników.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="quality" value="low"><span><strong>Niska</strong><small>Diorama jako nieruchoma ilustracja — dla słabszych komputerów.</small></span></label>
+      </fieldset>
+      <fieldset class="settings-group">
+        <legend>Animacja tury</legend>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="show"><span><strong>Pokazuj</strong><small>Przed raportem krótki przebieg tury (można go pominąć).</small></span></label>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="skip"><span><strong>Pomijaj</strong><small>Raport od razu po kliknięciu „Przeżyj turę”.</small></span></label>
+      </fieldset>
+      <p class="settings-note" id="settings-note"></p>
+      <div class="modal-actions">
+        <button id="btn-settings-close" class="btn btn-primary" type="button">Gotowe</button>
       </div>
     </div>
   </div>

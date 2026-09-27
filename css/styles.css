@@ -368,8 +368,8 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .diorama-caption {
   position: absolute; left: 10px; bottom: 8px; margin: 0; max-width: calc(100% - 20px);
   padding: 3px 10px; border-radius: 14px; border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
-  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  /* bez backdrop-filter: rozmywanie animowanego płótna w każdej klatce jest kosztowne */
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
   font-size: .78rem; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
 }
 .diorama-caption strong { font-family: var(--serif); }
@@ -606,6 +606,16 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .report-lineage-head { font-family: var(--serif); font-weight: 600; color: var(--brand); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
 .report-summary { margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--brand); }
 
+/* --- Ustawienia grafiki --- */
+.settings-group { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; margin: 12px 0 0; }
+.settings-group legend { font-family: var(--serif); font-weight: 600; padding: 0 6px; }
+.settings-opt { display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; border-radius: 6px; cursor: pointer; }
+.settings-opt:hover { background: var(--bg-elev); }
+.settings-opt input { margin-top: 4px; accent-color: var(--brand); }
+.settings-opt span { display: flex; flex-direction: column; }
+.settings-opt small { color: var(--ink-soft); font-size: .8rem; }
+.settings-note { font-size: .8rem; color: var(--ink-soft); margin: 12px 0 0; font-style: italic; }
+
 /* --- Kodeks --- */
 .codex-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .codex-empty { color: var(--ink-soft); font-style: italic; }
@@ -624,7 +634,7 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .tree-now { stroke: var(--accent); stroke-dasharray: 4 3; stroke-width: 1.2; }
 .tree-branch { fill: none; stroke: var(--brand); stroke-linecap: round; stroke-linejoin: round;
   stroke-dasharray: 1; stroke-dashoffset: 0; animation: treeGrow 1.1s ease-out both; }
-.tree-branch.extinct { stroke: var(--ink-soft); stroke-dasharray: .012 .01; animation: none; opacity: .75; }
+.tree-branch.extinct { stroke: var(--ink-soft); stroke-dasharray: 6 5; animation: none; opacity: .75; }
 .tree-branch.active { stroke: var(--accent); }
 @keyframes treeGrow { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .tree-node { animation: treeNodeIn .5s ease-out both; }

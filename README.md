@@ -110,6 +110,14 @@ przechodnia świadomą strategią.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
   (klawiatura, kontrasty, `prefers-reduced-motion`).
 
+## Grafika i wydajność
+
+Przycisk z suwakami w nagłówku otwiera **Ustawienia grafiki**: jakość
+(automatyczna / wysoka / średnia / niska) i animację tury (pokazuj / pomijaj).
+Tryb automatyczny sam obniża jakość na słabszym sprzęcie; poziom niski
+zamienia dioramę w nieruchomą ilustrację. Szczegóły, pomiary i instrukcja
+podmiany grafiki proceduralnej na ręcznie rysowaną: [`docs/STYL.md`](./docs/STYL.md).
+
 ## Struktura projektu (uzupełnienie)
 
 ```
@@ -117,7 +125,8 @@ js/i18n.js       — stringi interfejsu (warstwa i18n)
 src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę graficzną
 src/art/         — warstwa graficzna (TypeScript): ikony SVG, paleta
 src/creature/    — żywy portret zwierzęcia składanego z cech (Canvas 2D)
-src/diorama/     — diorama środowiska nad panelami (PixiJS)
+src/diorama/     — diorama środowiska nad panelami (PixiJS) i animacja tury
+src/art/settings.ts — ustawienia grafiki (jakość, animacja tury)
 src/fonts.css    — krój szeryfowy (Source Serif 4, OFL), wklejany offline
 docs/STYL.md     — zasady stylu „ilustracja naukowa”
 scripts/         — narzędzia (zrzuty ekranu)

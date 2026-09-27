@@ -155,3 +155,51 @@ liczba ofiar i młodych na scenie jest do nich proporcjonalna.
 - **Ekran końcowy**: rycina linii, która doszła najdalej. Pod nią „droga
   ewolucji” (kolejne stadia wg kolejności zdobywania cech, od form startowych
   scenariusza) i wykres jej populacji.
+
+## Ustawienia grafiki i wydajność (etap 6)
+
+Przycisk z suwakami w nagłówku otwiera „Ustawienia grafiki” (zapis lokalny,
+`src/art/settings.ts`):
+
+| Jakość | Diorama |
+|---|---|
+| Automatyczna (domyślna) | jak wysoka; gdy scena nie utrzymuje ~40 kl./s, sama obniża jakość: najpierw wyłącza falowanie wody i ogranicza do 30 kl./s, potem renderuje w rozdzielczości 0,75 i przerzedza cząstki |
+| Wysoka | pełna gęstość pikseli, falowanie wody (WebGL), świecące snopy światła |
+| Średnia | bez efektów specjalnych, 30 kl./s, rozdzielczość 0,75, mniej cząstek i osobników |
+| Niska | nieruchoma ilustracja (odświeżana przy zmianie stanu), bez animacji tury |
+
+Animacja tury: „Pokazuj” albo „Pomijaj” (raport od razu). Systemowe
+„ograniczanie ruchu” ma zawsze pierwszeństwo.
+
+Pomiary (Chromium bez karty graficznej, renderer Canvas, 1280×860):
+
+| Jakość | kl./s strony | procesor spowolniony 4× |
+|---|---|---|
+| Wysoka / Automatyczna (przed obniżeniem) | 60 | ~25 |
+| Średnia | 60 | ~43 |
+| Niska | 60 | 60 |
+
+Na komputerach z kartą graficzną diorama używa WebGL; programowy WebGL
+(SwiftShader, llvmpipe) jest wykrywany i zastępowany rendererem Canvas.
+Parametr adresu `?renderer=webgl` albo `?renderer=canvas` wymusza renderer
+(do testów).
+
+Rozmiar: PixiJS jest „odchudzony” wtyczką w `vite.config.mts` (bez renderera
+WebGPU i rozszerzeń przeglądarkowych). Warstwy krajobrazu to pary zwykłych
+obrazków zamiast `TilingSprite` (taniej w rendererze Canvas).
+
+## Podmiana grafiki proceduralnej na ręcznie rysowaną
+
+Każdy element narysowany kodem ma jedno miejsce, w którym można go zastąpić
+grafiką ilustratora, bez zmian w logice gry:
+
+| Element | Gdzie podmienić | Oczekiwany format |
+|---|---|---|
+| Ikony | `src/art/icons.ts` (treść pod kluczem) | SVG 24×24, klasy `.w/.f/.t` |
+| Warstwy krajobrazu | `paintFar/paintMid/paintNear/paintBackground` w `src/diorama/scenery.ts` | funkcja zwraca `<canvas>` — wystarczy narysować na nim obraz (`drawImage`) o szerokości kafla, zapętlony w poziomie |
+| Roślinność i fauna tła | funkcje `crinoid`, `lepidodendron`, `araucaria`… w `scenery.ts` | dowolny rysunek na kontekście 2D |
+| Osobniki w dioramie | `bakeCreature` w `src/diorama/bake.ts` | tablica klatek (tekstur) jednego cyklu ruchu + punkt zaczepienia |
+| Rycina i miniatury | `drawCreature` w `src/creature/draw.ts` (lub osobny rysunek w `portrait.ts` / `thumb.ts`) | rysunek na kontekście 2D w pozie z parametru `time` |
+
+Obrazy dołączane do projektu (PNG/WebP) Vite wkleja do `dist/index.html`, więc
+gra nadal działa offline z jednego pliku; rozsądny budżet to łącznie kilka MB.

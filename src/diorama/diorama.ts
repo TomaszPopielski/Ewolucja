@@ -9,10 +9,12 @@
  * Diorama tylko CZYTA dane gry; nigdy ich nie zmienia. Bez WebGL działa
  * renderer Canvas (bez filtrów), a gdy i on zawiedzie — gra działa bez dioramy.
  */
-import { Application, Container, Sprite, TilingSprite, Texture, CanvasSource, Graphics, DisplacementFilter } from 'pixi.js';
+import 'pixi.js/filters'; // system filtrów (falowanie wody) — bez pełnego pakietu rozszerzeń
+import { Application, Container, Sprite, Texture, CanvasSource, Graphics, DisplacementFilter } from 'pixi.js';
 import { buildSpec, rng, hashString, type CreatureSpec } from '../creature/spec.ts';
 import type { Theme } from '../creature/draw.ts';
 import { bakeCreature, destroyBaked, type Baked } from './bake.ts';
+import type { QualityParams } from '../art/settings.ts';
 import {
   sceneLayout, paintBackground, paintFar, paintMid, paintNear, paintDot, paintBubble, paintSnow, paintRay, paintVignette, paintNoise,
   type Era, type NicheKey, type SceneLayout, type PaintArgs
@@ -39,7 +41,6 @@ export interface DioramaData {
 }
 
 const FADE = 0.8;
-const MAX_AGENTS = 34;
 
 /**
  * Czy WebGL działa programowo (bez karty graficznej)? Wtedy renderer Canvas
@@ -56,6 +57,27 @@ function softwareWebGL(): boolean {
   } catch (e) { return true; }
 }
 
+/**
+ * Zapętlona warstwa krajobrazu: dwa zwykłe obrazki kafla ustawione obok siebie
+ * i przesuwane na zmianę. Tańsze niż TilingSprite (zwłaszcza w rendererze
+ * Canvas, który dla kafli tworzy wzorzec co klatkę).
+ */
+class Strip extends Container {
+  private a: Sprite; private b: Sprite; private tileW: number;
+  constructor(texture: Texture, tileW: number) {
+    super();
+    this.tileW = tileW;
+    this.a = new Sprite(texture); this.b = new Sprite(texture);
+    this.addChild(this.a, this.b);
+    this.scroll(0);
+  }
+  /** Przesunięcie w pikselach (dowolnie duże — zawija się do szerokości kafla). */
+  scroll(x: number) {
+    const off = ((x % this.tileW) + this.tileW) % this.tileW;
+    this.a.x = -off; this.b.x = this.tileW - off;
+  }
+}
+
 function tex(canvas: HTMLCanvasElement, res: number): Texture {
   return new Texture({ source: new CanvasSource({ resource: canvas, resolution: res }) });
 }
@@ -63,7 +85,7 @@ function tex(canvas: HTMLCanvasElement, res: number): Texture {
 interface SceneSet {
   key: string;
   back: Container; near: Container;
-  tiles: { t: TilingSprite; k: number }[];
+  tiles: { t: Strip; k: number }[];
   rays: Sprite[];
   textures: Texture[];
   alpha: number; target: number;
@@ -147,15 +169,19 @@ export class Diorama {
   /** Pomiar płynności do automatycznego obniżenia jakości. */
   private perf = { frames: 0, time: 0, degraded: 0 };
 
-  private constructor(host: HTMLElement, theme: Theme, height: number) {
-    this.host = host; this.theme = theme; this.H = height;
-    this.res = Math.min(2, window.devicePixelRatio || 1);
+  private q: QualityParams;
+  private destroyed = false;
+  private observers: { disconnect(): void }[] = [];
+
+  private constructor(host: HTMLElement, theme: Theme, height: number, q: QualityParams) {
+    this.host = host; this.theme = theme; this.H = height; this.q = q;
+    this.res = Math.min(q.maxRes, window.devicePixelRatio || 1);
     this.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
   /** Tworzy dioramę; zwraca null, gdy przeglądarka nie potrafi jej narysować. */
-  static async create(host: HTMLElement, theme: Theme, height: number): Promise<Diorama | null> {
-    const d = new Diorama(host, theme, height);
+  static async create(host: HTMLElement, theme: Theme, height: number, q: QualityParams): Promise<Diorama | null> {
+    const d = new Diorama(host, theme, height, q);
     try { await d.init(); return d; } catch (e) { console.warn('Diorama niedostępna:', e); return null; }
   }
 
@@ -164,10 +190,12 @@ export class Diorama {
     this.app = new Application();
     await this.app.init({
       width: this.W, height: this.H, backgroundAlpha: 0, antialias: false,
-      resolution: this.res, autoDensity: true, preference: softwareWebGL() ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
-      powerPreference: 'low-power'
+      resolution: this.res, autoDensity: true, preference: this.q.renderer ? [this.q.renderer] : softwareWebGL() ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
+      powerPreference: 'low-power',
+      // bez dostępności/zdarzeń/DOM Pixi — płótno jest ozdobne (aria-hidden), klików nie obsługuje
+      skipExtensionImports: true
     });
-    this.filtersOk = this.app.renderer.name !== 'canvas';
+    this.filtersOk = this.q.effects && this.app.renderer.name !== 'canvas';
     const cv = this.app.canvas as HTMLCanvasElement;
     cv.className = 'diorama-canvas';
     cv.setAttribute('aria-hidden', 'true');
@@ -192,10 +220,14 @@ export class Diorama {
     }
     this.buildVignette();
 
+    if (this.q.maxFps) this.app.ticker.maxFPS = this.q.maxFps;
     this.app.ticker.add((t) => this.tick(Math.min(0.05, t.deltaMS / 1000)));
-    if ('ResizeObserver' in window) new ResizeObserver(() => this.resize()).observe(this.host);
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => this.resize()); ro.observe(this.host); this.observers.push(ro);
+    }
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver((es) => { this.visible = es.some((e) => e.isIntersecting); this.syncTicker(); }).observe(this.host);
+      const io = new IntersectionObserver((es) => { this.visible = es.some((e) => e.isIntersecting); this.syncTicker(); });
+      io.observe(this.host); this.observers.push(io);
     }
     document.addEventListener('visibilitychange', () => this.syncTicker());
     window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener?.('change', (e) => { this.reduced = e.matches; this.syncTicker(); });
@@ -203,7 +235,8 @@ export class Diorama {
   }
 
   private syncTicker() {
-    const run = this.visible && !document.hidden && !this.reduced;
+    if (this.destroyed) return;
+    const run = this.visible && !document.hidden && !this.reduced && this.q.animate;
     if (run) this.app.ticker.start(); else { this.app.ticker.stop(); this.renderStill(); }
   }
 
@@ -224,6 +257,7 @@ export class Diorama {
   }
 
   private resize() {
+    if (this.destroyed) return;
     const w = Math.max(280, this.host.clientWidth);
     if (Math.abs(w - this.W) < 24) return;
     this.W = w;
@@ -236,19 +270,10 @@ export class Diorama {
     }
   }
 
-  setTheme(theme: Theme) {
-    this.theme = theme;
-    this.bakedByKey.forEach((b) => destroyBaked(b));
-    this.bakedByKey.clear();
-    this.agents.forEach((a) => { a.sprite.destroy(); });
-    this.agents = [];
-    this.buildVignette();
-    if (this.data) { const d = this.data; this.data = null; this.scenes.forEach((s) => { s.target = 0; s.alpha = 0; }); this.update(d); }
-  }
-
   // ------------------------------------------------------------------ aktualizacja danych
 
   update(data: DioramaData) {
+    if (this.destroyed) return;
     if (this.director) this.director.finish();
     const prev = this.data;
     this.data = data;
@@ -272,7 +297,7 @@ export class Diorama {
     const bg = new Sprite(mk(paintBackground(args)));
     bg.width = this.W; bg.height = this.H;
     back.addChild(bg);
-    const far = new TilingSprite({ texture: mk(paintFar(args)), width: this.W, height: this.H });
+    const far = new Strip(mk(paintFar(args)), tileW);
     back.addChild(far);
     const rays: Sprite[] = [];
     if (d.niche === 'woda' || d.niche === 'przybrzeze' || d.niche === 'lad') {
@@ -290,12 +315,12 @@ export class Diorama {
         back.addChild(s); rays.push(s);
       }
     }
-    const mid = new TilingSprite({ texture: mk(paintMid(args)), width: this.W, height: this.H });
+    const mid = new Strip(mk(paintMid(args)), tileW);
     back.addChild(mid);
     if (this.dispFilter && (d.niche === 'woda' || d.niche === 'przybrzeze')) back.filters = [this.dispFilter];
 
     const near = new Container();
-    const nearT = new TilingSprite({ texture: mk(paintNear(args)), width: this.W, height: this.H });
+    const nearT = new Strip(mk(paintNear(args)), tileW);
     near.addChild(nearT);
 
     const set: SceneSet = {
@@ -371,7 +396,7 @@ export class Diorama {
       const spec = this.predatorSpec(d);
       want.set('__pred', { n: nPred, spec, key: 'pred|' + d.niche + '|' + d.era, predator: true });
     }
-    const scaleDown = total > MAX_AGENTS ? MAX_AGENTS / total : 1;
+    const scaleDown = total > this.q.maxAgents ? this.q.maxAgents / total : 1;
 
     // odejście osobników linii spoza niszy / przy zmianie niszy
     this.agents.forEach((a) => {
@@ -580,6 +605,7 @@ export class Diorama {
     const lay = sceneLayout(d.niche, this.W, this.H);
     const water = d.niche === 'woda' || d.niche === 'przybrzeze';
     const add = (kind: Particle['kind'], n: number) => {
+      n = Math.round(n * this.q.particles);
       for (let i = 0; i < n; i++) {
         const s = new Sprite(kind === 'bubble' ? this.bubbleTex : kind === 'snow' ? this.snowTex : this.dotTex);
         s.anchor.set(0.5);
@@ -649,9 +675,8 @@ export class Diorama {
       s.alpha += Math.sign(s.target - s.alpha) * Math.min(Math.abs(s.target - s.alpha), dt / FADE);
       s.back.alpha = s.near.alpha = s.alpha;
       for (const t of s.tiles) {
-        t.t.tilePosition.x = -this.camX * t.k;
-        // w dioramie lądowej tylko chmury (daleki plan) płyną
-        if (niche === 'lad' && t.k === 0.25) t.t.tilePosition.x = -this.time * 3;
+        // w dioramie lądowej płyną tylko chmury (daleki plan)
+        t.t.scroll(niche === 'lad' && t.k === 0.25 ? this.time * 3 : this.camX * t.k);
       }
       s.rays.forEach((r, i) => { r.alpha = (niche === 'lad' ? 0.12 : 0.2) + 0.08 * Math.sin(this.time * 0.6 + i * 1.7); r.skew.x = (niche === 'lad' ? -0.5 : -0.2) + 0.06 * Math.sin(this.time * 0.3 + i); });
     }
@@ -664,9 +689,12 @@ export class Diorama {
 
   // ------------------------------------------------------------------ tura jako wydarzenie
 
+  /** Czy ustawienia pozwalają na animację (jakość, ograniczenie ruchu) — bez względu na widoczność. */
+  canAnimate(): boolean { return !this.destroyed && !this.reduced && this.q.animate; }
+
   /** Czy scena może teraz odegrać animację (widoczna, z ruchem). */
   canPlay(): boolean {
-    return !!this.data && this.visible && !document.hidden && !this.reduced && this.app.ticker.started;
+    return !!this.data && this.visible && !document.hidden && !this.reduced && this.q.animate && this.app.ticker.started;
   }
 
   /**
@@ -724,11 +752,12 @@ export class Diorama {
 
   /**
    * Siatka bezpieczeństwa dla słabszych komputerów: gdy po rozgrzaniu scena
-   * nie utrzymuje ~40 kl./s, najpierw wyłączamy falowanie wody i gęstość
-   * pikseli, potem przerzedzamy cząstki. Pełne poziomy jakości — etap 6.
+   * nie utrzymuje ~40 kl./s, najpierw wyłączamy falowanie wody, gęstość
+   * pikseli i ograniczamy scenę do 30 kl./s, potem przerzedzamy cząstki.
+   * Działa tylko w trybie jakości „automatyczna” (art/settings.ts).
    */
   private watchPerformance(dt: number) {
-    if (this.perf.degraded >= 2) return;
+    if (!this.q.auto || this.perf.degraded >= 2) return;
     this.perf.frames++; this.perf.time += dt;
     if (this.perf.frames < 150) return;
     const fps = this.perf.frames / this.perf.time;
@@ -739,13 +768,22 @@ export class Diorama {
       this.dispFilter = null;
       this.scenes.forEach((s) => { s.back.filters = null; });
       if (this.res > 1) { this.res = 1; this.app.renderer.resize(this.W, this.H, 1); }
+      this.app.ticker.maxFPS = 30;
     } else {
       this.particles.forEach((p, i) => { if (i % 2) p.s.visible = false; });
+      this.res = 0.75; this.app.renderer.resize(this.W, this.H, 0.75);
     }
     console.info('Diorama: obniżono jakość (poziom ' + this.perf.degraded + '), ' + fps.toFixed(0) + ' kl./s');
   }
 
+  /** Rodzaj renderera (do podpisu w ustawieniach). */
+  rendererName(): string { return this.app.renderer.name; }
+
   destroy() {
+    if (this.destroyed) return;
+    if (this.director) this.director.finish();
+    this.destroyed = true;
+    this.observers.forEach((o) => o.disconnect());
     this.bakedByKey.forEach((b) => destroyBaked(b));
     this.app.destroy(true, { children: true, texture: true });
   }

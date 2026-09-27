@@ -303,6 +303,9 @@ const ICONS: Record<string, string> = {
     '<path class="w" d="M6 2.5h8.5L19 7v14.5H6z"/><path d="M14.5 2.5V7H19"/>' +
     '<path class="t" d="M9 11h7M9 14h7M9 17h4.5"/>',
   'ui:close': '<path d="M6 6l12 12M18 6 6 18"/>',
+  'ui:settings':
+    '<path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/>' +
+    '<circle class="w" cx="15" cy="6.5" r="2"/><circle class="w" cx="9" cy="12" r="2"/><circle class="w" cx="17" cy="17.5" r="2"/>',
   'ui:fossil': AMMONITE
 };
 
