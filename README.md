@@ -60,6 +60,17 @@ Vite i sam z pliku nie zadziała.
    kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
    osobników to nie gatunek rozumny.
 
+### Nisze, pojemność i specjacja
+
+Każda nisza wyżywi w danej turze tylko określoną liczbę osobników — to jej
+**pojemność** (zależy od pokarmu). Blisko niej rozród słabnie, a nadmiar ginie
+z przegęszczenia. Linie w tej samej niszy **konkurują** o tę samą pojemność.
+Dlatego gdy nisza się zapełnia, opłaca się **specjacja**: 40% populacji
+zakłada nową gałąź, którą warto wysłać do **wolnej niszy** — ma tam własne
+zasoby i przez 2 tury mniejszą presję drapieżników. Wymierania uderzają
+w nisze z różną siłą, więc linie w kilku niszach rozkładają ryzyko.
+EP za liczebność i wzrost liczone są z łącznej populacji wszystkich linii.
+
 ### Trzy waluty
 
 | Waluta | Czyja | Skąd | Na co |

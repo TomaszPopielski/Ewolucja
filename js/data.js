@@ -54,6 +54,12 @@
   var SPECIATION_COST = 8;
   var SPECIATION_COST_STEP = 4;
   var MIN_SPECIATION_POP = 60;
+  // Nową linię zakłada taka część populacji rodzica.
+  var SPECIATION_SHARE = 0.4;
+  // Nowa linia (specjacja, kolonia z karty decyzji) przez `turns` tury ma presję
+  // drapieżników × `predMult` — miejscowi łowcy jeszcze jej „nie znają”
+  // (hipoteza uwolnienia od wrogów).
+  var NEW_LINEAGE = { turns: 2, predMult: 0.5 };
 
   // Migracja (płatna ⚡ rezerwami — wędrówka to wydatek energii): koszt = BASE −
   // mobilność (min. MIN); w turze migracji linia się aklimatyzuje — zdobywa tylko
@@ -129,9 +135,10 @@
   ];
 
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
-  // reprodukcyjny (liczebność, wzrost) + za inteligencję najlepszej linii.
+  // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
+  // najlepszej linii.
   // Skalibrowane symulacją (test „balans”): stały plan nie wygrywa zawsze.
-  var EP_RULES = { base: 9, perPopulation: 120, perGrowth: 12, intelligenceDiv: 2 };
+  var EP_RULES = { base: 9, perPopulation: 45, perGrowth: 8, intelligenceDiv: 2 };
 
   // Zmienność środowiska (ZALOZENIA 3: faza środowiska). Po każdej turze silnik
   // losuje odchylenia warunków następnej tury od wartości historycznych; gracz
@@ -163,6 +170,17 @@
       without: { trait: 'amniotic_egg', effects: { reproduction: -2 }, note: 'bez jaja lądowego rozród zależy od wody' } },
     powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3,  epBonus: 2 }
   };
+
+  /*
+   * Pojemność środowiska (nośność, K): ile osobników wyżywi nisza w danej turze.
+   * K = `perFood[nisza]` × pokarm niszy w tej turze. Linie w tej samej niszy dzielą
+   * pojemność (konkurencja). Rozród słabnie, gdy liczebność zbliża się do K
+   * (wzrost logistyczny: × (1 − (N/K)^theta)), a nadmiar ponad K ginie z przegęszczenia (do `crowdMax`
+   * populacji na turę, `crowdRate` za każde 100% nadwyżki). Nowa nisza = nowa
+   * pojemność — to daje sens specjacji i migracji (radiacja adaptacyjna).
+   */
+  var CAPACITY = { perFood: { woda: 30, przybrzeze: 24, lad: 40, powietrze: 28 }, min: 60, theta: 3,
+    crowdRate: 0.35, crowdMax: 0.35, warnAt: 0.8 };
 
   var CATEGORIES = {
     pokarm: 'Pokarm', lokomocja: 'Lokomocja', obrona: 'Obrona', zmysly: 'Zmysły',
@@ -292,7 +310,8 @@
           note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
         { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
           note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
-          catastrophe: { name: 'Wymieranie ordowickie', niche: 'woda', severity: 0.35, knowledge: 'extinction',
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.45,
+            nicheSeverity: { przybrzeze: 0.3, lad: 0.05, powietrze: 0.05 }, knowledge: 'extinction',
             survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka do cieplejszych wód' }] } },
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
           note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
@@ -305,7 +324,8 @@
         { title: 'Perm — Wielkie Wymieranie', oxygen: 8, food: 7, predators: 9, climate: 'cieplo', land: land(8, 5),
           note: 'Erupcje trapów syberyjskich: gwałtowne ocieplenie, zakwaszone i niedotlenione oceany. ' +
             'Najmocniej cierpią morza, ale ląd także.',
-          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.55, nicheSeverity: { lad: 0.35 },
+          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.65,
+            nicheSeverity: { przybrzeze: 0.5, lad: 0.35, powietrze: 0.35 },
             knowledge: 'extinction',
             survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'niski metabolizm — mniejsze zapotrzebowanie na tlen' }] } }
       ]
@@ -328,7 +348,8 @@
           note: 'Rośliny kwiatowe i owady tworzą nowe źródła pokarmu.' },
         { title: 'Kreda — uderzenie asteroidy', oxygen: 10, food: 6, predators: 8, climate: 'zimno', land: land(6, 8),
           note: 'Asteroida i zima uderzeniowa kończą erę dinozaurów.',
-          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.5, knowledge: 'extinction',
+          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.55,
+            nicheSeverity: { woda: 0.3, przybrzeze: 0.4, powietrze: 0.45 }, knowledge: 'extinction',
             survival: [
               { stat: 'metabolism', max: 7, mult: 0.6, reason: 'mały, oszczędny organizm przetrwał zimę uderzeniową' },
               { trait: 'omnivory', mult: 0.75, reason: 'wszystkożerność — elastyczna dieta w czasie głodu' }] } }
@@ -350,7 +371,8 @@
           note: 'Chłód premiuje izolację, zapasy i inteligencję.' },
         { title: 'Plejstocen — epoki lodowcowe', oxygen: 10, food: 7, predators: 8, climate: 'zimno', land: land(8, 8),
           note: 'Zlodowacenia to twarda szkoła — przetrwają najbardziej elastyczni.',
-          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'lad', severity: 0.3, knowledge: 'extinction',
+          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'all', severity: 0.4,
+            nicheSeverity: { woda: 0.05, przybrzeze: 0.15, powietrze: 0.25 }, knowledge: 'extinction',
             survival: [
               { trait: 'insulation', mult: 0.6, reason: 'izolacja (futro/pióra) chroni przed mrozem' },
               { trait: 'social', mult: 0.8, reason: 'życie w grupie — wspólne przetrwanie zimy' }] } },
@@ -373,7 +395,7 @@
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 76, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 73, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -447,6 +469,19 @@
       body: 'Obfitość pokarmu pozwala populacji gwałtownie urosnąć, ale gdy zasoby się kończą, liczebność ' +
         'spada — często poniżej stanu sprzed boomu. Tak działają cykle populacyjne.',
       fossil: 'Populacje zajęcy i rysi w Kanadzie od stuleci wahają się w ok. 10-letnim cyklu.' },
+    capacity: { icon: '📏', title: 'Pojemność środowiska',
+      body: 'Każde środowisko wyżywi tylko określoną liczbę osobników — to jego pojemność (nośność). ' +
+        'Mała populacja w bogatym środowisku rośnie szybko, ale im bliżej granicy, tym wolniej; nadmiar ginie z głodu i ' +
+        'przegęszczenia. Wzrost przyjmuje kształt litery S (wzrost logistyczny).' },
+    competition: { icon: '⚔️', title: 'Konkurencja',
+      body: 'Gatunki korzystające z tych samych zasobów konkurują ze sobą — dzielą tę samą pojemność środowiska. ' +
+        'Dwa gatunki o identycznej niszy nie mogą długo współistnieć (zasada Gausego): jeden wypiera drugi albo ' +
+        'ich nisze się rozchodzą.' },
+    radiation: { icon: '🌳', title: 'Radiacja adaptacyjna',
+      body: 'Gdy przodek trafia do świata pełnego wolnych nisz, jego potomkowie szybko rozdzielają się na wiele ' +
+        'gatunków — każdy zajmuje inną niszę i ma własne zasoby. W nowym miejscu często brakuje też ' +
+        'wyspecjalizowanych wrogów, co ułatwia start.',
+      fossil: 'Po wymarciu dinozaurów ssaki w kilka milionów lat rozdzieliły się na drapieżniki, roślinożerców, nietoperze i walenie.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
         'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
@@ -454,8 +489,8 @@
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
-    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
-    MIGRATION: MIGRATION, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
+    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
     CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,

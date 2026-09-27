@@ -139,11 +139,10 @@ group('pozytywne zdarzenie losowe', function () {
 group('rozbicie EP w raporcie', function () {
   var s = Engine.createInitialState(GameData, 'X');
   var lr = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
-  ok(lr.epBreakdown && typeof lr.epBreakdown.growth === 'number', 'raport zawiera rozbicie EP');
+  ok(lr.epBreakdown && typeof lr.epBreakdown.niche === 'number', 'raport zawiera rozbicie EP');
   var rep = Engine.simulateTurn(GameData, s, noMut).report;
-  var lr2 = rep.lineReports[0];
-  eq(lr2.epBreakdown.growth + lr2.epBreakdown.population + lr2.epBreakdown.niche, lr2.epGain, 'składniki EP linii sumują się do epGain linii');
-  eq(lr2.epGain + rep.epBase + rep.epIntel, rep.epGain, 'EP linii + premie globalne = EP tury');
+  ok(typeof rep.epPopulation === 'number' && typeof rep.epGrowth === 'number', 'EP za liczebność i wzrost liczone globalnie');
+  eq(rep.lineReports[0].epGain + rep.epPopulation + rep.epGrowth + rep.epBase + rep.epIntel, rep.epGain, 'składniki sumują się do EP tury');
 });
 
 group('evaluateStatus', function () {
@@ -331,7 +330,7 @@ group('2.5 katastrofy są selektywne', function () {
   var a = Engine.catastropheImpact(kpg, active(lean)), b = Engine.catastropheImpact(kpg, active(heavy));
   ok(a.severity < b.severity, 'K–Pg: oszczędny metabolizm przeżywa lepiej (' + a.severity.toFixed(2) + ' < ' + b.severity.toFixed(2) + ')');
   ok(a.reasons.length > 0 && b.reasons.length === 0, 'podane są powody przetrwania');
-  var ice = GameData.ERAS[2].turns.filter(function (t) { return t.catastrophe && t.catastrophe.niche === 'lad'; })[0];
+  var ice = GameData.ERAS[2].turns.filter(function (t) { return t.catastrophe && /plejstoce/.test(t.catastrophe.name); })[0];
   var s = Engine.createInitialState(GameData, 'X', Bots.scenarioInit('ice'));
   s.turn = GameData.ERAS[2].turns.indexOf(ice);
   var plain = Engine.simulateTurn(GameData, s, noMut).report.lineReports[0];
@@ -583,6 +582,73 @@ group('balans: nowe decyzje mają znaczenie', function () {
   ok(tact < 95, 'normalny: nawet z taktyką gra nie jest wygrana z góry (' + tact + '%)');
   var hard = Bots.winRate('tactics', { difficulty: 'trudny' }, N);
   ok(hard > 0 && hard < tact, 'trudny: taktyka pomaga, ale trudność rośnie (' + hard + '%)');
+});
+
+// ---------- Pojemność nisz, konkurencja, radiacja ----------
+group('pojemność niszy: wzrost logistyczny i przegęszczenie', function () {
+  var s = Engine.createInitialState(GameData, 'X'), l = active(s);
+  l.population = 40; var low = Engine.forecast(GameData, s, l);
+  ok(low.capacity > 0 && low.nicheLoad === 40, 'prognoza zna pojemność niszy (' + low.nicheLoad + ' / ' + low.capacity + ')');
+  l.population = Math.round(low.capacity * 0.95); var near = Engine.forecast(GameData, s, l);
+  ok(near.births / l.population < low.births / 40 * 0.5, 'blisko pojemności rozród wyraźnie słabnie');
+  l.population = low.capacity * 2; var over = Engine.forecast(GameData, s, l);
+  ok(over.births === 0 && over.crowdDeaths > 0, 'ponad pojemność: brak narodzin i straty z przegęszczenia');
+  var r = Engine.simulateTurn(GameData, s, noMut);
+  ok(r.state.unlockedKnowledge.indexOf('capacity') !== -1, 'karta wiedzy o pojemności środowiska');
+  ok(r.report.lineReports[0].events.some(function (e) { return /przepełniona/.test(e); }), 'raport wyjaśnia przegęszczenie');
+});
+
+group('konkurencja: linie w jednej niszy dzielą pojemność', function () {
+  var s = Engine.createInitialState(GameData, 'X'); active(s).population = 200; active(s).variation = 30;
+  var alone = Engine.forecast(GameData, s, active(s));
+  s = Engine.speciate(GameData, s, 'B').state;
+  var p = Engine.getLineage(s, 'L0'), c = Engine.getLineage(s, 'L1');
+  eq(Engine.forecast(GameData, s, p).nicheLoad, 200, 'obie linie liczą się do obciążenia niszy');
+  var shared = Engine.forecast(GameData, s, p).births + Engine.forecast(GameData, s, c).births;
+  var m = Engine.migrateLineage(GameData, s, 'L1', 'przybrzeze').state;
+  var apart = Engine.forecast(GameData, m, Engine.getLineage(m, 'L0')).births + Engine.forecast(GameData, m, Engine.getLineage(m, 'L1')).births;
+  ok(apart > shared, 'rozejście nisz daje więcej narodzin niż konkurencja w jednej (' + apart + ' > ' + shared + ')');
+  var t = Engine.simulateTurn(GameData, s, noMut).state;
+  ok(t.unlockedKnowledge.indexOf('competition') !== -1, 'karta wiedzy o konkurencji');
+  ok(Engine.simulateTurn(GameData, m, noMut).state.unlockedKnowledge.indexOf('radiation') !== -1, 'karta wiedzy o radiacji adaptacyjnej');
+  eq(c.population, Math.floor(200 * GameData.SPECIATION_SHARE), 'nową linię zakłada część populacji');
+});
+
+group('EP za liczebność z sumy linii', function () {
+  function gain(split) {
+    var s = Engine.createInitialState(GameData, 'X'); active(s).variation = 30; active(s).population = 400;
+    if (split) { s = Engine.speciate(GameData, s, 'B').state; s.lineages[0].population = 223; s.lineages[1].population = 177; }
+    return Engine.simulateTurn(GameData, s, noMut).report;
+  }
+  var one = gain(false), two = gain(true);
+  ok(one.epPopulation === Math.floor(one.totalPopulation / GameData.EP_RULES.perPopulation), 'EP za liczebność = łączna populacja / ' + GameData.EP_RULES.perPopulation);
+  ok(Math.abs(two.epPopulation - one.epPopulation) <= 1, 'podział na linie nie traci EP na zaokrągleniach (' + two.epPopulation + ' vs ' + one.epPopulation + ')');
+});
+
+group('nowa linia: uwolnienie od wrogów', function () {
+  var s = Engine.createInitialState(GameData, 'X'); active(s).population = 200; active(s).variation = 30;
+  s = Engine.speciate(GameData, s, 'B').state;
+  var p = Engine.getLineage(s, 'L0'), c = Engine.getLineage(s, 'L1');
+  c.stats.defense = 0; p.stats.defense = 0;
+  var fp = Engine.forecast(GameData, s, p), fc = Engine.forecast(GameData, s, c);
+  ok(fc.enemyRelease && fc.predationPressure < fp.predationPressure, 'nowa linia ma mniejszą presję drapieżników');
+  for (var k = 0; k < GameData.NEW_LINEAGE.turns; k++) s = Engine.simulateTurn(GameData, s, noMut).state;
+  ok(!Engine.forecast(GameData, s, Engine.getLineage(s, 'L1')).enemyRelease, 'ochrona wygasa po ' + GameData.NEW_LINEAGE.turns + ' turach');
+});
+
+group('katastrofy zależne od niszy — dywersyfikacja chroni', function () {
+  function cat(re) { var c = null; GameData.ERAS.forEach(function (e) { e.turns.forEach(function (t) { if (t.catastrophe && re.test(t.catastrophe.name)) c = t.catastrophe; }); }); return c; }
+  var ord = cat(/ordowick/), kpg = cat(/K–Pg/), ice = cat(/plejstoce/);
+  ok(Engine.catastropheSeverity(ord, 'woda') > Engine.catastropheSeverity(ord, 'lad'), 'ordowik: morza cierpią bardziej niż ląd');
+  ok(Engine.catastropheSeverity(kpg, 'lad') > Engine.catastropheSeverity(kpg, 'woda'), 'K–Pg: ląd cierpi bardziej niż woda');
+  ok(Engine.catastropheSeverity(ice, 'lad') > Engine.catastropheSeverity(ice, 'woda'), 'zlodowacenie: ląd cierpi bardziej niż woda');
+});
+
+group('balans: specjacja do nowej niszy się opłaca, mnożenie linii w jednej — nie', function () {
+  var N = 100, n = { difficulty: 'normalny' };
+  var single = Bots.winRate('tactics1', n, N), radiate = Bots.winRate('tactics', n, N), crowd = Bots.winRate('crowd', n, N);
+  ok(radiate > single, 'radiacja do wolnych nisz poprawia wynik (' + radiate + '% > ' + single + '%)');
+  ok(crowd < single, 'klony w tej samej niszy szkodzą (' + crowd + '% < ' + single + '%)');
 });
 
 console.log('\n────────────────────────');

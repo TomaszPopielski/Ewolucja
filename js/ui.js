@@ -375,6 +375,12 @@
       (base.energy >= 0 ? 'pos' : 'neg') + '">' + num(base.energy) + '</span></div>';
     html += '<div class="forecast-row"><span>' + ENERGY + ' Rezerwy</span><span class="fc ' +
       (base.reservesAfter >= base.reserves ? 'pos' : 'neg') + '">' + num(base.reserves) + ' → ' + num(base.reservesAfter) + '</span></div>';
+    var capWarn = base.nicheLoad >= base.capacity * DATA.CAPACITY.warnAt;
+    html += '<div class="forecast-row"><span>Pojemność niszy</span><span class="fc' + (capWarn ? ' neg' : '') + '">' +
+      base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    if (base.crowdDeaths) {
+      html += '<div class="forecast-row"><span>Straty z przegęszczenia</span><span class="fc neg">−' + base.crowdDeaths + '</span></div>';
+    }
     if (base.diseaseDeaths) {
       html += '<div class="forecast-row"><span>Straty z choroby</span><span class="fc neg">−' + base.diseaseDeaths + '</span></div>';
     }
@@ -393,6 +399,13 @@
         'populacja ' + (withTac.delta >= 0 ? '+' : '') + withTac.delta +
         ' <span class="fc ' + (dt >= 0 ? 'pos' : 'neg') + '">(' + (dt >= 0 ? '+' : '') + dt + ')</span>' +
         ', rezerwy → ' + num(withTac.reservesAfter) + '</div>';
+    }
+    if (capWarn) {
+      html += '<div class="forecast-note">Nisza jest prawie pełna — rozród słabnie. Nowa gałąź w wolnej niszy (specjacja + migracja) ma własną pojemność.</div>';
+    }
+    if (base.enemyRelease) {
+      html += '<div class="forecast-note">Nowy gatunek: miejscowe drapieżniki jeszcze na niego nie polują (presja ×' +
+        num(DATA.NEW_LINEAGE.predMult) + ').</div>';
     }
     if (base.behaviorBlocked) {
       html += '<div class="forecast-warn">Za mało rezerw na wybrane zachowanie — linia będzie żyła zwyczajnie.</div>';
@@ -571,7 +584,8 @@
         (env.climateShifted ? ' <span class="env-dev">(typowo ' + climateLabel(typical.climate) + ')</span>' : '')) +
       chip('Tlen: ' + env.oxygen + dev(env.oxygen, typical.oxygen)) +
       chip('Pokarm (' + cfg.label.toLowerCase() + '): ' + Math.round(nicheEnv.food) + dev(nicheEnv.food, typEnv.food)) +
-      chip('Drapieżniki: ' + Math.round(nicheEnv.predators) + dev(nicheEnv.predators, typEnv.predators));
+      chip('Drapieżniki: ' + Math.round(nicheEnv.predators) + dev(nicheEnv.predators, typEnv.predators)) +
+      chip('Pojemność: ' + (Engine.forecast(DATA, state, a) || {}).capacity);
     if (env.catastrophe) {
       el.envCatastrophe.hidden = false;
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
@@ -705,7 +719,8 @@
     if (!can.ok) { flash(can.error); return; }
     var base = Engine.getActiveLineage(state).name;
     el.speciateHint.textContent = 'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + Engine.speciationCost(DATA, state) +
-      ' 🧬 zmienności). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie — możesz wysłać ją w inną niszę.';
+      ' 🧬 zmienności). ' + Math.round(DATA.SPECIATION_SHARE * 100) + '% populacji założy nową gałąź, która będzie ewoluować niezależnie. ' +
+      'Wyślij ją do wolnej niszy — tam ma własną pojemność i przez ' + DATA.NEW_LINEAGE.turns + ' tury mniej drapieżników. W tej samej niszy obie linie będą ze sobą konkurować.';
     el.speciateName.value = base + ' II';
     openModal(el.modalSpeciate); el.speciateName.focus(); el.speciateName.select();
   }
@@ -817,6 +832,9 @@
       if (lr.starvationDeaths > 0) block.appendChild(line('Straty z głodu', '-' + lr.starvationDeaths, 'neg', 'know:starvation'));
       if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos', 'ui:sprout'));
       if (lr.diseaseDeaths > 0) block.appendChild(line('Straty z choroby', '-' + lr.diseaseDeaths, 'neg'));
+      if (lr.crowdDeaths > 0) block.appendChild(line('Straty z przegęszczenia', '-' + lr.crowdDeaths, 'neg'));
+      if (lr.capacity) block.appendChild(line('Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
+        lr.nicheLoad >= lr.capacity * DATA.CAPACITY.warnAt ? 'neg' : 'plain'));
       if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
       if (lr.reservesBefore != null) {
         block.appendChild(line(ENERGY + ' Rezerwy energii', num(lr.reservesBefore) + ' → ' + num(lr.reservesAfter),
@@ -826,20 +844,16 @@
       block.appendChild(line('Inteligencja', lr.intelligence + ' / ' + report.intelligenceGoal, 'plain', 'trait:brain'));
       // Rozbicie EP tej linii (skąd punkty).
       if (lr.epGain > 0) {
-        var b = lr.epBreakdown;
-        var parts = [];
-        if (b.growth) parts.push('wzrost +' + b.growth);
-        if (b.population) parts.push('populacja +' + b.population);
-        if (b.niche) parts.push('nisza +' + b.niche);
         var ep = document.createElement('div'); ep.className = 'report-epbreak';
-        ep.innerHTML = '<span>EP z tej linii: <strong>+' + lr.epGain + '</strong></span>' +
-          (parts.length ? '<span class="report-epparts">(' + parts.join(', ') + ')</span>' : '');
+        ep.innerHTML = '<span>Premia za niszę: <strong>+' + lr.epBreakdown.niche + ' EP</strong></span>';
         block.appendChild(ep);
       }
       el.reportBody.appendChild(block);
     });
     var sum = document.createElement('div'); sum.className = 'report-summary';
     sum.appendChild(line('Łączna populacja', report.totalPopulation, 'plain'));
+    if (report.epPopulation) sum.appendChild(line('EP za liczebność (wszystkie linie)', '+' + report.epPopulation, 'pos'));
+    if (report.epGrowth) sum.appendChild(line('EP za wzrost populacji', '+' + report.epGrowth, 'pos'));
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
     if (report.epIntel) sum.appendChild(line('Premia za inteligencję (najlepsza linia)', '+' + report.epIntel, 'pos'));
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
@@ -1142,7 +1156,7 @@
     { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
     { title: 'Rezerwy i zmienność', text: 'Każda linia ma dwie własne waluty. ⚡ Rezerwy energii to odłożone nadwyżki pokarmu — ratują przed głodem, płacisz nimi za migrację i zachowania w turze. 🧬 Zmienność genetyczna rośnie z liczebnością i znika w wąskim gardle — płacisz nią za specjację i ukierunkowany dobór, a wysoka łagodzi katastrofy.' },
     { title: 'Decyzje linii', text: 'W panelu „Decyzje linii” wybierasz strategię rozrodu (r — dużo potomstwa, K — mało, ale dobrze chronionego) i zachowanie w najbliższej turze. Najedź na przycisk, by zobaczyć skutek w prognozie. Czasem pojawi się karta decyzji — zdarzenie, na które odpowiadasz przed turą.' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe {meteor}. Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda nisza wyżywi ograniczoną liczbę osobników (pojemność) — gdy jest pełna, nowa gałąź w wolnej niszy daje nowe zasoby, a linie w jednej niszy konkurują. Wymierania {meteor} uderzają w nisze różnie, więc linie w kilku niszach rozkładają ryzyko. Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
     ];
   }
   var tutorialSteps = [];

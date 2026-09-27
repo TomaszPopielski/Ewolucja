@@ -42,6 +42,23 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 >
 > Test `balans: nowe decyzje mają znaczenie` pilnuje, żeby gracz korzystający
 > z nowych decyzji wygrywał wyraźnie częściej, ale nie zawsze.
+>
+> **Etap „pojemność nisz i sens specjacji”** — specjacja wcześniej szkodziła
+> (bot z jedną specjacją: 28% zwycięstw wobec 71% bez niej), bo populacja
+> rosła bez limitu, a podział tylko obcinał bazę wzrostu. Teraz: pojemność niszy
+> (wzrost theta-logistyczny, przegęszczenie, konkurencja linii w jednej niszy),
+> EP za liczebność i wzrost z sumy wszystkich linii, uwolnienie od wrogów dla
+> nowej linii (2 tury) i katastrofy o różnej sile w różnych niszach.
+> Przekalibrowano: EP za liczebność co 45 osobników, za wzrost co 8, nową linię
+> zakłada 40% populacji, scenariusz lodowcowy 73 EP.
+>
+> | Gracz | Łatwy | Normalny | Trudny | Epoki lodowcowe |
+> |---|---|---|---|---|
+> | stały plan „kup wszystko” / ścieżka ⭐ | 0 | 0 | 0 | — / 22 |
+> | prognoza, bez nowych decyzji | 76 | 46 | 13 | 0 |
+> | taktyka, jedna linia („tactics1”) | 92 | 59 | 23 | 0 |
+> | taktyka + specjacja do wolnych nisz („tactics”) | 97 | 65 | 26 | 0 |
+> | taktyka + klony w tej samej niszy („crowd”) | 93 | 49 | 17 | 0 |
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.

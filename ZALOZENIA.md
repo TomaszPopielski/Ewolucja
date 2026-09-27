@@ -106,6 +106,7 @@ Zasada: **cecha korzystna w jednej epoce może być obciążeniem w innej** — 
 ### 4.5. Specjacja i drzewo filogenetyczne
 - Gdy część populacji zaadaptuje się do odrębnej niszy, gracz może wykonać **rozdzielenie gatunku** (specjacja) → nowa gałąź na drzewie życia.
 - Gracz może prowadzić kilka linii równolegle, dywersyfikując ryzyko.
+- Każda nisza ma **pojemność** (nośność) zależną od pokarmu; linie w jednej niszy konkurują o nią (wzrost logistyczny, przegęszczenie). Nowa gałąź w wolnej niszy dostaje własne zasoby i chwilowe **uwolnienie od wrogów** — to model radiacji adaptacyjnej. Wymierania mają różną siłę w różnych niszach, więc rozproszenie linii realnie chroni gatunek.
 - Wizualizacja: interaktywne, rozgałęziające się **drzewo życia** pokazujące historię wszystkich linii (żywych i wymarłych).
 
 ### 4.6. Warunek zwycięstwa i porażki

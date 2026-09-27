@@ -111,6 +111,19 @@ const MICROBE =
   '<path d="M12 2.5V7M12 17v4.5M2.5 12H7M17 12h4.5M5.3 5.3l3.2 3.2M15.5 15.5l3.2 3.2M5.3 18.7l3.2-3.2M15.5 8.5l3.2-3.2"/>' +
   '<circle class="f" cx="10.5" cy="11" r=".9"/><circle class="f" cx="13.5" cy="13.2" r=".7"/>';
 
+const CAPACITY_CURVE =
+  '<path d="M3 20.5h18M3 20.5V3.5"/><path class="t" stroke-dasharray="1.5 2" d="M4 6.5h17"/>' +
+  '<path class="w" d="M4 19.5c4 0 5-12 10-12.5 3-.3 5 .2 7 0v12.5z" stroke="none"/>' +
+  '<path d="M4 19.5c4 0 5-12 10-12.5 3-.3 5 .2 7 0"/>';
+const RIVALS =
+  '<circle class="w" cx="7" cy="12" r="3.5"/><circle cx="7" cy="12" r="3.5"/>' +
+  '<circle class="w" cx="17" cy="12" r="3.5"/><circle cx="17" cy="12" r="3.5"/>' +
+  '<path d="M10.5 12h3M12 4v4M12 16v4"/><circle class="f" cx="12" cy="12" r="1"/>';
+const RADIATION =
+  '<path d="M12 21v-6M12 15 5 6.5M12 15l-2.5-9M12 15l2.5-9M12 15l7-8.5"/>' +
+  '<circle class="w" cx="5" cy="5.5" r="1.8"/><circle class="w" cx="9.5" cy="4.5" r="1.8"/>' +
+  '<circle class="w" cx="14.5" cy="4.5" r="1.8"/><circle class="w" cx="19" cy="5.5" r="1.8"/>';
+
 const WAVES =
   '<path class="w" d="M2 10.5c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1.2V21H2z" stroke="none"/>' +
   '<path d="M2 10.5c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1.2"/>' +
@@ -293,6 +306,9 @@ const ICONS: Record<string, string> = {
   'know:drift': DICE,
   'know:founder': BOAT,
   'know:boom': BOOM,
+  'know:capacity': CAPACITY_CURVE,
+  'know:competition': RIVALS,
+  'know:radiation': RADIATION,
 
   // ---------- Waluty linii, strategie, zachowania, karty decyzji ----------
   'ui:energy': BOLT,

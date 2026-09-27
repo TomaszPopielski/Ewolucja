@@ -260,19 +260,22 @@
     if (!check.ok) return { ok: false, state: state, error: check.error };
     var n = clone(state); var parent = getActiveLineage(n); var cost = speciationCost(data, state);
     parent.variation -= cost;
-    // Obie połowy populacji niosą pozostałą zmienność i zapasy.
-    var child = splitLineage(n, parent, Math.floor(parent.population / 2), newName || (parent.name + ' II'),
+    // Nową linię zakłada część populacji (SPECIATION_SHARE); obie niosą
+    // pozostałą zmienność i zapasy.
+    var child = splitLineage(data, n, parent, Math.floor(parent.population * (data.SPECIATION_SHARE || 0.5)), newName || (parent.name + ' II'),
       { variation: parent.variation });
     n.activeLineageId = child.id;
     unlockKnowledge(n, 'speciation');
     return { ok: true, state: n, error: null };
   }
   // Oddziela `childPop` osobników rodzica jako nową linię (specjacja, kolonizacja).
-  function splitLineage(n, parent, childPop, name, res) {
+  function splitLineage(data, n, parent, childPop, name, res) {
     parent.population -= childPop; parent.popHistory[parent.popHistory.length - 1] = parent.population;
     var childId = 'L' + n.nextLineageNum; n.nextLineageNum += 1;
     var child = makeLineage(childId, name, parent.id, childPop, parent.stats, parent.traits, parent.niche,
       n.eraIndex, n.turn, { reserves: parent.reserves, variation: res.variation, strategy: parent.strategy });
+    var NL = data.NEW_LINEAGE, now = nowTurn(data, n);
+    for (var t = 0; NL && t < NL.turns; t++) child.mods.push({ turn: now + t, predMult: NL.predMult });
     n.lineages.push(child);
     return child;
   }
@@ -330,11 +333,11 @@
   }
   // Modyfikatory kart decyzji obowiązujące w danej turze (sumy / iloczyny).
   function turnMods(lineage, turn) {
-    var m = { foodBonus: 0, predBonus: 0, birthMult: 1, diseaseLoss: 0, noPredators: false };
+    var m = { foodBonus: 0, predBonus: 0, birthMult: 1, diseaseLoss: 0, noPredators: false, predMult: 1 };
     (lineage.mods || []).forEach(function (x) {
       if (x.turn !== turn) return;
       m.foodBonus += x.foodBonus || 0; m.predBonus += x.predBonus || 0;
-      m.birthMult *= x.birthMult || 1; m.diseaseLoss += x.diseaseLoss || 0;
+      m.birthMult *= x.birthMult || 1; m.diseaseLoss += x.diseaseLoss || 0; m.predMult *= x.predMult || 1;
       if (x.noPredators) m.noPredators = true;
     });
     return m;
@@ -385,24 +388,41 @@
     var reservesAfter = round1(clamp(reserves + stored, 0, cap));
     var netEnergy = energy + reserveDraw;
 
+    // Pojemność niszy (K): linie w tej samej niszy dzielą ją ze sobą.
+    var C = data.CAPACITY;
+    var capacity = Math.max(C.min, Math.round(C.perFood[lineage.niche] * food));
+    var load = (ctx.nicheLoad && ctx.nicheLoad[lineage.niche] != null) ? ctx.nicheLoad[lineage.niche] : (lineage.population || 0);
+    var fill = load / capacity;
+    var crowdLossRate = fill > 1 ? clamp((fill - 1) * C.crowdRate, 0, C.crowdMax) : 0;
+
     var mobilityShield = lstat(es, 'mobility') * 0.4;
-    var predationPressure = Math.max(0, predators - lstat(es, 'defense') - mobilityShield) * (beh.predPressureMult || 1);
+    var predationPressure = Math.max(0, predators - lstat(es, 'defense') - mobilityShield) * (beh.predPressureMult || 1) * mods.predMult;
     if (mods.noPredators) predationPressure = 0;
     var predationLossRate = clamp(predationPressure * 0.035 * strat.predLossMult, 0, 0.45);
     var starvationLossRate = netEnergy < 0 ? clamp(-netEnergy * 0.03 * strat.starveLossMult, 0, 0.5) : 0;
     var birthRate = netEnergy >= 0 ? clamp(0.03 * lstat(es, 'reproduction') * (1 + Math.max(0, energy) * 0.05), 0, 0.6) : 0;
     if (energy < 0) birthRate *= R.deficitBirthMult;  // życie z zapasów — słabszy rozród
     birthRate = clamp(birthRate * strat.birthMult * (beh.birthMult || 1) * mods.birthMult, 0, 0.8);
+    // Wzrost logistyczny (theta-logistyczny): rozród słabnie wyraźnie dopiero blisko K.
+    birthRate *= Math.max(0, 1 - Math.pow(Math.min(fill, 1), C.theta || 1));
     return { energy: energy, predationPressure: predationPressure, acclimatizing: acclimatizing, notes: eff.notes,
       predationLossRate: predationLossRate, starvationLossRate: starvationLossRate, birthRate: birthRate,
       diseaseLossRate: clamp(mods.diseaseLoss, 0, 0.9),
+      capacity: capacity, nicheLoad: load, crowdLossRate: crowdLossRate, enemyRelease: mods.predMult < 1,
       reserveDraw: round1(reserveDraw), reservesAfter: reservesAfter, reservesCap: cap,
       behavior: beh === data.BEHAVIORS.brak ? 'brak' : lineage.behavior,
       behaviorBlocked: lineage.behavior && lineage.behavior !== 'brak' && beh === data.BEHAVIORS.brak };
   }
+  // Łączna populacja żywych linii w każdej niszy (konkurencja o pojemność).
+  function nicheLoad(state) {
+    var m = {};
+    state.lineages.forEach(function (l) { if (l.alive) m[l.niche] = (m[l.niche] || 0) + l.population; });
+    return m;
+  }
   function contextFor(data, state, extra) {
     var diff = difficultyOf(data, state);
-    var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult, nowTurn: nowTurn(data, state) };
+    var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult, nowTurn: nowTurn(data, state),
+      nicheLoad: nicheLoad(state) };
     if (extra) { ctx.foodBonus = extra.foodBonus || 0; ctx.predBonus = extra.predBonus || 0; }
     return ctx;
   }
@@ -423,13 +443,15 @@
     var predD = Math.round(pop * d.predationLossRate);
     var starvD = Math.round(pop * d.starvationLossRate);
     var disD = Math.round(pop * d.diseaseLossRate);
-    var proj = Math.max(0, pop + births - predD - starvD - disD);
+    var crowdD = Math.round(pop * d.crowdLossRate);
+    var proj = Math.max(0, pop + births - predD - starvD - disD - crowdD);
     var cat = hitsLineage(env.catastrophe, lineage) ? env.catastrophe : null;
     var impact = cat ? catastropheImpact(cat, lineage, difficultyOf(data, state), data) : null;
     var catD = impact ? Math.round(proj * impact.severity) : 0;
     proj -= catD;
     return { energy: round1(d.energy), predationPressure: round1(d.predationPressure),
-      births: births, predationDeaths: predD, starvationDeaths: starvD, diseaseDeaths: disD, catastropheDeaths: catD,
+      births: births, predationDeaths: predD, starvationDeaths: starvD, diseaseDeaths: disD, crowdDeaths: crowdD,
+      catastropheDeaths: catD, capacity: d.capacity, nicheLoad: d.nicheLoad, enemyRelease: d.enemyRelease,
       projectedPop: proj, delta: proj - pop, catastrophe: cat,
       catastropheLoss: impact ? Math.round(impact.severity * 100) : 0,
       survivalReasons: impact ? impact.reasons : [],
@@ -521,7 +543,7 @@
     if (fx.reserves) l.reserves = Math.min(reservesCap(data, l), (l.reserves || 0) + fx.reserves);
     if (fx.predatorLevel) n.predatorLevel = clamp((n.predatorLevel || 0) + fx.predatorLevel, 0, 12);
     if (fx.found) {
-      colony = splitLineage(n, l, Math.floor(l.population * fx.found), l.name + ' (wyspa)',
+      colony = splitLineage(data, n, l, Math.floor(l.population * fx.found), l.name + ' (wyspa)',
         { variation: data.VARIATION.founder });
     }
     if (opt.turnMod) l.mods.push(Object.assign({ turn: now }, opt.turnMod));
@@ -573,13 +595,19 @@
     var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
     var ctx = contextFor(data, n, ctxExtra);
 
-    var nichesPaid = {};
+    var nichesPaid = {}, popBeforeAll = totalPopulation(n);
     aliveLineages(n).forEach(function (l) {
       var r = simulateLineage(data, n, l, env, rng, knowledge, ctx, diff, nichesPaid);
       lineReports.push(r); totalEp += r.epGain; if (l.alive) anyAlive = true;
     });
     // Premie globalne: za przetrwanie i za inteligencję NAJLEPSZEJ linii — liczone
     // raz, by specjacja nie mnożyła punktów.
+    // EP za liczebność i wzrost — z łącznej populacji wszystkich linii (podział
+    // gatunku nie traci punktów na zaokrągleniach).
+    var popAfterAll = totalPopulation(n), R = data.EP_RULES;
+    var epPopulation = anyAlive ? Math.floor(popAfterAll / R.perPopulation) : 0;
+    var epGrowth = anyAlive ? Math.max(0, Math.floor((popAfterAll - popBeforeAll) / R.perGrowth)) : 0;
+    totalEp += epPopulation + epGrowth;
     var epBase = anyAlive ? data.EP_RULES.base : 0;
     var epIntel = anyAlive ? Math.floor(maxIntelligence(n) / data.EP_RULES.intelligenceDiv) : 0;
     totalEp += epBase + epIntel;
@@ -589,6 +617,10 @@
     var target = Math.max(0, (maxDefense(n) - data.BASE_STATS.defense) * 0.7) * diff.coevo;
     n.predatorLevel = clamp((n.predatorLevel || 0) + (target - (n.predatorLevel || 0)) * 0.35, 0, 12);
     if (n.predatorLevel > 2) unlockKnowledge(n, 'coevolution');
+    var shared = {}, niches = 0;
+    aliveLineages(n).forEach(function (l) { shared[l.niche] = (shared[l.niche] || 0) + 1; });
+    for (var nk in shared) { niches++; if (shared[nk] > 1) knowledge.push('competition'); }
+    if (niches > 1) knowledge.push('radiation');
 
     if (env.catastrophe) knowledge.push(env.catastrophe.knowledge || 'extinction');
     knowledge.forEach(function (k) { unlockKnowledge(n, k); });
@@ -618,6 +650,7 @@
       event: event ? { name: event.name, desc: event.desc } : null,
       choice: choice || null,
       lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel,
+      epPopulation: epPopulation, epGrowth: epGrowth,
       predatorLevel: round1(n.predatorLevel),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
       intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
@@ -655,8 +688,12 @@
     var predationDeaths = sround(popBefore * d.predationLossRate, rng);
     var starvationDeaths = sround(popBefore * d.starvationLossRate, rng);
     var diseaseDeaths = sround(popBefore * d.diseaseLossRate, rng);
+    var crowdDeaths = sround(popBefore * d.crowdLossRate, rng);
+    if (crowdDeaths > 0) { events.push('Nisza przepełniona (' + d.nicheLoad + ' / ' + d.capacity + ') — ' + crowdDeaths + ' osobników zginęło z głodu i przegęszczenia.'); knowledge.push('capacity'); }
+    else if (d.nicheLoad >= d.capacity * data.CAPACITY.warnAt) { events.push('Nisza bliska pojemności (' + d.nicheLoad + ' / ' + d.capacity + ') — rozród słabnie.'); knowledge.push('capacity'); }
+    if (d.enemyRelease) events.push('Nowy gatunek — miejscowe drapieżniki jeszcze na niego nie polują.');
     if (diseaseDeaths > 0) events.push('Choroba zabiła ' + diseaseDeaths + ' osobników.');
-    var pop = popBefore + births - predationDeaths - starvationDeaths - diseaseDeaths;
+    var pop = popBefore + births - predationDeaths - starvationDeaths - diseaseDeaths - crowdDeaths;
 
     var catDeaths = 0, survivalReasons = [];
     if (hitsLineage(env.catastrophe, l)) {
@@ -699,21 +736,16 @@
 
     // Rozbicie EP — czytelne, skąd pochodzą punkty. Premia za niszę raz na
     // zajętą niszę (nagradza dywersyfikację, a nie liczbę linii).
-    var growth = pop - popBefore;
     var nicheBonus = 0;
     if (pop > 0 && !nichesPaid[l.niche]) { nicheBonus = data.NICHES[l.niche].epBonus || 0; nichesPaid[l.niche] = true; }
-    var bd = {
-      growth: pop > 0 ? Math.max(0, Math.floor(growth / data.EP_RULES.perGrowth)) : 0,
-      population: pop > 0 ? Math.floor(pop / data.EP_RULES.perPopulation) : 0,
-      niche: nicheBonus
-    };
-    var epGain = bd.growth + bd.population + bd.niche;
+    var bd = { niche: nicheBonus };
+    var epGain = bd.niche;
 
     return {
       lineageId: l.id, name: l.name, niche: l.niche,
       popBefore: popBefore, popAfter: pop,
       births: births, predationDeaths: predationDeaths, starvationDeaths: starvationDeaths, catDeaths: catDeaths,
-      diseaseDeaths: diseaseDeaths,
+      diseaseDeaths: diseaseDeaths, crowdDeaths: crowdDeaths, capacity: d.capacity, nicheLoad: d.nicheLoad,
       reservesBefore: reservesBefore, reservesAfter: l.reserves, variationAfter: l.variation,
       survivalReasons: survivalReasons,
       energy: round1(d.energy), intelligence: lstat(l, 'intelligence'),
@@ -802,7 +834,7 @@
     traitStatus: traitStatus, prerequisitesMet: prerequisitesMet, eraUnlocked: eraUnlocked,
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
     setStrategy: setStrategy, setBehavior: setBehavior, canSetBehavior: canSetBehavior, setSelection: setSelection,
-    reservesCap: reservesCap, forecastWithTactics: forecastWithTactics,
+    reservesCap: reservesCap, forecastWithTactics: forecastWithTactics, nicheLoad: nicheLoad,
     choiceEvent: choiceEvent, canChoose: canChoose, resolveChoice: resolveChoice, defaultOption: defaultOption,
     forecast: forecast, forecastWithTrait: forecastWithTrait, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, sround: sround, alleeFactor: alleeFactor, clamp: clamp, computeDynamics: computeDynamics }
