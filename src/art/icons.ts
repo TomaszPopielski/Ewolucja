@@ -77,6 +77,40 @@ const LEAF_MIDRIB =
   '<path class="w" d="M4 20C4 11.5 9.5 5 19.5 4 19.3 13 13.5 19.5 4 20z"/>' +
   '<path d="M4 20 15.5 8.5"/><path class="t" d="M8 16l.2-3.5M8 16h3.4M11 13l.2-3.2M11 13h3.2"/>';
 
+// Waluty linii i decyzje taktyczne.
+const BOLT =
+  '<path class="w" d="M13.5 2.5 5 13.5h6l-1.5 8 8.5-11h-6z"/><path d="M13.5 2.5 5 13.5h6l-1.5 8 8.5-11h-6z"/>';
+const ACORN =
+  '<path class="w" d="M6.5 10.5h11c0 5-2.5 9-5.5 10-3-1-5.5-5-5.5-10z"/>' +
+  '<path d="M6.5 10.5h11c0 5-2.5 9-5.5 10-3-1-5.5-5-5.5-10z"/>' +
+  '<path class="w" d="M5 10.5C5 7 8 5 12 5s7 2 7 5.5z"/><path d="M5 10.5C5 7 8 5 12 5s7 2 7 5.5zM12 5V2.5"/>' +
+  '<path class="t" d="M8 8.3h8"/>';
+const DICE =
+  '<rect class="w" x="4" y="4" width="16" height="16" rx="3"/><rect x="4" y="4" width="16" height="16" rx="3"/>' +
+  '<circle class="f" cx="8.5" cy="8.5" r="1.2"/><circle class="f" cx="12" cy="12" r="1.2"/><circle class="f" cx="15.5" cy="15.5" r="1.2"/>';
+const BOAT =
+  '<path class="w" d="M3 14h18l-3 5H6z"/><path d="M3 14h18l-3 5H6zM12 14V3.5l6 8h-6"/>' +
+  '<path class="t" d="M2 21.5c2-1 4-1 6 0s4 1 6 0 4-1 6 0"/>';
+const BOOM =
+  '<path d="M3 20.5h18M3 20.5V3.5"/>' +
+  '<path class="w" d="M4 19.5c3-1 4-12 7-12s3 9 5 9 3-2 4-2v5z" stroke="none"/>' +
+  '<path d="M4 19.5c3-1 4-12 7-12s3 9 5 9 3-2 4-2"/>';
+const MANY_EGGS =
+  '<ellipse class="w" cx="7" cy="9" rx="2.4" ry="2.9"/><ellipse cx="7" cy="9" rx="2.4" ry="2.9"/>' +
+  '<ellipse class="w" cx="14" cy="7" rx="2.4" ry="2.9"/><ellipse cx="14" cy="7" rx="2.4" ry="2.9"/>' +
+  '<ellipse class="w" cx="10" cy="16" rx="2.4" ry="2.9"/><ellipse cx="10" cy="16" rx="2.4" ry="2.9"/>' +
+  '<ellipse class="w" cx="17.5" cy="14.5" rx="2.4" ry="2.9"/><ellipse cx="17.5" cy="14.5" rx="2.4" ry="2.9"/>';
+const GUARDED_EGG =
+  '<ellipse class="w" cx="12" cy="14" rx="4.3" ry="5.3"/><ellipse cx="12" cy="14" rx="4.3" ry="5.3"/>' +
+  '<path d="M3.5 13a8.5 8.5 0 0 1 17 0"/><path class="t" d="M6.5 8.5 5 6.5M17.5 8.5 19 6.5M12 4.5V2.5"/>';
+const BURROW =
+  '<path class="w" d="M3 19a9 9 0 0 1 18 0z"/><path d="M3 19a9 9 0 0 1 18 0M1.5 19h21"/>' +
+  '<path class="f" d="M9 19a3 3 0 0 1 6 0z"/>';
+const MICROBE =
+  '<circle class="w" cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="5"/>' +
+  '<path d="M12 2.5V7M12 17v4.5M2.5 12H7M17 12h4.5M5.3 5.3l3.2 3.2M15.5 15.5l3.2 3.2M5.3 18.7l3.2-3.2M15.5 8.5l3.2-3.2"/>' +
+  '<circle class="f" cx="10.5" cy="11" r=".9"/><circle class="f" cx="13.5" cy="13.2" r=".7"/>';
+
 const WAVES =
   '<path class="w" d="M2 10.5c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1.2V21H2z" stroke="none"/>' +
   '<path d="M2 10.5c2.5-2 5-2 7.5 0s5 2 7.5 0 3.5-1.5 5-1.2"/>' +
@@ -253,6 +287,23 @@ const ICONS: Record<string, string> = {
   'know:speciation': BRANCH,
   'know:extinction': METEOR,
   'know:milestone': AMMONITE,
+  'know:reserves': ACORN,
+  'know:rk': MANY_EGGS,
+  'know:variation': HELIX,
+  'know:drift': DICE,
+  'know:founder': BOAT,
+  'know:boom': BOOM,
+
+  // ---------- Waluty linii, strategie, zachowania, karty decyzji ----------
+  'ui:energy': BOLT,
+  'ui:gene': HELIX,
+  'strategy:r': MANY_EGGS,
+  'strategy:K': GUARDED_EGG,
+  'behavior:brak': SPROUT,
+  'behavior:zapasy': ACORN,
+  'behavior:ukrycie': BURROW,
+  'choice:island': BOAT,
+  'choice:disease': MICROBE,
 
   // ---------- Elementy interfejsu ----------
   'ui:brand': HELIX,

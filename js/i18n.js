@@ -38,6 +38,9 @@
       'lineage.migrateToWater': 'Wróć do wody',
 
       'species.title': 'Aktywna linia',
+      'tactics.title': 'Decyzje linii',
+      'tactics.strategy': 'Strategia rozrodu',
+      'tactics.behavior': 'Zachowanie w tej turze',
       'species.popOverTime': 'Populacja w czasie',
       'species.forecast': 'Prognoza następnej tury',
       'species.envTitle': 'Środowisko następnej tury',

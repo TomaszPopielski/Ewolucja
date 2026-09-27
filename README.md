@@ -5,7 +5,8 @@ inspirowana *Evolution: The Game of Intelligent Life* (1997).
 
 Poprowadź linię rozwojową zwierząt przez trzy ery — **paleozoik, mezozoik
 i kenozoik** — od prostego organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
-na cechy, dostosowuj się do zmiennego środowiska i ucz się, jak działa ewolucja.
+na cechy, gospodaruj **rezerwami energii** i **zmiennością genetyczną**, dostosowuj
+się do zmiennego środowiska i ucz się, jak działa ewolucja.
 
 > Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
 > mechanizmów, nie odwzorowaniu konkretnych gatunków. Pełne założenia
@@ -39,9 +40,16 @@ Vite i sam z pliku nie zadziała.
    ma koszt, efekty i **kompromis** — nic nie jest darmowe. Część kompromisów
    zależy od warunków (np. płetwy nie pomagają na lądzie, łuski utrudniają
    oddychanie przy niskim tlenie).
-3. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
+3. W panelu **„Decyzje linii”** gospodaruj dwiema walutami każdej linii
+   (patrz niżej): wybierz **strategię rozrodu** (r — dużo potomstwa,
+   K — mało, ale dobrze chronionego) i **zachowanie w turze** (gromadzenie
+   zapasów, ukrywanie się, intensywne żerowanie). Najedź na przycisk, by
+   zobaczyć skutek w prognozie. Co kilka tur pojawia się **karta decyzji**
+   (wyspa, nowy drapieżnik, zakwit, epidemia) — wybierz odpowiedź przed turą,
+   inaczej zadziała opcja domyślna.
+4. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
    rozród i mutacje, a raport wyjaśni, *co się stało i dlaczego*.
-4. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
+5. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
    w późniejszej erze). Warunki każdej tury są losowane wokół historycznych —
    sprawdzaj panel środowiska i prognozę przed decyzją.
    **Cel:** doprowadzić linię do progu inteligencji **i używania narzędzi**
@@ -51,6 +59,14 @@ Vite i sam z pliku nie zadziała.
    **układ nerwowy** (zwoje → mózg → rozbudowany mózg). Mózg jest jednak
    kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
    osobników to nie gatunek rozumny.
+
+### Trzy waluty
+
+| Waluta | Czyja | Skąd | Na co |
+|---|---|---|---|
+| **EP** (punkty ewolucji) | wspólna | przetrwanie, liczebność, wzrost, nisze, inteligencja | trwałe cechy |
+| **⚡ rezerwy energii** | każdej linii | nadwyżka energii z tury (magazyn ma limit, izolacja go powiększa) | migracja, zachowania w turze, część kart decyzji; w deficycie chronią przed głodem |
+| **🧬 zmienność genetyczna** | każdej linii | czas, duża populacja, mutacje; znika w wąskim gardle i katastrofie | specjacja, ukierunkowany dobór, odporność na epidemię; wysoka łagodzi wymierania |
 
 Zakończenia: **zwycięstwo** (inteligencja + narzędzia w żywotnej populacji),
 **przetrwanie** (gatunek przeżył wszystkie rozgrywane ery, ale bez rozumności)

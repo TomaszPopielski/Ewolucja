@@ -40,6 +40,9 @@
     btnSettings: $('btn-settings'), modalSettings: $('modal-settings'), settingsNote: $('settings-note'),
     btnSettingsClose: $('btn-settings-close'), btnSettingsX: $('btn-settings-x'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
+    choiceCard: $('choice-card'), resourceMeters: $('resource-meters'),
+    strategyButtons: $('strategy-buttons'), behaviorButtons: $('behavior-buttons'),
+    selectionToggle: $('selection-toggle'), selectionText: $('selection-text'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
     traits: $('traits-container'),
@@ -74,7 +77,7 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 5 && s.status === 'playing') ? s : null;
+      return (s && s.version === 6 && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -184,7 +187,7 @@
 
     var can = Engine.canSpeciate(DATA, state);
     el.btnSpeciate.disabled = !can.ok || state.status !== 'playing';
-    el.btnSpeciate.title = can.ok ? 'Rozdziel aktywną linię (koszt ' + Engine.speciationCost(DATA, state) + ' EP)' : can.error;
+    el.btnSpeciate.title = can.ok ? 'Rozdziel aktywną linię (koszt ' + Engine.speciationCost(DATA, state) + ' 🧬 zmienności)' : can.error;
 
     renderNicheButtons();
   }
@@ -204,7 +207,7 @@
       } else {
         var can = Engine.canMigrate(DATA, state, a, key);
         btn.disabled = !can.ok || state.status !== 'playing';
-        btn.title = can.ok ? 'Migruj do niszy: ' + cfg.label + ' (koszt ' + can.cost + ' EP, tura aklimatyzacji)' : can.error;
+        btn.title = can.ok ? 'Migruj do niszy: ' + cfg.label + ' (koszt ' + can.cost + ' ⚡ rezerw, tura aklimatyzacji)' : can.error;
         if (can.ok) btn.addEventListener('click', function () { onMigrateTo(key); });
       }
       el.nicheButtons.appendChild(btn);
@@ -213,7 +216,7 @@
   function onSelectLineage(id) {
     if (turnBusy) return;
     state = Engine.setActiveLineage(state, id); save();
-    renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); renderDiorama();
+    renderActiveLineage(); renderLineageBar(); renderTraits(); renderTactics(); renderForecast(); renderEnv(); renderDiorama();
   }
   function onMigrateTo(niche) {
     if (turnBusy) return;
@@ -221,7 +224,7 @@
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); renderDiorama(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderLineageBar(); renderTraits(); renderTactics(); renderForecast(); renderEnv(); renderDiorama(); updateUndoButton();
   }
 
   // ===================== Render — aktywna linia =====================
@@ -359,7 +362,7 @@
   function renderSparkline(lineage) { renderPopChart(el.sparkline, lineage, 92); }
 
   // ===================== Render — prognoza (co-jeśli) =====================
-  function renderForecast(previewTrait) {
+  function renderForecast(previewTrait, previewTactics) {
     var l = Engine.getActiveLineage(state);
     if (ART && ART.portrait && el.portrait) ART.portrait.preview(el.portrait, previewTrait ? previewTrait.id : null);
     var base = Engine.forecast(DATA, state, l);
@@ -369,7 +372,12 @@
     var html = '<div class="forecast-row"><span>Populacja</span><span class="fc ' + deltaClass + '">' +
       (base.delta >= 0 ? '+' : '') + base.delta + ' → ' + base.projectedPop + '</span></div>';
     html += '<div class="forecast-row"><span>Bilans energii</span><span class="fc ' +
-      (base.energy >= 0 ? 'pos' : 'neg') + '">' + base.energy + '</span></div>';
+      (base.energy >= 0 ? 'pos' : 'neg') + '">' + num(base.energy) + '</span></div>';
+    html += '<div class="forecast-row"><span>' + ENERGY + ' Rezerwy</span><span class="fc ' +
+      (base.reservesAfter >= base.reserves ? 'pos' : 'neg') + '">' + num(base.reserves) + ' → ' + num(base.reservesAfter) + '</span></div>';
+    if (base.diseaseDeaths) {
+      html += '<div class="forecast-row"><span>Straty z choroby</span><span class="fc neg">−' + base.diseaseDeaths + '</span></div>';
+    }
 
     if (previewTrait) {
       var withT = Engine.forecastWithTrait(DATA, state, l, previewTrait);
@@ -377,6 +385,17 @@
       html += '<div class="forecast-preview"><strong>Z cechą „' + escapeHtml(previewTrait.name) + '”:</strong> ' +
         'populacja ' + (withT.delta >= 0 ? '+' : '') + withT.delta +
         ' <span class="fc ' + (diff >= 0 ? 'pos' : 'neg') + '">(' + (diff >= 0 ? '+' : '') + diff + ')</span></div>';
+    }
+    if (previewTactics) {
+      var withTac = Engine.forecastWithTactics(DATA, state, l, previewTactics);
+      var dt = withTac.delta - base.delta;
+      html += '<div class="forecast-preview"><strong>' + escapeHtml(previewTactics.label) + ':</strong> ' +
+        'populacja ' + (withTac.delta >= 0 ? '+' : '') + withTac.delta +
+        ' <span class="fc ' + (dt >= 0 ? 'pos' : 'neg') + '">(' + (dt >= 0 ? '+' : '') + dt + ')</span>' +
+        ', rezerwy → ' + num(withTac.reservesAfter) + '</div>';
+    }
+    if (base.behaviorBlocked) {
+      html += '<div class="forecast-warn">Za mało rezerw na wybrane zachowanie — linia będzie żyła zwyczajnie.</div>';
     }
 
     if (base.acclimatizing) {
@@ -403,6 +422,124 @@
         DATA.MIN_VIABLE_POP + ' osobników): rozród słabnie, a każda strata może zakończyć linię.</div>';
     }
     el.forecastBody.innerHTML = html;
+  }
+
+  // Symbole walut linii (ikona SVG albo zapasowy znak).
+  var ENERGY = ico('ui:energy', '⚡', 'ico-energy'), GENE = ico('ui:gene', '🧬', 'ico-gene');
+  function num(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+
+  // ===================== Render — decyzje linii (⚡ rezerwy, 🧬 zmienność) =====================
+  function renderTactics() {
+    var l = Engine.getActiveLineage(state), playing = state.status === 'playing';
+    var cap = Engine.reservesCap(DATA, l), vcap = DATA.VARIATION.cap;
+    el.resourceMeters.innerHTML =
+      meter('energy', ENERGY + ' Rezerwy', 'Rezerwy energii', l.reserves, cap,
+        'Nadwyżki energii odkładane na chude tury. Pokrywają deficyt (do ' + num(DATA.RESERVES.drawMax) +
+        ' na turę); płacisz nimi za migrację i zachowania.') +
+      meter('gene', GENE + ' Zmienność', 'Zmienność genetyczna', l.variation, vcap,
+        'Rośnie z czasem i liczebnością, znika w wąskim gardle. Płacisz nią za specjację i ukierunkowany dobór; ' +
+        'od ' + DATA.VARIATION.shieldMin + ' w górę łagodzi katastrofy.');
+
+    el.strategyButtons.innerHTML = '';
+    Object.keys(DATA.STRATEGIES).forEach(function (key) {
+      var st = DATA.STRATEGIES[key];
+      var b = tacticButton(st, key === l.strategy, '', playing);
+      b.title = st.desc;
+      if (playing) {
+        b.addEventListener('click', function () { onSetStrategy(key); });
+        previewOn(b, { strategy: key, label: st.label });
+      }
+      el.strategyButtons.appendChild(b);
+    });
+
+    el.behaviorButtons.innerHTML = '';
+    Object.keys(DATA.BEHAVIORS).forEach(function (key) {
+      var bh = DATA.BEHAVIORS[key], can = Engine.canSetBehavior(DATA, l, key);
+      var b = tacticButton(bh, key === (l.behavior || 'brak'), bh.cost ? bh.cost + ' ' + ENERGY : '', playing && can.ok);
+      b.title = bh.desc + (can.ok ? '' : ' — ' + can.error);
+      if (playing && can.ok) {
+        b.addEventListener('click', function () { onSetBehavior(key); });
+        previewOn(b, { behavior: key, label: bh.label });
+      }
+      el.behaviorButtons.appendChild(b);
+    });
+
+    var V = DATA.VARIATION;
+    el.selectionToggle.checked = !!l.selection;
+    el.selectionToggle.disabled = !playing || (!l.selection && l.variation < V.selectionCost);
+    el.selectionText.innerHTML = '<strong>Ukierunkowany dobór</strong> (' + V.selectionCost + ' ' + GENE + ' na turę): ' +
+      'częstsze i częściej korzystne mutacje — silny dobór zużywa zmienność.';
+
+    renderChoiceCard();
+  }
+  function meter(kind, label, fullLabel, value, max, hint) {
+    var pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return '<div class="res-meter res-' + kind + '" title="' + escapeHtml(fullLabel + ': ' + hint) + '">' +
+      '<span class="res-name">' + label + '</span>' +
+      '<span class="res-bar" role="meter" aria-valuemin="0" aria-valuemax="' + max + '" aria-valuenow="' + value + '" aria-label="' + escapeHtml(fullLabel) + '">' +
+      '<span class="res-fill" style="width:' + pct + '%"></span></span>' +
+      '<span class="res-num">' + num(value) + ' / ' + max + '</span></div>';
+  }
+  function tacticButton(item, active, cost, enabled) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tactic-btn' + (active ? ' current' : '');
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    b.disabled = !enabled;
+    b.innerHTML = ico(item.art, '<span aria-hidden="true">' + item.icon + '</span>') + ' ' + escapeHtml(item.label) +
+      (cost ? ' <span class="tactic-cost">' + cost + '</span>' : '');
+    return b;
+  }
+  function previewOn(b, tactics) {
+    b.addEventListener('mouseenter', function () { renderForecast(null, tactics); });
+    b.addEventListener('mouseleave', function () { renderForecast(); });
+    b.addEventListener('focus', function () { renderForecast(null, tactics); });
+    b.addEventListener('blur', function () { renderForecast(); });
+  }
+  // Karta decyzji — dotyczy konkretnej linii (niekoniecznie aktywnej).
+  function renderChoiceCard() {
+    var pc = state.pendingChoice;
+    if (!pc || state.status !== 'playing') { el.choiceCard.hidden = true; el.choiceCard.innerHTML = ''; return; }
+    var ev = Engine.choiceEvent(DATA, pc.eventId), l = Engine.getLineage(state, pc.lineageId);
+    if (!ev || !l) { el.choiceCard.hidden = true; return; }
+    var def = Engine.defaultOption(ev);
+    el.choiceCard.hidden = false;
+    el.choiceCard.innerHTML = '<div class="choice-head"><span class="choice-icon" aria-hidden="true">' + ico(ev.art, ev.icon) + '</span>' +
+      '<div><strong>' + escapeHtml(ev.name) + '</strong><div class="choice-target">Linia: ' + escapeHtml(l.name) + '</div></div></div>' +
+      '<p class="choice-desc">' + escapeHtml(ev.desc) + '</p><div class="choice-options"></div>' +
+      '<p class="choice-default">Bez wyboru: „' + escapeHtml(def.label) + '”.</p>';
+    var box = el.choiceCard.querySelector('.choice-options');
+    ev.options.forEach(function (o) {
+      var can = Engine.canChoose(DATA, state, o.id);
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice-option';
+      b.disabled = !can.ok || turnBusy;
+      b.innerHTML = '<strong>' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+        (can.ok ? '' : '<span class="choice-block">' + escapeHtml(can.error) + '</span>');
+      if (can.ok) b.addEventListener('click', function () { onChoose(o.id); });
+      box.appendChild(b);
+    });
+  }
+  function applyAction(res) {
+    if (!res.ok) { flash(res.error); return false; }
+    pushUndo(); state = res.state; save();
+    return true;
+  }
+  function onSetStrategy(key) {
+    if (turnBusy) return;
+    if (applyAction(Engine.setStrategy(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
+  }
+  function onSetBehavior(key) {
+    if (turnBusy) return;
+    if (applyAction(Engine.setBehavior(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
+  }
+  function onToggleSelection() {
+    if (turnBusy || !applyAction(Engine.setSelection(DATA, state, state.activeLineageId, el.selectionToggle.checked))) { renderTactics(); return; }
+    renderTactics(); renderForecast(); updateUndoButton();
+  }
+  function onChoose(optionId) {
+    if (turnBusy) return;
+    if (applyAction(Engine.resolveChoice(DATA, state, optionId))) renderAll();
   }
 
   function effectsText(effects) {
@@ -560,7 +697,7 @@
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); renderDiorama(); updateUndoButton();
+    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderTactics(); renderForecast(); renderDiorama(); updateUndoButton();
   }
   function onSpeciate() {
     if (turnBusy) return;
@@ -568,7 +705,7 @@
     if (!can.ok) { flash(can.error); return; }
     var base = Engine.getActiveLineage(state).name;
     el.speciateHint.textContent = 'Rozdzielasz „' + base + '” na dwie gałęzie (koszt ' + Engine.speciationCost(DATA, state) +
-      ' EP). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie — możesz wysłać ją w inną niszę.';
+      ' 🧬 zmienności). Populacja podzieli się na pół, a nowa gałąź będzie ewoluować niezależnie — możesz wysłać ją w inną niszę.';
     el.speciateName.value = base + ' II';
     openModal(el.modalSpeciate); el.speciateName.focus(); el.speciateName.select();
   }
@@ -634,7 +771,7 @@
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
-    renderActiveLineage(); renderForecast(); renderEnv(); renderDiorama(); renderTraits(); updateUndoButton();
+    renderActiveLineage(); renderTactics(); renderForecast(); renderEnv(); renderDiorama(); renderTraits(); updateUndoButton();
     el.btnSimulate.disabled = (state.status !== 'playing');
   }
 
@@ -652,6 +789,13 @@
       el.reportEvent.hidden = false;
       el.reportEvent.innerHTML = ico('ui:sprout', '🍀') + ' ' + escapeHtml(report.event.name + ' — ' + report.event.desc);
     } else el.reportEvent.hidden = true;
+    if (report.choice) {
+      var ch = report.choice, cev = Engine.choiceEvent(DATA, ch.eventId);
+      var chHtml = (cev ? ico(cev.art, cev.icon) : '') + ' ' + escapeHtml(ch.name) + ' (' + escapeHtml(ch.lineageName) +
+        '): wybrano „' + escapeHtml(ch.option) + '”' + (ch.colonyName ? ' — powstała linia „' + escapeHtml(ch.colonyName) + '”' : '') + '.';
+      el.reportEvent.hidden = false;
+      el.reportEvent.innerHTML = (report.event ? el.reportEvent.innerHTML + '<br>' : '') + chHtml;
+    }
 
     el.reportBody.innerHTML = '';
     var multi = report.lineReports.length > 1;
@@ -672,7 +816,13 @@
       if (lr.predationDeaths > 0) block.appendChild(line('Straty od drapieżników', '-' + lr.predationDeaths, 'neg', 'know:predation'));
       if (lr.starvationDeaths > 0) block.appendChild(line('Straty z głodu', '-' + lr.starvationDeaths, 'neg', 'know:starvation'));
       if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos', 'ui:sprout'));
+      if (lr.diseaseDeaths > 0) block.appendChild(line('Straty z choroby', '-' + lr.diseaseDeaths, 'neg'));
       if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
+      if (lr.reservesBefore != null) {
+        block.appendChild(line(ENERGY + ' Rezerwy energii', num(lr.reservesBefore) + ' → ' + num(lr.reservesAfter),
+          lr.reservesAfter >= lr.reservesBefore ? 'pos' : 'neg'));
+        block.appendChild(line(GENE + ' Zmienność genetyczna', String(lr.variationAfter), 'plain'));
+      }
       block.appendChild(line('Inteligencja', lr.intelligence + ' / ' + report.intelligenceGoal, 'plain', 'trait:brain'));
       // Rozbicie EP tej linii (skąd punkty).
       if (lr.epGain > 0) {
@@ -709,7 +859,7 @@
   }
   function knowledgeCard(key, k) {
     var card = document.createElement('div'); card.className = 'knowledge-card';
-    card.innerHTML = (ART ? ico('know:' + key, '') : '') +
+    card.innerHTML = (ART ? (ico('know:' + key, '') || '<span class="ico" aria-hidden="true">' + (k.icon || '💡') + '</span>') : '') +
       '<h4>' + (ART ? '' : (k.icon || '💡') + ' ') + k.title + '</h4><p>' + k.body + '</p>' +
       (k.fossil ? '<p class="knowledge-fossil">' + ico('ui:fossil', '🦴') + ' ' + T('codex.fossil') + k.fossil + '</p>' : '');
     return card;
@@ -905,6 +1055,8 @@
       L.push('  • ' + l.name + ' — ' + (l.alive ? 'żywa' : 'wymarła') +
         ', nisza: ' + DATA.NICHES[l.niche].label +
         ', inteligencja: ' + l.stats.intelligence +
+        ', strategia: ' + (DATA.STRATEGIES[l.strategy] || DATA.STRATEGIES.zrownowazona).label +
+        ', rezerwy: ' + num(l.reserves || 0) + ' ⚡, zmienność: ' + (l.variation || 0) + ' 🧬' +
         ', cechy: ' + (l.traits.length ? l.traits.map(traitName).join(', ') : 'brak'));
     });
     L.push('', 'Odkryte pojęcia: ' + state.unlockedKnowledge.map(function (k) {
@@ -985,10 +1137,12 @@
       : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
     return [
     { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i używania narzędzi ' + span + ', utrzymując żywotną populację (co najmniej ' + DATA.WIN_MIN_POP + ' osobników).' },
-    { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
+    { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na trwałe cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
     { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe {meteor}. Migracja kosztuje EP i turę aklimatyzacji.' }
+    { title: 'Rezerwy i zmienność', text: 'Każda linia ma dwie własne waluty. ⚡ Rezerwy energii to odłożone nadwyżki pokarmu — ratują przed głodem, płacisz nimi za migrację i zachowania w turze. 🧬 Zmienność genetyczna rośnie z liczebnością i znika w wąskim gardle — płacisz nią za specjację i ukierunkowany dobór, a wysoka łagodzi katastrofy.' },
+    { title: 'Decyzje linii', text: 'W panelu „Decyzje linii” wybierasz strategię rozrodu (r — dużo potomstwa, K — mało, ale dobrze chronionego) i zachowanie w najbliższej turze. Najedź na przycisk, by zobaczyć skutek w prognozie. Czasem pojawi się karta decyzji — zdarzenie, na które odpowiadasz przed turą.' },
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda ma inny pokarm i zagrożenia — dywersyfikacja pomaga przetrwać wymierania masowe {meteor}. Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
     ];
   }
   var tutorialSteps = [];
@@ -1054,6 +1208,7 @@
     el.btnSimulate.addEventListener('click', onSimulate);
     el.btnUndo.addEventListener('click', onUndo);
     el.btnSpeciate.addEventListener('click', onSpeciate);
+    el.selectionToggle.addEventListener('change', onToggleSelection);
     el.btnTree.addEventListener('click', showTree);
     el.btnReportClose.addEventListener('click', onReportClose);
     el.btnCodex.addEventListener('click', showCodex);

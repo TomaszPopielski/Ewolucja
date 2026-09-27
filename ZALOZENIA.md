@@ -81,6 +81,13 @@ Każdy gatunek gracza opisują atrybuty:
 - Cechy mają **warunki wstępne** (drzewo zależności) — np. „pióra" wymagają wcześniej „łusek" i „stałocieplności".
 - Każda cecha ma **koszt** i **kompromis (trade-off)** — nic nie jest darmowe (np. duży rozmiar = lepsza obrona, ale wyższy metabolizm).
 
+### 4.2a. Waluty linii i decyzje taktyczne
+Oprócz EP (trwałe cechy) każda linia ma dwie własne waluty o krótszym horyzoncie:
+- **⚡ Rezerwy energii** — nadwyżka energii odkładana na chude tury; deficyt najpierw je zużywa. Płaci się nimi za **migrację** (wędrówka to wydatek energii) i **zachowania w turze** (ukrywanie się, intensywne żerowanie; gromadzenie zapasów jest darmowe, ale kosztem potomstwa). Uczą budżetu energetycznego.
+- **🧬 Zmienność genetyczna** — rośnie z czasem i liczebnością, maleje w wąskim gardle i katastrofie (dryf genetyczny). Płaci się nią za **specjację** (nowy gatunek wymaga zmienności) i **ukierunkowany dobór** (silny dobór zużywa zmienność); wysoka zmienność łagodzi katastrofy. Uczy, że zmienność to paliwo doboru.
+- **Strategia rozrodu r/K** — przełącznik bez kosztu, czysty kompromis między liczbą a przeżywalnością potomstwa.
+- **Karty decyzji** — zdarzenia z wyborem (wyspa i efekt założyciela, nowy drapieżnik i wyścig zbrojeń, zakwit i boom z załamaniem, epidemia i odporność) obok losowych zdarzeń pozytywnych; bez wyboru działa opcja domyślna.
+
 ### 4.3. Środowisko i presja selekcyjna
 Parametry epoki, które modyfikują skuteczność cech:
 - **Klimat** (zlodowacenia ↔ okresy ciepłe).

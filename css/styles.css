@@ -23,6 +23,8 @@
   --danger: #a13a28;       /* czerwień marzanny */
   --good: #3d6b4e;
   --ep: #6a4c93;           /* fiolet atramentu */
+  --energy: #a8741a;       /* ⚡ rezerwy energii — bursztyn */
+  --gene: #2f7a80;         /* 🧬 zmienność genetyczna — morski błękit */
 
   /* Tony kategorii cech (src/art/palette.ts → CATEGORY_WASH) */
   --wash-pokarm: #8fa85a;
@@ -64,6 +66,8 @@
     --danger: #e58a74;
     --good: #82b592;
     --ep: #b59be0;
+    --energy: #e0b454;
+    --gene: #6cc3c9;
     --wash-opacity: .55;
     --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 8px 22px -12px rgba(0, 0, 0, .7);
     --paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .95  0 0 0 0 .85  0 0 0 .035 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
@@ -318,6 +322,54 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 /* Nisza i prognoza */
 .species-niche { font-size: .85rem; color: var(--ink-soft); margin: -6px 0 12px; }
 .species-niche strong { color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
+/* Decyzje linii: zasoby, strategia, zachowanie, karta decyzji */
+.tactics-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+.tactics-title { font-family: var(--serif); font-size: 1rem; margin: 0 0 8px; }
+.resource-meters { display: grid; gap: 6px; margin-bottom: 10px; }
+.res-meter { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; align-items: center; gap: 8px; font-size: .84rem; }
+.res-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-bar { height: 8px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--bg-panel); overflow: hidden; }
+.res-fill { display: block; height: 100%; transition: width .3s ease; }
+.res-energy .res-fill { background: var(--energy); }
+.res-gene .res-fill { background: var(--gene); }
+.res-num { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 4.5em; text-align: right; }
+.tactic-group { margin-bottom: 8px; }
+.tactic-label { display: block; font-size: .78rem; color: var(--ink-soft); margin-bottom: 4px; }
+.tactic-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.tactic-btn {
+  font: inherit; font-size: .8rem; cursor: pointer; color: var(--ink);
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 16px; padding: 3px 9px;
+}
+.tactic-btn:hover:not(:disabled) { border-color: var(--line-strong); }
+.tactic-btn.current { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); font-weight: 600; }
+.tactic-btn:disabled:not(.current) { opacity: .45; cursor: not-allowed; }
+.tactic-cost { font-size: .72rem; color: var(--energy); font-weight: 700; }
+.ico-energy { color: var(--energy); --wash: var(--energy); }
+.ico-gene { color: var(--gene); --wash: var(--gene); }
+.choice-icon .ico { font-size: 1.6rem; }
+.tactic-toggle { display: flex; gap: 8px; align-items: flex-start; font-size: .78rem; color: var(--ink-soft); cursor: pointer; }
+.tactic-toggle input { margin-top: 2px; accent-color: var(--gene); }
+.tactic-toggle strong { color: var(--ink); }
+.choice-card {
+  border: 1px solid var(--accent); border-left-width: 4px; border-radius: 8px;
+  background: var(--bg-panel); padding: 8px 10px; margin-bottom: 10px;
+}
+.choice-head { display: flex; gap: 8px; align-items: center; }
+.choice-icon { font-size: 1.4rem; }
+.choice-target { font-size: .76rem; color: var(--ink-soft); }
+.choice-desc { font-size: .82rem; margin: 6px 0; }
+.choice-options { display: grid; gap: 5px; }
+.choice-option {
+  font: inherit; text-align: left; cursor: pointer; color: var(--ink);
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+  display: grid; gap: 2px; font-size: .8rem;
+}
+.choice-option:hover:not(:disabled) { border-color: var(--accent); }
+.choice-option:disabled { opacity: .5; cursor: not-allowed; }
+.choice-option span { color: var(--ink-soft); }
+.choice-option .choice-block { color: var(--danger); font-weight: 600; }
+.choice-default { font-size: .74rem; color: var(--ink-soft); margin: 6px 0 0; }
+
 .forecast-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
 /* Stała minimalna wysokość — podgląd „co-jeśli” nie przesuwa przycisków. */
 .forecast-body { min-height: 74px; }

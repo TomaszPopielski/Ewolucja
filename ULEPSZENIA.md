@@ -27,6 +27,21 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > na pięć cech w sześć tur, więc jego wynik jest bardzo czuły na startowe EP.
 >
 > Przed etapem 2 stały plan wygrywał 100% gier na normalnym, a „Epoki lodowcowe” 100%.
+>
+> **Etap „waluty linii”** — obok EP każda linia ma ⚡ rezerwy energii i 🧬 zmienność
+> genetyczną; doszły strategie rozrodu r/K, zachowania w turze, ukierunkowany
+> dobór i karty decyzji. Migracja kosztuje teraz ⚡ (nie EP), specjacja 🧬 (nie EP).
+> Po przekalibrowaniu (EP bazowe 9, normalny 34 EP na start) balans wygląda tak:
+>
+> | Gracz | Łatwy | Normalny | Trudny | Epoki lodowcowe |
+> |---|---|---|---|---|
+> | stały plan „kup wszystko” | 1 | 0 | 0 | — |
+> | stały plan: tylko ścieżka ⭐ | 0 | 0 | 0 | 27 |
+> | prognoza, bez nowych decyzji | 99 | 49 | 12 | 0 |
+> | prognoza + strategie, zachowania, karty („tactics”) | 99 | 71 | 35 | 0 |
+>
+> Test `balans: nowe decyzje mają znaczenie` pilnuje, żeby gracz korzystający
+> z nowych decyzji wygrywał wyraźnie częściej, ale nie zawsze.
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
