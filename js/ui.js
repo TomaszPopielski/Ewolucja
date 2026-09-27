@@ -29,6 +29,10 @@
     scenarioCards: $('scenario-cards'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
     epAfford: $('ep-afford'), statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
+    statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'),
+    endScoreTotal: $('end-score-total'), endScoreParts: $('end-score-parts'), endAch: $('end-ach'), btnPlaySame: $('btn-play-same'),
+    modalOutlook: $('modal-outlook'), outlookReasons: $('outlook-reasons'), btnOutlookContinue: $('btn-outlook-continue'),
+    btnOutlookUndo: $('btn-outlook-undo'), btnOutlookEnd: $('btn-outlook-end'),
     timeline: $('era-timeline'),
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
@@ -98,7 +102,10 @@
   }
 
   function newGame(speciesName, opts) {
-    state = Engine.createInitialState(DATA, speciesName, opts || {});
+    opts = Object.assign({}, opts || {});
+    // Kod świata: podany przez gracza albo nowy, losowy.
+    if (!opts.seed) opts.seed = Engine.normalizeSeed(el.worldSeed && el.worldSeed.value) || Engine.randomSeed();
+    state = Engine.createInitialState(DATA, speciesName, opts);
     undoStack = [];
     save();
     showScreen('game');
@@ -122,7 +129,7 @@
       card.innerHTML = '<span class="scenario-icon">' + ico('scenario:' + sc.id, sc.icon) + '</span>' +
         (thumb ? '<img class="scenario-thumb" alt="" src="' + thumb + '">' : '') +
         '<span class="scenario-name">' + sc.name + '</span>' +
-        '<span class="scenario-diff">' + diff.label + ' · cel: int. ' + (sc.goal != null ? sc.goal : diff.goal) + ' + narzędzia</span>' +
+        '<span class="scenario-diff">' + diff.label + ' · cel: int. ' + (sc.goal != null ? sc.goal : diff.goal) + ' + kultura</span>' +
         '<span class="scenario-intro">' + sc.intro + '</span>';
       card.addEventListener('click', function () {
         newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
@@ -145,6 +152,7 @@
     el.epAfford.textContent = state.status !== 'playing' ? '' :
       (afford ? 'stać Cię na ' + afford + ' ' + plural(afford, 'cechę', 'cechy', 'cech') : 'na razie nic do kupienia');
     el.statusChoice.hidden = !(state.pendingChoice && state.status === 'playing');
+    el.statusOutlook.hidden = !(state.status === 'playing' && !Engine.victoryOutlook(DATA, state).possible);
   }
   function plural(n, one, few, many) {
     if (n === 1) return one;
@@ -182,18 +190,45 @@
 
   // ===================== Render — oś czasu =====================
   function renderTimeline() {
-    var era = Engine.currentEra(DATA, state);
+    // Oś czasu pokazuje tylko to, co gracz może wiedzieć: minione i zapowiedziane
+    // katastrofy, stałe wymierania historyczne i „?” w oknie przesuwanego wymierania.
     el.timeline.innerHTML = '';
-    era.turns.forEach(function (t, i) {
+    Engine.eraTimeline(DATA, state).forEach(function (t, i) {
       var step = document.createElement('div');
       step.className = 'era-step';
       if (i < state.turn) step.classList.add('done');
       if (i === state.turn) step.classList.add('current');
       if (t.catastrophe) step.classList.add('catastrophe');
-      step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '');
-      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? ico('ui:meteor', '☄️') : '') + '</span>' +
-        t.title.split(' — ')[0];
+      if (t.maybe) step.classList.add('maybe');
+      step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '') +
+        (t.maybe ? ' — możliwe: ' + t.maybe + ' (jedna z zaznaczonych tur)' : '');
+      step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? ico('ui:meteor', '☄️') : '') +
+        (t.maybe ? '<span class="era-maybe" aria-hidden="true">?</span>' : '') + '</span>' + t.title.split(' — ')[0];
       el.timeline.appendChild(step);
+    });
+  }
+  // Cele bieżącej ery i kod świata.
+  function renderEraInfo() {
+    if (!el.eraInfo) return;
+    var goals = (state.eraGoals || []).filter(function (g) { return g.era === Math.min(state.eraIndex, DATA.ERAS.length - 1); });
+    var html = '';
+    if (goals.length) {
+      html += '<span class="era-info-label">' + ico('ui:target', '🎯') + ' Cele ery:</span>' + goals.map(function (g) {
+        var d = Engine.goalDef(DATA, g.id); if (!d) return '';
+        var mark = g.status === 'done' ? ico('ui:check', '✓') : (g.status === 'failed' ? ico('ui:close', '✗') : '○');
+        return '<span class="era-goal ' + g.status + '" title="' + escapeHtml(d.desc) + '">' + mark + ' ' + escapeHtml(d.label) +
+          ' <em>+' + d.reward + ' EP</em></span>';
+      }).join('');
+    }
+    if (state.seed) {
+      html += '<span class="world-code">Kod świata: <strong>' + escapeHtml(state.seed) + '</strong>' +
+        ' <button type="button" class="btn-link" id="btn-copy-seed">kopiuj</button></span>';
+    }
+    el.eraInfo.innerHTML = html;
+    el.eraInfo.hidden = !html;
+    var cp = document.getElementById('btn-copy-seed');
+    if (cp) cp.addEventListener('click', function () {
+      try { navigator.clipboard.writeText(state.seed).then(function () { cp.textContent = 'skopiowano ✓'; }); } catch (e) { cp.textContent = state.seed; }
     });
   }
 
@@ -308,21 +343,21 @@
     return DATA.ERAS.map(function (e) { var b = { name: e.name, id: e.id, start: acc, end: acc + e.turns.length }; acc += e.turns.length; return b; })
       .filter(function (b) { return b.end > t0; });
   }
+  // Katastrofy, które już się wydarzyły (kalendarz świata jest losowy — przyszłych nie zdradzamy).
   function catastropheTurns() {
-    var out = [], acc = 0;
-    DATA.ERAS.forEach(function (e) {
-      e.turns.forEach(function (t, i) { if (t.catastrophe) out.push({ x: acc + i + 1, name: t.catastrophe.name }); });
-      acc += e.turns.length;
-    });
-    var t0 = gameStartT();
-    return out.filter(function (c) { return c.x > t0; });
+    var t0 = gameStartT(), out = [];
+    (state.history || []).forEach(function (r, i) { if (r.catastrophe) out.push({ x: t0 + i + 1, name: r.catastrophe.name }); });
+    return out;
   }
   // Etykieta punktu osi: x = liczba przeżytych tur od początku gry.
   function turnLabel(x) {
     if (x <= 0) return 'Start';
     var acc = 0, label = 'Tura ' + x;
     DATA.ERAS.forEach(function (e) {
-      if (x - 1 >= acc && x - 1 < acc + e.turns.length) label += ' · ' + e.turns[x - 1 - acc].title.split(' — ')[0];
+      if (x - 1 >= acc && x - 1 < acc + e.turns.length) {
+        var tb = Engine.turnBase(DATA, state, DATA.ERAS.indexOf(e), x - 1 - acc);
+        label += ' · ' + (tb ? tb.title : e.turns[x - 1 - acc].title).split(' — ')[0];
+      }
       acc += e.turns.length;
     });
     return label;
@@ -459,8 +494,13 @@
         '. Przewidywane straty: ok. ' + base.catastropheLoss + '% populacji' +
         (base.survivalReasons.length ? ' (pomaga: ' + escapeHtml(base.survivalReasons.join('; ')) + ')' : '') + '.</div>';
     }
+    Engine.cultureNicheBlocked(state, DATA).forEach(function (b) {
+      html += '<div class="forecast-warn">' + ico('ui:target', '🎯') + ' ' + escapeHtml(b.name) + ': ' + escapeHtml(b.path.label) +
+        ' nie działa w niszy „' + escapeHtml(nicheLabel(Engine.getLineage(state, b.lineageId).niche)) + '” — przenieś linię: ' +
+        b.path.niches.map(nicheLabel).join(' lub ') + '.</div>';
+    });
     if (Engine.goalBlockedByPopulation(state, DATA)) {
-      html += '<div class="forecast-warn">' + ico('ui:target', '🎯') + ' Inteligencja i narzędzia są, ale do zwycięstwa potrzeba co najmniej ' +
+      html += '<div class="forecast-warn">' + ico('ui:target', '🎯') + ' Inteligencja i kultura są, ale do zwycięstwa potrzeba co najmniej ' +
         DATA.WIN_MIN_POP + ' osobników w tej linii — odbuduj populację.</div>';
     }
     if (base.critical) {
@@ -609,7 +649,7 @@
     var a = Engine.getActiveLineage(state);
     var cfg = DATA.NICHES[a.niche];
     // Warunki tej tury (wylosowane) i typowe dla epoki — różnica pokazuje zmienność środowiska.
-    var typical = DATA.ERAS[state.eraIndex].turns[state.turn];
+    var typical = Engine.turnBase(DATA, state, state.eraIndex, state.turn);
     var nicheEnv = nicheEnvFor(env, a.niche), typEnv = nicheEnvFor(typical, a.niche);
     function dev(v, t) {
       var d = Math.round(v) - Math.round(t);
@@ -624,8 +664,23 @@
     if (env.catastrophe) {
       el.envCatastrophe.hidden = false;
       var cn = env.catastrophe.niche === 'all' ? 'wszystkich' : DATA.NICHES[env.catastrophe.niche].label;
-      el.envCatastrophe.innerHTML = ico('ui:meteor', '☄️') + ' ' + escapeHtml(env.catastrophe.name) + ' — niszczy niszę ' + cn + '!';
+      el.envCatastrophe.innerHTML = ico('ui:meteor', '☄️') + ' ' + (env.catastrophe.regional ? 'Katastrofa regionalna: ' : '') +
+        escapeHtml(env.catastrophe.name) + ' — niszczy niszę ' + cn + '!' +
+        (env.catastrophe.note ? ' <span class="env-cat-note">' + escapeHtml(env.catastrophe.note) + '</span>' : '');
     } else el.envCatastrophe.hidden = true;
+    renderThreat(el.envThreat, Engine.upcomingThreat(DATA, state));
+  }
+  // Zapowiedź katastrofy w następnej turze — czas, by przenieść linię lub odłożyć zapasy.
+  function threatHtml(th) {
+    return ico('ui:hourglass', '⏳') + ' <strong>Zapowiedź na następną turę' + (th.newEra ? ' (' + escapeHtml(th.newEra) + ')' : '') + ':</strong> ' +
+      (th.regional ? 'katastrofa regionalna — ' : '') + escapeHtml(th.name) + ', uderzy ' +
+      (th.niche === 'all' ? 'we wszystkie nisze' : 'w niszę „' + escapeHtml(nicheLabel(th.niche)) + '”') + '.' +
+      (th.note ? ' ' + escapeHtml(th.note) : '');
+  }
+  function renderThreat(node, th) {
+    if (!node) return;
+    node.hidden = !th;
+    node.innerHTML = th ? threatHtml(th) : '';
   }
   function nicheEnvFor(env, niche) {
     var cfg = DATA.NICHES[niche];
@@ -820,7 +875,7 @@
     };
   }
   function renderAll() {
-    renderStatus(); renderTimeline(); renderLineageBar();
+    renderStatus(); renderTimeline(); renderEraInfo(); renderLineageBar();
     renderActiveLineage(); renderTactics(); renderForecast(); renderEnv(); renderDiorama(); renderTraits(); updateUndoButton();
     el.btnSimulate.disabled = (state.status !== 'playing');
   }
@@ -896,6 +951,11 @@
     if (report.epGrowth) sum.appendChild(line('EP za wzrost populacji', '+' + report.epGrowth, 'pos'));
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
     if (report.epIntel) sum.appendChild(line('Premia za inteligencję (najlepsza linia)', '+' + report.epIntel, 'pos'));
+    if (report.epRadiation) sum.appendChild(line('Premia za różnorodność nisz (radiacja)', '+' + report.epRadiation, 'pos'));
+    (report.goals || []).forEach(function (g) {
+      sum.appendChild(line((g.status === 'done' ? ico('ui:check', '✓') + ' Cel ery: ' : ico('ui:close', '✗') + ' Cel ery nieosiągnięty: ') + escapeHtml(g.label),
+        g.status === 'done' ? '+' + g.reward : '—', g.status === 'done' ? 'pos' : 'neg'));
+    });
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
     // Koewolucja — tylko gdy presja drapieżników wyraźnie się zmieniła (bez powtarzania co turę).
     var pd = report.predatorDelta || 0;
@@ -904,6 +964,10 @@
         ' (' + (pd > 0 ? '+' : '') + num(pd) + ')', pd > 0 ? 'neg' : 'pos'));
     }
     el.reportBody.appendChild(sum);
+    if (report.threat && state.status === 'playing') {
+      var th = document.createElement('div'); th.className = 'report-threat'; th.innerHTML = threatHtml(report.threat);
+      el.reportBody.appendChild(th);
+    }
 
     // Nowe pojęcia — pełne karty; znane — tylko zwinięte przypomnienie.
     el.reportKnowledge.innerHTML = '';
@@ -941,7 +1005,26 @@
     d.innerHTML = '<span class="report-label">' + (icon ? ico(icon, '') + ' ' : '') + label + '</span><span class="' + cls + '">' + value + '</span>';
     return d;
   }
-  function onReportClose() { closeModal(el.modalReport); if (state.status !== 'playing') showEnd(); }
+  function onReportClose() {
+    closeModal(el.modalReport);
+    if (state.status !== 'playing') { showEnd(); return; }
+    maybeShowOutlook();
+  }
+  // Uczciwy sygnał: gdy zwycięstwo jest już niemożliwe, gra mówi to od razu (raz na partię).
+  function maybeShowOutlook() {
+    if (state.outlookSeen) return;
+    var o = Engine.victoryOutlook(DATA, state);
+    if (o.possible) return;
+    el.outlookReasons.innerHTML = o.reasons.map(function (r) { return '<li>' + escapeHtml(r) + '</li>'; }).join('');
+    el.btnOutlookUndo.hidden = !undoStack.length;
+    openModal(el.modalOutlook);
+  }
+  function onOutlookContinue() { state.outlookSeen = true; save(); closeModal(el.modalOutlook); renderStatus(); }
+  function onOutlookUndo() { closeModal(el.modalOutlook); onUndo(); }
+  function onOutlookEnd() {
+    closeModal(el.modalOutlook);
+    state = Engine.concede(DATA, state); renderAll(); showEnd();
+  }
 
   // ===================== Drzewo życia =====================
   function showTree() {
@@ -1038,9 +1121,11 @@
         : (state.endReason === 'nonviable' ? 'Populacja nie przetrwała' : 'Wszystkie linie wygasły'));
     el.endSummary.textContent =
       s === 'won'
-        ? 'Jedna z Twoich linii osiągnęła próg inteligencji i zaczęła używać narzędzi — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.'
+        ? (state.winPath === 'sound'
+          ? 'Jedna z Twoich linii osiągnęła próg inteligencji i stworzyła kulturę akustyczną — jak delfiny i walenie: imiona, pieśni i tradycje przekazywane przez naukę. Rozum nie potrzebuje rąk.'
+          : 'Jedna z Twoich linii osiągnęła próg inteligencji i zaczęła używać narzędzi — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.')
         : s === 'survived' && Engine.goalBlockedByPopulation(state, DATA)
-        ? 'Twoja linia osiągnęła próg inteligencji i używa narzędzi, ale jest zbyt nieliczna (poniżej ' + DATA.WIN_MIN_POP + ' osobników), by dać początek kulturze. Rozum to za mało — potrzebny jest też żywotny gatunek.'
+        ? 'Twoja linia osiągnęła próg inteligencji i ma kulturę, ale jest zbyt nieliczna (poniżej ' + DATA.WIN_MIN_POP + ' osobników), by dać początek kulturze. Rozum to za mało — potrzebny jest też żywotny gatunek.'
         : s === 'survived'
         ? 'Twoje linie przetrwały ' + eraList(Engine.playedEras(DATA, state)) + ', ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce oznaczonej gwiazdką.'
         : state.endReason === 'nonviable'
@@ -1052,8 +1137,40 @@
     endStat('Szczytowa łączna populacja', state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0));
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
+    var goalsAll = state.eraGoals || [];
+    if (goalsAll.length) endStat('Cele er', goalsAll.filter(function (g) { return g.status === 'done'; }).length + ' / ' + goalsAll.length);
+    if (state.seed) endStat('Kod świata', escapeHtml(state.seed));
+    renderEndScore();
     showScreen('end');
     renderEndStory(s);
+  }
+  // Wynik punktowy, rekord scenariusza i osiągnięcia (zapisywane między partiami).
+  var ACH_KEY = 'ewolucja.achievements', BEST_KEY = 'ewolucja.best';
+  function readJson(key, def) { try { return JSON.parse(localStorage.getItem(key)) || def; } catch (e) { return def; } }
+  function writeJson(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+  function renderEndScore() {
+    var sc = Engine.scoreGame(DATA, state), bestKey = state.scenario + '/' + state.difficulty;
+    var best = readJson(BEST_KEY, {}), prevBest = best[bestKey] || 0, record = sc.total > prevBest;
+    if (record && !state.scoreSaved) { best[bestKey] = sc.total; writeJson(BEST_KEY, best); }
+    el.endScoreTotal.innerHTML = '<strong>' + sc.total + '</strong> pkt' +
+      (sc.mult !== 1 ? ' <span class="end-score-mult">(' + sc.subtotal + ' × ' + num(sc.mult) + ' za poziom)</span>' : '') +
+      (record && prevBest > 0 ? ' <span class="end-score-record">Nowy rekord!</span>'
+        : (prevBest > 0 ? ' <span class="end-score-best">Rekord: ' + prevBest + '</span>'
+          : ' <span class="end-score-best">Pierwszy wynik w tym scenariuszu</span>'));
+    el.endScoreParts.innerHTML = sc.parts.map(function (p) {
+      return '<li><span>' + escapeHtml(p.label) + '</span><strong>+' + p.points + '</strong></li>';
+    }).join('');
+    var earned = Engine.earnedAchievements(DATA, state), owned = readJson(ACH_KEY, []);
+    var fresh = earned.filter(function (id) { return owned.indexOf(id) === -1; });
+    if (!state.scoreSaved) { writeJson(ACH_KEY, owned.concat(fresh)); state.scoreSaved = true; }
+    var all = readJson(ACH_KEY, []);
+    el.endAch.innerHTML = DATA.ACHIEVEMENTS.map(function (a) {
+      var got = earned.indexOf(a.id) !== -1, ever = all.indexOf(a.id) !== -1;
+      return '<li class="ach ' + (got ? 'got' : (ever ? 'ever' : 'locked')) + '" title="' + escapeHtml(a.desc) + '">' +
+        '<span class="ach-icon" aria-hidden="true">' + a.icon + '</span><span class="ach-text"><strong>' + escapeHtml(a.label) + '</strong>' +
+        '<small>' + escapeHtml(a.desc) + '</small></span>' +
+        (got && fresh.indexOf(a.id) !== -1 ? '<em class="ach-new">nowe!</em>' : (got ? '<em class="ach-got">w tej partii</em>' : '')) + '</li>';
+    }).join('');
   }
   // Bohater podsumowania: linia, która doszła najdalej (inteligencja, potem liczebność).
   function featuredLineage(s) {
@@ -1114,6 +1231,10 @@
     var L = ['EWOLUCJA — podsumowanie gry', '============================',
       'Scenariusz: ' + (sc ? sc.name : state.scenario) + ' (trudność: ' + (diff ? diff.label : state.difficulty) + ')',
       'Wynik: ' + statusPl,
+      'Kod świata: ' + (state.seed || '—'),
+      'Punkty: ' + Engine.scoreGame(DATA, state).total,
+      'Cele er: ' + (state.eraGoals || []).map(function (g) { var d = Engine.goalDef(DATA, g.id); return (d ? d.label : g.id) + ' (' + (g.status === 'done' ? 'spełniony' : g.status === 'failed' ? 'nie' : 'otwarty') + ')'; }).join('; '),
+      'Osiągnięcia: ' + (Engine.earnedAchievements(DATA, state).map(function (id) { var a = DATA.ACHIEVEMENTS.filter(function (x) { return x.id === id; })[0]; return a ? a.label : id; }).join(', ') || 'brak'),
       'Najwyższa inteligencja: ' + Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal,
       'Liczba linii rozwojowych: ' + state.lineages.length,
       'Szczytowa łączna populacja: ' + state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0),
@@ -1203,10 +1324,10 @@
     var span = eras.length === 1 ? 'w erze ' + eras[0].name.toLowerCase().replace(/k$/, 'ku')
       : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
     return [
-    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i używania narzędzi ' + span + ', utrzymując żywotną populację (co najmniej ' + DATA.WIN_MIN_POP + ' osobników).' },
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i kultury (narzędzia na lądzie albo kultura akustyczna w wodzie) ' + span + ', utrzymując żywotną populację (co najmniej ' + DATA.WIN_MIN_POP + ' osobników).' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na trwałe cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → narzędzia. Wygrywasz, gdy linia osiągnie próg inteligencji i zacznie używać narzędzi (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
+    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → kultura. Są dwie drogi: narzędzia (ręka chwytna; ląd lub brzeg) albo kultura akustyczna (echolokacja; woda lub brzeg). Wygrywasz, gdy linia osiągnie próg inteligencji i kulturę (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
     { title: 'Rezerwy i zmienność', text: 'Każda linia ma dwie własne waluty. ⚡ Rezerwy energii to odłożone nadwyżki pokarmu — ratują przed głodem, płacisz nimi za migrację i zachowania w turze. 🧬 Zmienność genetyczna rośnie z liczebnością i znika w wąskim gardle — płacisz nią za specjację i ukierunkowany dobór, a wysoka łagodzi katastrofy.' },
     { title: 'Decyzje linii', text: 'W panelu „Decyzje linii” wybierasz strategię rozrodu (r — dużo potomstwa, K — mało, ale dobrze chronionego) i zachowanie w najbliższej turze. Najedź na przycisk, by zobaczyć skutek w prognozie. Czasem pojawi się karta decyzji — zdarzenie, na które odpowiadasz przed turą.' },
     { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda nisza wyżywi ograniczoną liczbę osobników (pojemność) — gdy jest pełna, nowa gałąź w wolnej niszy daje nowe zasoby, a linie w jednej niszy konkurują. Wymierania {meteor} uderzają w nisze różnie, więc linie w kilku niszach rozkładają ryzyko. Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
@@ -1256,7 +1377,7 @@
   function init() {
     window.GameI18n.applyStatic(document);
     initStickyStatus();
-    el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i używania narzędzi, ' +
+    el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i kultury — narzędzi na lądzie albo kultury akustycznej w wodzie — ' +
       'utrzymując co najmniej ' + DATA.WIN_MIN_POP + ' osobników, przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (' + ico('ui:star', '⭐', 'ico-star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
@@ -1274,6 +1395,16 @@
       newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(DATA.SCENARIOS[0]));
     });
     el.btnSimulate.addEventListener('click', onSimulate);
+    el.btnOutlookContinue.addEventListener('click', onOutlookContinue);
+    el.btnOutlookUndo.addEventListener('click', onOutlookUndo);
+    el.btnOutlookEnd.addEventListener('click', onOutlookEnd);
+    // Ten sam świat (kod, scenariusz, trudność) od nowa — np. by sprawdzić inną strategię.
+    el.btnPlaySame.addEventListener('click', function () {
+      if (!state) return;
+      var sc = DATA.SCENARIOS.filter(function (x) { return x.id === state.scenario; })[0] || DATA.SCENARIOS[0];
+      var o = scenarioOpts(sc); o.seed = state.seed; o.difficulty = state.difficulty;
+      newGame(Engine.getLineage(state, 'L0').name, o);
+    });
     el.btnUndo.addEventListener('click', onUndo);
     el.btnSpeciate.addEventListener('click', onSpeciate);
     el.selectionToggle.addEventListener('change', onToggleSelection);
@@ -1307,7 +1438,7 @@
       if (state && state.status === 'playing') openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
       else doRestart();
     });
-    el.btnPlayAgain.addEventListener('click', function () { state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); });
+    el.btnPlayAgain.addEventListener('click', function () { state = null; undoStack = []; el.speciesInput.value = ''; el.worldSeed.value = ''; showScreen('start'); });
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;

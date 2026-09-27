@@ -19,10 +19,10 @@ export const FEATURES = [
   'filter_feeding', 'jaws', 'omnivory',
   'fins', 'fast_muscle', 'limbs', 'flight', 'grasping_hand',
   'scales', 'shell', 'camouflage',
-  'eyes', 'lateral_line',
+  'eyes', 'lateral_line', 'echolocation',
   'many_eggs', 'amniotic_egg', 'parental_care',
   'endothermy', 'insulation',
-  'ganglia', 'brain', 'pack_hunting', 'big_brain', 'social', 'tool_use'
+  'ganglia', 'brain', 'pack_hunting', 'big_brain', 'social', 'tool_use', 'vocal_culture'
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 

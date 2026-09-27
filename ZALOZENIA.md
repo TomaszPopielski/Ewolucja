@@ -110,7 +110,9 @@ Zasada: **cecha korzystna w jednej epoce może być obciążeniem w innej** — 
 - Wizualizacja: interaktywne, rozgałęziające się **drzewo życia** pokazujące historię wszystkich linii (żywych i wymarłych).
 
 ### 4.6. Warunek zwycięstwa i porażki
-- **Zwycięstwo:** osiągnięcie progu inteligencji → wyewoluowanie gatunku rozumnego zdolnego do kultury/technologii.
+- **Zwycięstwo:** osiągnięcie progu inteligencji → wyewoluowanie gatunku rozumnego zdolnego do kultury/technologii. Dwie drogi: kultura narzędziowa (ląd lub brzeg) i kultura akustyczna (woda lub brzeg), bo rozum nie wymaga rąk (delfiny, walenie).
+- **Uczciwy sygnał:** gdy zwycięstwo staje się niemożliwe (hojne oszacowanie z góry), gra mówi to od razu i pozwala grać o przetrwanie, cofnąć turę albo zakończyć partię.
+- **Regrywalność:** kod świata (ten sam kod = ten sam świat), przesuwane wymierania i katastrofy regionalne zapowiadane turę wcześniej, losowe cele ery z nagrodą EP, wynik punktowy i osiągnięcia.
 - **Porażka:** wymarcie wszystkich linii gracza.
 - **Tryb otwarty (sandbox):** brak sztywnego celu, dowolne eksperymentowanie z ewolucją.
 

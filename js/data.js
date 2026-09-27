@@ -259,7 +259,8 @@
   // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
   // najlepszej linii.
   // Skalibrowane symulacją (test „balans”): stały plan nie wygrywa zawsze.
-  var EP_RULES = { base: 9, perPopulation: 45, perGrowth: 8, intelligenceDiv: 2 };
+  // `perExtraNiche` — za każdą zajętą niszę ponad pierwszą (radiacja adaptacyjna).
+  var EP_RULES = { base: 10, perPopulation: 45, perGrowth: 8, intelligenceDiv: 2, perExtraNiche: 4 };
 
   // Zmienność środowiska (ZALOZENIA 3: faza środowiska). Po każdej turze silnik
   // losuje odchylenia warunków następnej tury od wartości historycznych; gracz
@@ -268,6 +269,15 @@
 
   // Zwycięstwo: próg inteligencji ORAZ ta cecha (kultura/technologia, ZALOZENIA 4.6).
   var WIN_TRAIT = 'tool_use';
+  /* Drogi do rozumu: cecha kultury i nisze, w których ta kultura ma sens. Narzędzia
+     wymagają lądu lub brzegu (w toni nie ma czego obrabiać), kultura akustyczna —
+     wody lub brzegu (dźwięk niesie się w wodzie, jak u delfinów i waleni). */
+  var WIN_PATHS = [
+    { id: 'tools', trait: 'tool_use', niches: ['lad', 'przybrzeze'], label: 'kultura narzędziowa',
+      short: 'narzędzia (ląd lub brzeg)' },
+    { id: 'sound', trait: 'vocal_culture', niches: ['woda', 'przybrzeze'], label: 'kultura akustyczna',
+      short: 'kultura akustyczna (woda lub brzeg)' }
+  ];
   // …w linii liczącej co najmniej tyle osobników (żywotny gatunek, nie garstka).
   var WIN_MIN_POP = 50;
 
@@ -365,6 +375,10 @@
     { id: 'eyes', name: 'Oczy', icon: '👁️', category: 'zmysly', cost: 12, requires: [],
       effects: { feeding: 1, defense: 1, metabolism: 1 }, tradeoff: 'Utrzymanie narządu wzroku kosztuje energię.',
       desc: 'Wzrok ułatwia zdobywanie pokarmu i wczesne wykrycie zagrożeń.' },
+    { id: 'echolocation', name: 'Echolokacja', icon: '🔊', category: 'zmysly', cost: 18, requires: ['ganglia'], minEra: 1,
+      effects: { feeding: 1, defense: 1, metabolism: 1 }, tradeoff: 'Działa tam, gdzie dźwięk dobrze się niesie: w wodzie i w locie.',
+      conditions: [{ niches: ['lad'], effects: { feeding: -1, defense: -1 }, note: 'na lądzie echo gubi się wśród przeszkód' }],
+      desc: 'Wysyłanie dźwięków i słuchanie echa pozwala „widzieć” w mętnej wodzie i w ciemności.' },
     { id: 'lateral_line', name: 'Linia boczna', icon: '〰️', category: 'zmysly', cost: 10, requires: [],
       effects: { defense: 1, mobility: 1 }, tradeoff: 'Działa wyłącznie w środowisku wodnym.',
       conditions: [{ niches: ['lad', 'powietrze'], effects: { defense: -1, mobility: -1 }, note: 'poza wodą nie wykrywa drgań' }],
@@ -405,6 +419,11 @@
     { id: 'social', name: 'Zachowania społeczne', icon: '👥', category: 'uklad_nerwowy', cost: 26, requires: ['brain'], path: 'intelligence', minEra: 1,
       effects: { intelligence: 2, defense: 1, metabolism: 1 }, tradeoff: 'Życie w grupie wymaga komunikacji i koordynacji.',
       desc: 'Współpraca i uczenie się od innych przyspieszają rozwój poznawczy.' },
+    { id: 'vocal_culture', name: 'Kultura akustyczna', icon: '🎶', category: 'uklad_nerwowy', cost: 38,
+      requires: ['big_brain', 'social', 'echolocation'], path: 'intelligence', minEra: 2,
+      effects: { intelligence: 3, feeding: 1, defense: 1, metabolism: 1 },
+      tradeoff: 'Kulminacja drogi wodnej: język dźwięków przekazywany z pokolenia na pokolenie; działa w wodzie lub na brzegu.',
+      desc: 'Złożone sygnały dźwiękowe, imiona i tradycje łowieckie przekazywane przez naukę — kultura bez rąk.' },
     { id: 'tool_use', name: 'Używanie narzędzi', icon: '🪓', category: 'uklad_nerwowy', cost: 34, requires: ['big_brain', 'social', 'grasping_hand'], path: 'intelligence', minEra: 2,
       effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja: wymaga mózgu, życia społecznego i ręki chwytnej.',
       desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' }
@@ -431,13 +450,16 @@
           note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
         { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
           note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
-          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.45,
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.45, window: [1, 2],
             nicheSeverity: { przybrzeze: 0.3, lad: 0.05, powietrze: 0.05 }, knowledge: 'extinction',
             survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka do cieplejszych wód' }] } },
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
           note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
         { title: 'Dewon — wiek ryb', oxygen: 11, food: 9, predators: 10, climate: 'umiarkowanie', land: land(9, 3),
-          note: 'Wielkie drapieżne ryby dominują w wodzie — na lądzie spokojniej.' },
+          note: 'Wielkie drapieżne ryby dominują w wodzie — na lądzie spokojniej. Pod koniec dewonu morza tracą tlen.',
+          catastrophe: { name: 'Wymieranie dewońskie', niche: 'all', severity: 0.2, window: [4, 5],
+            nicheSeverity: { przybrzeze: 0.25, lad: 0.05, powietrze: 0.05 }, knowledge: 'extinction',
+            survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'niski metabolizm — przetrwanie w niedotlenionej wodzie' }] } },
         { title: 'Dewon — brzeg lądu', oxygen: 11, food: 8, predators: 8, climate: 'cieplo', land: land(11, 3),
           note: 'Ląd stoi otworem: z kończynami warto migrować.' },
         { title: 'Karbon — bujne lasy', oxygen: 15, food: 10, predators: 7, climate: 'cieplo', land: land(14, 4),
@@ -507,6 +529,82 @@
   var POSITIVE_EVENTS = [
     { id: 'bloom', name: 'Rozkwit pokarmu', foodBonus: 3, knowledge: 'events', desc: 'Zakwit roślinności/planktonu — więcej pokarmu w tej turze.' },
     { id: 'mild', name: 'Łagodny sezon', predBonus: -2, knowledge: 'events', desc: 'Spokojny sezon — mniejsza presja drapieżników.' }
+  ];
+
+  /*
+   * Kalendarz świata. Wymierania z `window` trafiają w jedną z podanych tur ery
+   * (tury zamieniają się miejscami w obrębie jednego okresu geologicznego).
+   * Dodatkowo w każdej erze `REGIONAL.perEra` katastrof regionalnych w losowych
+   * turach — uderzają w jedną niszę. Gra zapowiada katastrofę turę wcześniej.
+   */
+  var REGIONAL = { perEra: 1 };
+  var REGIONAL_DISASTERS = [
+    { id: 'anoxia', name: 'Beztlenowe wody', niche: 'woda', severity: 0.25, env: { oxygen: -2 }, knowledge: 'extinction',
+      note: 'Martwe strefy bez tlenu rozlewają się po morzu.',
+      survival: [{ stat: 'metabolism', max: 5, mult: 0.6, reason: 'niski metabolizm — mniejsze zapotrzebowanie na tlen' }] },
+    { id: 'redtide', name: 'Toksyczny zakwit glonów', niche: 'przybrzeze', severity: 0.3, knowledge: 'toxins',
+      note: 'Trujące glony zabarwiają wody przybrzeżne na czerwono.',
+      survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka z zatrutych wód' }] },
+    { id: 'megadrought', name: 'Megasusza', niche: 'lad', severity: 0.3, env: { landFood: -3 }, knowledge: 'extinction',
+      note: 'Wieloletnia susza wysusza wnętrze kontynentu.',
+      survival: [{ trait: 'amniotic_egg', mult: 0.7, reason: 'jajo lądowe nie wysycha' },
+        { stat: 'metabolism', max: 5, mult: 0.8, reason: 'oszczędny metabolizm' }] },
+    { id: 'wildfire', name: 'Wielkie pożary', niche: 'lad', severity: 0.25, minEra: 0, knowledge: 'extinction',
+      note: 'Suche lasy płoną na ogromnych obszarach.',
+      survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'szybka ucieczka przed ogniem' }] },
+    { id: 'storms', name: 'Sezon huraganów', niche: 'powietrze', severity: 0.3, knowledge: 'extinction',
+      note: 'Gwałtowne burze niszczą gniazda i strącają latające zwierzęta.',
+      survival: [{ stat: 'defense', min: 6, mult: 0.7, reason: 'mocna budowa znosi wiatr' }] },
+    { id: 'impact', name: 'Uderzenie małego meteorytu', niche: 'all', severity: 0.12, knowledge: 'extinction',
+      note: 'Niewielki meteoryt wzbija pył i na chwilę przyciemnia niebo.',
+      survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'oszczędny metabolizm przetrwał ciemne miesiące' }] }
+  ];
+
+  /*
+   * Cele ery: w każdej erze losowane `ERA_GOALS_PER_ERA` celów pobocznych. Cel
+   * spełniony w dowolnej turze ery daje nagrodę EP od razu; `atEnd` — sprawdzany
+   * dopiero na koniec ery. Typy: niche, lineages, population, stat, reserves,
+   * variation, niches, catLoss (straty w katastrofie ery ≤ max), noStarvation.
+   */
+  var ERA_GOALS_PER_ERA = 2;
+  var ERA_GOALS = [
+    { id: 'land', label: 'Wyjdź na ląd', desc: 'Któraś linia zajmuje niszę lądową.', type: 'niche', niche: 'lad', eras: [0, 1], reward: 10 },
+    { id: 'two_lines', label: 'Dwie gałęzie', desc: 'Na koniec ery żyją co najmniej 2 linie.', type: 'lineages', min: 2, atEnd: true, eras: [0, 1, 2], reward: 8 },
+    { id: 'abundance', label: 'Liczna populacja', desc: 'Łączna populacja sięga 300 osobników.', type: 'population', min: 300, eras: [0, 1, 2], reward: 8 },
+    { id: 'armor', label: 'Twierdza', desc: 'Któraś linia ma obronę co najmniej 8.', type: 'stat', stat: 'defense', min: 8, eras: [0, 1], reward: 8 },
+    { id: 'fat', label: 'Tłuste lata', desc: 'Któraś linia gromadzi co najmniej 10 ⚡ rezerw.', type: 'reserves', min: 10, eras: [0, 1, 2], reward: 6 },
+    { id: 'variation', label: 'Bogata pula genów', desc: 'Któraś linia ma co najmniej 20 🧬 zmienności.', type: 'variation', min: 20, eras: [0, 1, 2], reward: 8 },
+    { id: 'radiation', label: 'Radiacja', desc: 'Linie zajmują jednocześnie co najmniej 3 nisze.', type: 'niches', min: 3, eras: [1, 2], reward: 12 },
+    { id: 'sky', label: 'Podbój przestworzy', desc: 'Któraś linia zajmuje niszę powietrzną.', type: 'niche', niche: 'powietrze', eras: [1, 2], reward: 12 },
+    { id: 'smart', label: 'Spryt', desc: 'Któraś linia osiąga inteligencję 8.', type: 'stat', stat: 'intelligence', min: 8, eras: [1], reward: 10 },
+    { id: 'weather', label: 'Przetrwać kataklizm', desc: 'W katastrofie tej ery gatunek traci najwyżej 25% populacji.', type: 'catLoss', max: 0.25, eras: [0, 1, 2], reward: 10 },
+    { id: 'fed', label: 'Syta era', desc: 'Przez całą erę żadna linia nie traci osobników z głodu.', type: 'noStarvation', atEnd: true, eras: [0, 1, 2], reward: 8 }
+  ];
+
+  /* Ocena „czy zwycięstwo jest jeszcze możliwe” — celowo hojna, by nie ogłosić
+     przegranej za wcześnie: `growth` — optymistyczny przyrost populacji na turę,
+     `epPerTurn` — optymistyczny przychód EP na turę. */
+  var OUTLOOK = { growth: 0.45, epPerTurn: 40 };
+
+  // Wynik partii (do porównywania udanych gier) i mnożnik trudności.
+  var SCORE = { won: 500, survived: 200, perIntelligence: 10, popDiv: 3, popMax: 200, perGoal: 25,
+    perNiche: 20, perTurnLeft: 40, perAchievement: 15, diffMult: { latwy: 0.75, normalny: 1, trudny: 1.3 } };
+
+  // Osiągnięcia (zapisywane między partiami w przeglądarce).
+  var ACHIEVEMENTS = [
+    { id: 'first_win', icon: '🏆', label: 'Iskra rozumu', desc: 'Wygraj partię.' },
+    { id: 'tools_win', icon: '🪓', label: 'Kultura narzędziowa', desc: 'Wygraj drogą narzędzi.' },
+    { id: 'sound_win', icon: '🐬', label: 'Pieśń oceanu', desc: 'Wygraj drogą kultury akustycznej.' },
+    { id: 'hard_win', icon: '⛰️', label: 'Twarda szkoła', desc: 'Wygraj na poziomie trudnym.' },
+    { id: 'early_win', icon: '⏩', label: 'Przyspieszona ewolucja', desc: 'Wygraj co najmniej 2 tury przed końcem.' },
+    { id: 'phoenix', icon: '🔥', label: 'Z popiołów', desc: 'Wygraj, choć populacja spadła kiedyś poniżej 30.' },
+    { id: 'radiation', icon: '🌳', label: 'Radiacja adaptacyjna', desc: 'Miej linie jednocześnie we wszystkich 4 niszach.' },
+    { id: 'sky', icon: '🕊️', label: 'Przestworza', desc: 'Zajmij niszę powietrzną.' },
+    { id: 'perm', icon: '🌋', label: 'Wielkie Umieranie', desc: 'Przejdź wymieranie permskie, tracąc mniej niż 30% populacji.' },
+    { id: 'gambler', icon: '🎲', label: 'Szczęście sprzyja odważnym', desc: 'Wygraj 3 ryzyka w jednej partii.' },
+    { id: 'goals', icon: '📜', label: 'Kronikarz er', desc: 'Spełnij wszystkie cele er w partii.' },
+    { id: 'abundance', icon: '🐟', label: 'Obfitość', desc: 'Łączna populacja sięga 600 osobników.' },
+    { id: 'codex', icon: '📚', label: 'Encyklopedysta', desc: 'Odkryj co najmniej 25 pojęć w Kodeksie.' }
   ];
 
   // Scenariusze lekcyjne (ZALOZENIA sekcja 8/6).
@@ -603,6 +701,13 @@
         'gatunków — każdy zajmuje inną niszę i ma własne zasoby. W nowym miejscu często brakuje też ' +
         'wyspecjalizowanych wrogów, co ułatwia start.',
       fossil: 'Po wymarciu dinozaurów ssaki w kilka milionów lat rozdzieliły się na drapieżniki, roślinożerców, nietoperze i walenie.' },
+    echolocation: { icon: '🔊', title: 'Echolokacja',
+      body: 'Nietoperze i walenie wysyłają dźwięki i z echa odczytują kształt, odległość i ruch przeszkód oraz zdobyczy. ' +
+        'Ta sama umiejętność rozwinęła się niezależnie w dwóch odległych grupach — to przykład konwergencji.',
+      fossil: 'Już u wczesnych waleni sprzed ok. 30 mln lat budowa ucha wewnętrznego zdradza echolokację.' },
+    culture: { icon: '🎶', title: 'Kultura u zwierząt',
+      body: 'Kultura to zachowania przekazywane przez naukę, a nie geny. Delfiny mają „imiona” — indywidualne gwizdy, ' +
+        'a humbaki uczą się od siebie pieśni, które zmieniają się z roku na rok. Rozum nie potrzebuje rąk.' },
     toxins: { icon: '🍄', title: 'Obrona chemiczna',
       body: 'Rośliny, grzyby i wiele zwierząt bronią się truciznami. Zwierzęta, które nauczą się je rozpoznawać ' +
         'lub unieszkodliwiać, zyskują dostęp do pokarmu niedostępnego dla innych.',
@@ -636,7 +741,9 @@
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
-    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
+    REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
+    OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:

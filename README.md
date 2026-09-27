@@ -57,9 +57,11 @@ Vite i sam z pliku nie zadziała.
 5. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
    w późniejszej erze). Warunki każdej tury są losowane wokół historycznych —
    sprawdzaj panel środowiska i prognozę przed decyzją.
-   **Cel:** doprowadzić linię do progu inteligencji **i używania narzędzi**
-   (kultura i technologia — możliwe dopiero w kenozoiku) w linii liczącej
-   **co najmniej 50 osobników**.
+   **Cel:** doprowadzić linię do progu inteligencji **i kultury** (możliwe
+   dopiero w kenozoiku) w linii liczącej **co najmniej 50 osobników**.
+   Są dwie drogi: **narzędzia** (ręka chwytna; linia na lądzie lub brzegu)
+   albo **kultura akustyczna** (echolokacja; linia w wodzie lub na brzegu,
+   jak u delfinów).
    Uwaga — sama liczna populacja nie wystarczy; trzeba świadomie rozwijać
    **układ nerwowy** (zwoje → mózg → rozbudowany mózg). Mózg jest jednak
    kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
@@ -84,11 +86,35 @@ EP za liczebność i wzrost liczone są z łącznej populacji wszystkich linii.
 | **⚡ rezerwy energii** | każdej linii | nadwyżka energii z tury (magazyn ma limit, izolacja go powiększa) | migracja, zachowania w turze, część kart decyzji; w deficycie chronią przed głodem |
 | **🧬 zmienność genetyczna** | każdej linii | czas, duża populacja, mutacje; znika w wąskim gardle i katastrofie | specjacja, ukierunkowany dobór, odporność na epidemię; wysoka łagodzi wymierania |
 
-Zakończenia: **zwycięstwo** (inteligencja + narzędzia w żywotnej populacji),
+Zakończenia: **zwycięstwo** (inteligencja + kultura w żywotnej populacji),
 **przetrwanie** (gatunek przeżył wszystkie rozgrywane ery, ale bez rozumności)
 lub **wymarcie**. Poniżej 20 osobników populacja słabiej się rozmnaża (efekt
 Allee), a jeśli na koniec gry żadna linia nie przekracza tego progu, gatunek
 uznaje się za wymarły.
+
+Gdy zwycięstwo staje się **niemożliwe** (nawet przy najlepszym przebiegu
+populacja nie zdąży odrosnąć albo nie da się uzbierać punktów na brakujące
+cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
+turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
+się w żadnej wygranej partii.
+
+### Regrywalność: kod świata, kalendarz, cele er, wynik
+
+- **Kod świata** (np. `K7Q2MX`) — każda partia ma kod widoczny pod osią czasu.
+  Ten sam kod to ten sam świat: warunki tur, kalendarz katastrof, karty decyzji
+  i cele er. Wpisz go na ekranie startowym (np. cała klasa w jednym świecie)
+  albo kliknij „Ten sam świat jeszcze raz” na końcu gry. Puste pole = nowy świat.
+- **Przesuwane wymierania** — wymieranie ordowickie i dewońskie trafiają w jedną
+  z dwóch tur swojego okresu (na osi czasu oznaczone „?”), a w każdej erze
+  pojawia się **katastrofa regionalna** w losowej turze, wymierzona w niszę,
+  w której żyje najwięcej osobników. Każdą katastrofę gra **zapowiada turę
+  wcześniej** — jest czas przenieść linię albo odłożyć zapasy.
+- **Cele ery** — w każdej erze dwa losowe cele poboczne (np. „Wyjdź na ląd”,
+  „Przetrwać kataklizm”, „Radiacja”) nagradzane punktami ewolucji.
+- **Radiacja się opłaca** — każda zajęta nisza ponad pierwszą daje +4 EP na turę.
+- **Wynik punktowy i osiągnięcia** — na końcu gry wynik (status, inteligencja,
+  populacja, cele er, nisze, tury zapasu, osiągnięcia × mnożnik trudności),
+  rekord scenariusza i 13 osiągnięć zapisywanych w przeglądarce.
 
 Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
 paleontologia, ekologia).
@@ -133,7 +159,7 @@ adaptacja popłaca, a poziomy trudności są uporządkowane.
   lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
   geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **24 cechy** (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka
+- **26 cech** (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka
   do inteligencji oznaczona ⭐.
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją
   (koszt EP malejący z mobilnością, tura aklimatyzacji) — każda ma inny pokarm
@@ -142,8 +168,8 @@ adaptacja popłaca, a poziomy trudności są uporządkowane.
   zwierząt, animowanym rozgałęzianiem i powiększaniem (żywe i wymarłe gałęzie, oś er).
 - **Zmienne środowisko** — pokarm, drapieżniki, tlen i klimat każdej tury
   losowane wokół wartości historycznych i widoczne przed decyzją.
-- **Selektywne katastrofy / wymierania masowe** (ordowickie, permskie, K–Pg,
-  zlodowacenia) — cechy takie jak niski metabolizm czy izolacja zmniejszają
+- **Selektywne katastrofy / wymierania masowe** (ordowickie, dewońskie, permskie,
+  K–Pg, zlodowacenia) i katastrofy regionalne — cechy takie jak niski metabolizm czy izolacja zmniejszają
   straty, a raport wyjaśnia, co pomogło przetrwać; oraz
   **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).

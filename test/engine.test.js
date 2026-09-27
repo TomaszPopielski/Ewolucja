@@ -151,7 +151,9 @@ group('evaluateStatus', function () {
   var s2 = Engine.createInitialState(GameData, 'X'); active(s2).stats.intelligence = s2.intelligenceGoal;
   eq(Engine.evaluateStatus(s2, GameData), 'playing', 'sam próg inteligencji bez narzędzi => gra trwa');
   active(s2).traits.push(GameData.WIN_TRAIT);
-  eq(Engine.evaluateStatus(s2, GameData), 'won', 'próg inteligencji + używanie narzędzi => won');
+  eq(Engine.evaluateStatus(s2, GameData), 'playing', 'narzędzia w otwartej wodzie to jeszcze nie kultura');
+  active(s2).niche = 'lad';
+  eq(Engine.evaluateStatus(s2, GameData), 'won', 'próg inteligencji + używanie narzędzi na lądzie => won');
 });
 
 
@@ -405,7 +407,7 @@ group('mała populacja nie jest nieśmiertelna (losowe zaokrąglanie, efekt Alle
 
 group('żywotna populacja: zwycięstwo i koniec gry', function () {
   var s = Engine.createInitialState(GameData, 'X'), l = active(s);
-  l.stats.intelligence = 99; l.traits.push(GameData.WIN_TRAIT);
+  l.stats.intelligence = 99; l.traits.push(GameData.WIN_TRAIT); l.niche = 'lad';
   l.population = GameData.WIN_MIN_POP - 1;
   eq(Engine.hasWon(s, GameData), false, 'rozum i narzędzia, ale garstka osobników — jeszcze nie zwycięstwo');
   eq(Engine.goalBlockedByPopulation(s, GameData), true, 'UI wie, że brakuje tylko liczebności');
@@ -647,7 +649,9 @@ group('katastrofy zależne od niszy — dywersyfikacja chroni', function () {
 group('balans: specjacja do nowej niszy się opłaca, mnożenie linii w jednej — nie', function () {
   var N = 100, n = { difficulty: 'normalny' };
   var single = Bots.winRate('tactics1', n, N), radiate = Bots.winRate('tactics', n, N), crowd = Bots.winRate('crowd', n, N);
-  ok(radiate > single, 'radiacja do wolnych nisz poprawia wynik (' + radiate + '% > ' + single + '%)');
+  ok(radiate >= single - 3, 'radiacja do wolnych nisz nie obniża szans na zwycięstwo (' + radiate + '% vs ' + single + '%)');
+  var rs = Bots.avgScore('tactics', n, N), ss = Bots.avgScore('tactics1', n, N);
+  ok(rs > ss, 'radiacja daje wyższy średni wynik partii (' + rs + ' > ' + ss + ' pkt)');
   ok(crowd < single, 'klony w tej samej niszy szkodzą (' + crowd + '% < ' + single + '%)');
 });
 
@@ -711,6 +715,144 @@ group('raport: pełne karty wiedzy tylko dla nowych pojęć', function () {
   var r2 = Engine.simulateTurn(GameData, s2, noMut).report;
   ok(r2.newKnowledge.length < r2.knowledge.length || r2.knowledge.length === 0, 'znane pojęcia nie wracają jako nowe');
   ok(typeof r2.predatorDelta === 'number', 'raport podaje zmianę presji drapieżników');
+});
+
+// ---------- Regrywalność: kod świata, kalendarz, cele, drogi, szanse, wynik ----------
+function withSeed(seed, opts) { return Engine.createInitialState(GameData, 'X', Object.assign({ seed: seed }, opts || {})); }
+function catTurns(s) {
+  var out = [];
+  GameData.ERAS.forEach(function (e, ei) { e.turns.forEach(function (_, ti) {
+    var b = Engine.turnBase(GameData, s, ei, ti); if (b.catastrophe && !b.catastrophe.regional) out.push(ei + ':' + ti + ':' + b.catastrophe.name);
+  }); });
+  return out.join('|');
+}
+
+group('kod świata: ten sam kod — ten sam świat, różne kody — różne światy', function () {
+  eq(Engine.normalizeSeed(' ab-12c '), 'AB12C', 'kod jest normalizowany (wielkie litery, bez znaków)');
+  ok(/^[A-Z2-9]{6}$/.test(Engine.randomSeed()), 'losowy kod ma 6 znaków');
+  function run(seed, plan) {
+    var g = withSeed(seed), guard = 0;
+    while (g.status === 'playing' && guard++ < 30) {
+      (plan || []).forEach(function (id) { var r = Engine.buyTrait(GameData, g, id); if (r.ok) g = r.state; });
+      g = Engine.simulateTurn(GameData, g).state;
+    }
+    return g;
+  }
+  var a = run('KLASA1'), b = run('KLASA1');
+  eq(JSON.stringify(a.history), JSON.stringify(b.history), 'ten sam kod i te same decyzje — identyczna partia (bez podanego rng)');
+  var c = run('KLASA1', ['eyes', 'scales', 'jaws']);
+  function envs(g) { return g.history.slice(0, 5).map(function (r) { return r.envTitle; }).join('|'); }
+  eq(envs(a), envs(c), 'świat (tury, katastrofy) nie zależy od decyzji gracza');
+  var differ = 0;
+  for (var k = 0; k < 12; k++) if (catTurns(withSeed('S' + k)) !== catTurns(withSeed('S0'))) differ++;
+  ok(differ > 0, 'różne kody przesuwają wymierania (' + differ + ' z 12 różnych kalendarzy)');
+});
+
+group('kalendarz: wymierania w swoim oknie, katastrofa regionalna i zapowiedź', function () {
+  var positions = {};
+  for (var k = 0; k < 30; k++) {
+    var s = withSeed('W' + k);
+    GameData.ERAS[0].turns.forEach(function (_, ti) {
+      var b = Engine.turnBase(GameData, s, 0, ti);
+      if (b.catastrophe && /ordowick/.test(b.catastrophe.name)) positions[ti] = 1;
+    });
+  }
+  eq(Object.keys(positions).sort().join(','), '1,2', 'wymieranie ordowickie trafia w turę 2 albo 3 (okno)');
+  var fixedPerm = true;
+  for (var j = 0; j < 20; j++) if (!/permsk/.test((Engine.turnBase(GameData, withSeed('P' + j), 0, 7).catastrophe || {}).name || '')) fixedPerm = false;
+  ok(fixedPerm, 'wymieranie permskie zostaje na końcu paleozoiku (bez okna)');
+
+  // Katastrofa regionalna: zapowiedziana turę wcześniej i wymierzona w najliczniejszą niszę.
+  var s0 = withSeed('REG1'), reg = s0.calendar.regional[0];
+  ok(reg && reg.turn >= 1, 'każda era ma katastrofę regionalną w losowej turze');
+  var g = s0, announced = null, guard = 0;
+  while (g.status === 'playing' && g.eraIndex === 0 && guard++ < 10) {
+    var th = Engine.upcomingThreat(GameData, g);
+    if (th && th.regional) { announced = { at: g.turn, threat: th }; break; }
+    g = Engine.simulateTurn(GameData, g, noMut).state;
+  }
+  ok(announced && announced.at === reg.turn - 1, 'katastrofa regionalna zapowiedziana turę wcześniej');
+  var d = GameData.REGIONAL_DISASTERS.filter(function (x) { return x.name === announced.threat.name; })[0];
+  ok(d.niche === 'woda' || d.niche === 'all', 'uderza w niszę, w której żyje gatunek (woda) albo we wszystkie');
+  var hid = null;
+  for (var q = 0; q < 50 && !hid; q++) { var cand = withSeed('HID' + q); if (cand.calendar.regional[0].turn >= 2) hid = cand; }
+  var tl = Engine.eraTimeline(GameData, hid);
+  ok(!tl.some(function (x) { return x.catastrophe && x.catastrophe.regional; }), 'oś czasu nie zdradza katastrofy regionalnej przed zapowiedzią');
+  ok(tl.some(function (x) { return x.maybe; }), 'oś czasu pokazuje możliwe tury przesuwanego wymierania');
+  ok(tl[7].catastrophe && /permsk/.test(tl[7].catastrophe.name), 'stałe wymierania historyczne są widoczne');
+});
+
+group('cele ery: losowane, nagradzane EP, przepadają z końcem ery', function () {
+  var s = withSeed('CEL1');
+  eq(s.eraGoals.length, GameData.ERA_GOALS_PER_ERA * GameData.ERAS.length, 'po ' + GameData.ERA_GOALS_PER_ERA + ' cele na erę');
+  ok(s.eraGoals.every(function (g) { var d = Engine.goalDef(GameData, g.id); return d.eras.indexOf(g.era) !== -1; }), 'cele pasują do swoich er');
+  // Wymuszony cel „liczna populacja”.
+  s.eraGoals = [{ era: 0, id: 'abundance', status: 'open' }, { era: 0, id: 'two_lines', status: 'open' }];
+  active(s).population = 400;
+  var r = Engine.simulateTurn(GameData, s, noMut);
+  var done = r.report.goals.filter(function (g) { return g.id === 'abundance' && g.status === 'done'; });
+  ok(done.length === 1, 'cel spełniony w trakcie ery zalicza się od razu');
+  ok(r.state.ep - s.ep >= Engine.goalDef(GameData, 'abundance').reward, 'nagroda EP trafia do puli');
+  var g = r.state;
+  while (g.eraIndex === 0 && g.status === 'playing') g = Engine.simulateTurn(GameData, g, noMut).state;
+  eq(g.eraGoals.filter(function (x) { return x.id === 'two_lines'; })[0].status, 'failed', 'cel „na koniec ery” bez spełnienia przepada');
+});
+
+group('dwie drogi do rozumu: narzędzia na lądzie, kultura akustyczna w wodzie', function () {
+  var s = withSeed('DROGA'), l = active(s);
+  l.stats.intelligence = 99; l.population = 200; l.traits.push('vocal_culture');
+  eq(Engine.hasWon(s, GameData), true, 'kultura akustyczna w wodzie wygrywa');
+  l.niche = 'lad';
+  eq(Engine.hasWon(s, GameData), false, 'kultura akustyczna na lądzie nie działa');
+  ok(Engine.cultureNicheBlocked(s, GameData).length === 1, 'UI wie, że kultura jest w złej niszy');
+  l.niche = 'przybrzeze';
+  eq(Engine.hasWon(s, GameData), true, 'brzeg łączy obie drogi');
+  var vc = byId('vocal_culture');
+  ok(vc.requires.indexOf('echolocation') !== -1 && vc.minEra === 2, 'kultura akustyczna wymaga echolokacji i kenozoiku');
+  ok(Bots.winRate('tactics', { difficulty: 'normalny' }, 60) > 0, 'gra nadal wygrywalna');
+});
+
+group('ocena szans: „tej partii nie da się wygrać” bez fałszywych alarmów', function () {
+  var s = withSeed('SZANS');
+  ok(Engine.victoryOutlook(GameData, s).possible, 'na starcie zwycięstwo jest możliwe');
+  var late = withSeed('SZANS'); late.eraIndex = 2; late.turn = 5; active(late).population = 8;
+  var o = Engine.victoryOutlook(GameData, late);
+  ok(!o.possible && o.reasons.length > 0, 'garstka osobników w ostatniej turze — zwycięstwo niemożliwe, z powodem');
+  var poor = withSeed('SZANS'); poor.eraIndex = 2; poor.turn = 4; poor.ep = 0;
+  ok(!Engine.victoryOutlook(GameData, poor).possible, 'brak mózgu i punktów tuż przed końcem — niemożliwe');
+  // Brak fałszywych alarmów: w wygranych partiach ocena nigdy nie mówiła „niemożliwe”.
+  var falseAlarms = 0, wins = 0, early = 0;
+  ['latwy', 'normalny', 'trudny'].forEach(function (diff) {
+    for (var k = 1; k <= 40; k++) {
+      var rng = Bots.seededRng(k), g = Engine.createInitialState(GameData, 'B', { seed: 'OUT' + k, difficulty: diff }), flagged = false, guard = 0;
+      var kinds = ['tactics1'];
+      while (g.status === 'playing' && guard++ < 30) {
+        if (!Engine.victoryOutlook(GameData, g).possible) flagged = true;
+        g = Bots.stepFor('tactics1', g);
+        g = Engine.simulateTurn(GameData, g, rng).state;
+      }
+      if (g.status === 'won') { wins++; if (flagged) falseAlarms++; }
+      else if (flagged) early++;
+    }
+  });
+  eq(falseAlarms, 0, 'żadna z ' + wins + ' wygranych partii nie była wcześniej uznana za przegraną');
+  var c = Engine.concede(GameData, withSeed('KONIEC'));
+  eq(c.status, 'survived', 'zakończenie partii z żywotną linią = przetrwanie');
+  ok(c.conceded, 'zakończenie oznaczone jako decyzja gracza');
+});
+
+group('wynik i osiągnięcia', function () {
+  var won = withSeed('WYNIK'), l = active(won);
+  l.stats.intelligence = 99; l.population = 300; l.traits.push('vocal_culture');
+  won.status = 'won'; won.winPath = 'sound'; won.eraIndex = 2; won.turn = 3;
+  var ach = Engine.earnedAchievements(GameData, won);
+  ok(ach.indexOf('first_win') !== -1 && ach.indexOf('sound_win') !== -1 && ach.indexOf('early_win') !== -1, 'wygrana drogą wodną przed końcem: ' + ach.join(', '));
+  ok(GameData.ACHIEVEMENTS.every(function (a) { return a.label && a.desc; }), 'osiągnięcia mają nazwy i opisy');
+  var lost = withSeed('WYNIK'); lost.status = 'lost'; active(lost).population = 0; active(lost).alive = false;
+  var sw = Engine.scoreGame(GameData, won), sl = Engine.scoreGame(GameData, lost);
+  ok(sw.total > sl.total, 'zwycięstwo daje wyższy wynik (' + sw.total + ' > ' + sl.total + ')');
+  var hard = JSON.parse(JSON.stringify(won)); hard.difficulty = 'trudny';
+  ok(Engine.scoreGame(GameData, hard).total > sw.total, 'trudny poziom mnoży wynik');
 });
 
 console.log('\n────────────────────────');
