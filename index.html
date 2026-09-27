@@ -34,6 +34,7 @@
         <p class="lead">
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
           aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
+          gospodaruj <strong>rezerwami energii</strong> i <strong>zmiennością genetyczną</strong>,
           zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
           <strong>dobór naturalny</strong>.
         </p>
@@ -101,6 +102,24 @@
             <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
             <div id="sparkline" class="sparkline popchart" role="img"></div>
           </div>
+
+          <section class="tactics-box" id="tactics-box" aria-labelledby="tactics-title">
+            <h3 class="tactics-title" id="tactics-title" data-i18n="tactics.title">Decyzje linii</h3>
+            <div id="choice-card" class="choice-card" hidden></div>
+            <div id="resource-meters" class="resource-meters"></div>
+            <div class="tactic-group">
+              <span class="tactic-label" id="strategy-label" data-i18n="tactics.strategy">Strategia rozrodu</span>
+              <div id="strategy-buttons" class="tactic-buttons" role="group" aria-labelledby="strategy-label"></div>
+            </div>
+            <div class="tactic-group">
+              <span class="tactic-label" id="behavior-label" data-i18n="tactics.behavior">Zachowanie w tej turze</span>
+              <div id="behavior-buttons" class="tactic-buttons" role="group" aria-labelledby="behavior-label"></div>
+            </div>
+            <label class="tactic-toggle">
+              <input type="checkbox" id="selection-toggle" />
+              <span id="selection-text"></span>
+            </label>
+          </section>
 
           <div class="forecast-box" id="forecast-box">
             <span class="forecast-label" data-i18n="species.forecast">Prognoza następnej tury</span>

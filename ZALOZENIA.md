@@ -81,6 +81,13 @@ Każdy gatunek gracza opisują atrybuty:
 - Cechy mają **warunki wstępne** (drzewo zależności) — np. „pióra" wymagają wcześniej „łusek" i „stałocieplności".
 - Każda cecha ma **koszt** i **kompromis (trade-off)** — nic nie jest darmowe (np. duży rozmiar = lepsza obrona, ale wyższy metabolizm).
 
+### 4.2a. Waluty linii i decyzje taktyczne
+Oprócz EP (trwałe cechy) każda linia ma dwie własne waluty o krótszym horyzoncie:
+- **⚡ Rezerwy energii** — nadwyżka energii odkładana na chude tury; deficyt najpierw je zużywa. Płaci się nimi za **migrację** (wędrówka to wydatek energii) i **zachowania w turze** (ukrywanie się, intensywne żerowanie; gromadzenie zapasów jest darmowe, ale kosztem potomstwa). Uczą budżetu energetycznego.
+- **🧬 Zmienność genetyczna** — rośnie z czasem i liczebnością, maleje w wąskim gardle i katastrofie (dryf genetyczny). Płaci się nią za **specjację** (nowy gatunek wymaga zmienności) i **ukierunkowany dobór** (silny dobór zużywa zmienność); wysoka zmienność łagodzi katastrofy. Uczy, że zmienność to paliwo doboru.
+- **Strategia rozrodu r/K** — przełącznik bez kosztu, czysty kompromis między liczbą a przeżywalnością potomstwa.
+- **Karty decyzji** — zdarzenia z wyborem (wyspa i efekt założyciela, nowy drapieżnik i wyścig zbrojeń, zakwit i boom z załamaniem, epidemia i odporność) obok losowych zdarzeń pozytywnych; bez wyboru działa opcja domyślna.
+
 ### 4.3. Środowisko i presja selekcyjna
 Parametry epoki, które modyfikują skuteczność cech:
 - **Klimat** (zlodowacenia ↔ okresy ciepłe).
@@ -99,6 +106,7 @@ Zasada: **cecha korzystna w jednej epoce może być obciążeniem w innej** — 
 ### 4.5. Specjacja i drzewo filogenetyczne
 - Gdy część populacji zaadaptuje się do odrębnej niszy, gracz może wykonać **rozdzielenie gatunku** (specjacja) → nowa gałąź na drzewie życia.
 - Gracz może prowadzić kilka linii równolegle, dywersyfikując ryzyko.
+- Każda nisza ma **pojemność** (nośność) zależną od pokarmu; linie w jednej niszy konkurują o nią (wzrost logistyczny, przegęszczenie). Nowa gałąź w wolnej niszy dostaje własne zasoby i chwilowe **uwolnienie od wrogów** — to model radiacji adaptacyjnej. Wymierania mają różną siłę w różnych niszach, więc rozproszenie linii realnie chroni gatunek.
 - Wizualizacja: interaktywne, rozgałęziające się **drzewo życia** pokazujące historię wszystkich linii (żywych i wymarłych).
 
 ### 4.6. Warunek zwycięstwa i porażki

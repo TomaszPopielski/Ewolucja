@@ -7,7 +7,16 @@
  *                ścieżki, gdy nie grożą głodem ani spadkiem populacji poniżej
  *                żywotnej liczebności, a poza tym cechy wyraźnie poprawiające
  *                prognozę lub bilans energii; migruje, gdy inna nisza daje
- *                wyraźnie lepszą prognozę.
+ *                wyraźnie lepszą prognozę;
+ * - „tactics”  — „adaptive” + nowe decyzje: strategia rozrodu i zachowanie w
+ *                turze (wg prognozy i wartości ⚡ rezerw), ukierunkowany dobór,
+ *                przemyślany wybór na kartach decyzji, a gdy nisza aktywnej
+ *                linii zbliża się do pojemności — specjacja i wysłanie nowej
+ *                gałęzi do wolnej niszy (radiacja). „adaptive” zostawia
+ *                strategię zrównoważoną i opcje domyślne kart;
+ * - „tactics1” — jak „tactics”, ale bez specjacji (jedna linia);
+ * - „crowd”    — jak „tactics1”, ale specjuje, gdy tylko może, i zostawia
+ *                gałęzie w tej samej niszy (bezmyślne mnożenie linii).
  *
  * Losowość z ziarnem (mulberry32), więc wyniki są powtarzalne.
  */
@@ -82,12 +91,77 @@ function adaptiveTurn(s) {
   return s;
 }
 
+// Wartość stanu linii dla bota: prognozowana populacja + zapas energii.
+function tacticScore(f) { return f.projectedPop + f.reservesAfter * 4; }
+
+function tacticsTurn(s) {
+  // Karta decyzji: opcja z najlepszą prognozą linii, której dotyczy (z kolonią).
+  if (s.pendingChoice) {
+    var pc = s.pendingChoice, ev = E.choiceEvent(D, pc.eventId), best = null, bestScore = -Infinity;
+    ev.options.forEach(function (o) {
+      var r = E.resolveChoice(D, s, o.id); if (!r.ok) return;
+      var l = E.getLineage(r.state, pc.lineageId), f = E.forecast(D, r.state, l);
+      var colony = r.state.lineages.length > s.lineages.length ? r.state.lineages[r.state.lineages.length - 1].population : 0;
+      var score = tacticScore(f) + colony * 1.5 + l.variation * 3 + (l.stats.defense - E.getLineage(s, pc.lineageId).stats.defense) * 15;
+      if (score > bestScore) { bestScore = score; best = r.state; }
+    });
+    if (best) s = best;
+  }
+  E.aliveLineages(s).forEach(function (l) {
+    var best = null, bestScore = -Infinity;
+    Object.keys(D.STRATEGIES).forEach(function (st) {
+      Object.keys(D.BEHAVIORS).forEach(function (bh) {
+        if (!E.canSetBehavior(D, l, bh).ok) return;
+        var f = E.forecastWithTactics(D, s, l, { strategy: st, behavior: bh });
+        if (!f) return;
+        var score = tacticScore(f);
+        if (score > bestScore) { bestScore = score; best = { st: st, bh: bh }; }
+      });
+    });
+    if (best) {
+      s = E.setStrategy(D, s, l.id, best.st).state;
+      s = E.setBehavior(D, s, l.id, best.bh).state;
+    }
+    var v = E.getLineage(s, l.id).variation;
+    if (v >= 14) s = E.setSelection(D, s, l.id, true).state;
+    else if (v < 8) s = E.setSelection(D, s, l.id, false).state;
+  });
+  return s;
+}
+
+// Specjacja: gałąź idzie do wolnej niszy o najlepszej prognozie; aktywna
+// zostaje linia rodzicielska (to ona kupuje cechy ścieżki).
+function radiate(s) {
+  var a = E.getActiveLineage(s), f = E.forecast(D, s, a);
+  if (!f || f.nicheLoad < f.capacity * D.CAPACITY.warnAt || !E.canSpeciate(D, s).ok) return s;
+  var taken = E.nicheLoad(s), parentId = a.id;
+  var free = E.availableNiches(D, a).filter(function (n) { return !taken[n]; });
+  if (!free.length) return s;
+  var sp = E.speciate(D, s, 'Gałąź'); if (!sp.ok) return s;
+  var t = sp.state, child = t.activeLineageId, best = null, bestPop = -1;
+  free.forEach(function (n) {
+    var m = E.migrateLineage(D, t, child, n); if (!m.ok) return;
+    var fc = E.forecast(D, m.state, E.getLineage(m.state, child));
+    if (fc.projectedPop > bestPop) { bestPop = fc.projectedPop; best = m.state; }
+  });
+  if (!best) return s;                 // bez migracji specjacja nie ma sensu
+  return E.setActiveLineage(best, parentId);
+}
+function crowd(s) {
+  var a = E.getActiveLineage(s);
+  if (!E.canSpeciate(D, s).ok) return s;
+  var sp = E.speciate(D, s, 'Klon'); return sp.ok ? E.setActiveLineage(sp.state, a.id) : s;
+}
+
 function play(kind, init, seed) {
   var rng = seededRng(seed);
   var s = E.createInitialState(D, 'Bot', init || {});
   var guard = 0;
   while (s.status === 'playing' && guard++ < 40) {
     if (kind === 'adaptive') s = adaptiveTurn(s);
+    else if (kind === 'tactics') s = tacticsTurn(radiate(adaptiveTurn(s)));
+    else if (kind === 'tactics1') s = tacticsTurn(adaptiveTurn(s));
+    else if (kind === 'crowd') s = tacticsTurn(crowd(adaptiveTurn(s)));
     else s = buyInOrder(s, kind === 'plan' ? PLAN : STAR);
     s = E.simulateTurn(D, s, rng).state;
   }

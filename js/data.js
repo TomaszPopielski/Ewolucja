@@ -22,19 +22,123 @@
   // proporcjonalnie do liczebności — trudniej o partnera, rośnie chów wsobny.
   var MIN_VIABLE_POP = 20;
 
-  // Specjacja: koszt bazowy rośnie o STEP za każdą kolejną żywą linię.
-  var SPECIATION_COST = 12;
-  var SPECIATION_COST_STEP = 6;
-  var MIN_SPECIATION_POP = 60;
+  /*
+   * Trzy waluty gry — każda z własną rolą i horyzontem:
+   *  • EP (punkty ewolucji, wspólne) — trwałe cechy z drzewa adaptacji;
+   *  • ⚡ rezerwy energii (osobno dla linii) — taktyka tury: migracja, zachowania;
+   *  • 🧬 zmienność genetyczna (osobno dla linii) — specjacja, ukierunkowany dobór,
+   *    odporność na katastrofy i choroby.
+   */
 
-  // Migracja: koszt = BASE − mobilność (min. MIN); w turze migracji linia się
-  // aklimatyzuje — zdobywa tylko ACCLIMATIZATION_FOOD pokarmu.
-  var MIGRATION = { baseCost: 10, minCost: 3, acclimatizationFood: 0.75 };
+  // ⚡ Rezerwy energii. Nadwyżka energii z tury trafia do magazynu (`storeRate`),
+  // a deficyt najpierw pokrywają rezerwy (do `drawMax` na turę) — dopiero reszta
+  // deficytu oznacza głód.
+  // Linia żyjąca z zapasów rozmnaża się słabiej (`deficitBirthMult`). `capBonus` —
+  // cechy powiększające magazyn (tłuszcz pod futrem/piórami).
+  var RESERVES = { start: 6, cap: 12, capBonus: { insulation: 6 }, storeRate: 0.6, drawMax: 1.5, deficitBirthMult: 0.5 };
+
+  // 🧬 Zmienność genetyczna. Przybywa jej z czasem (`base`), szybciej w dużej
+  // populacji (+1 za każde `perPop` osobników, maks. `popMax`) i z każdą mutacją.
+  // Ubywa w wąskim gardle (populacja < MIN_VIABLE_POP → ×`bottleneckMult`) i w
+  // katastrofie (odsetek strat × `catastropheLoss`). Poniżej `smallPop` osobników
+  // dryf genetyczny zjada przyrost. Wysoka zmienność łagodzi katastrofy
+  // (`shieldPer` za punkt, maks. `shieldMax`). Ukierunkowany dobór kosztuje
+  // `selectionCost` na turę: częstsze (`selectionChance`) i częściej korzystne
+  // (`selectionGood`) mutacje — silny dobór zużywa zmienność.
+  var VARIATION = { start: 6, cap: 30, base: 1, perPop: 150, popMax: 3, mutation: 1, smallPop: 50,
+    bottleneckMult: 0.5, catastropheLoss: 0.6, shieldPer: 0.01, shieldMax: 0.3, shieldMin: 10,
+    selectionCost: 3, selectionChance: 0.35, selectionGood: 0.75, founder: 2 };
+
+  // Specjacja (płatna 🧬 zmiennością aktywnej linii): koszt bazowy rośnie o STEP
+  // za każdą kolejną żywą linię. Nowy gatunek wymaga zmienności, nie „punktów”.
+  var SPECIATION_COST = 8;
+  var SPECIATION_COST_STEP = 4;
+  var MIN_SPECIATION_POP = 60;
+  // Nową linię zakłada taka część populacji rodzica.
+  var SPECIATION_SHARE = 0.4;
+  // Nowa linia (specjacja, kolonia z karty decyzji) przez `turns` tury ma presję
+  // drapieżników × `predMult` — miejscowi łowcy jeszcze jej „nie znają”
+  // (hipoteza uwolnienia od wrogów).
+  var NEW_LINEAGE = { turns: 2, predMult: 0.5 };
+
+  // Migracja (płatna ⚡ rezerwami — wędrówka to wydatek energii): koszt = BASE −
+  // mobilność (min. MIN); w turze migracji linia się aklimatyzuje — zdobywa tylko
+  // ACCLIMATIZATION_FOOD pokarmu.
+  var MIGRATION = { baseCost: 8, minCost: 2, acclimatizationFood: 0.75 };
+
+  // Strategia rozrodu linii (przełącznik; obowiązuje do zmiany). Bez kosztu —
+  // sam kompromis. `reserveDrain` — ⚡ zużywane co turę.
+  var STRATEGIES = {
+    zrownowazona: { label: 'Zrównoważona', icon: '⚖️', art: 'ui:balance', birthMult: 1, predLossMult: 1, starveLossMult: 1, reserveDrain: 0,
+      desc: 'Bez premii i kar.' },
+    r: { label: 'Strategia r — ilość', icon: '🐸', art: 'strategy:r', birthMult: 1.25, predLossMult: 1.3, starveLossMult: 1.2, reserveDrain: 1,
+      desc: 'Dużo potomstwa bez opieki: rozród ×1,25, ale młode częściej giną (straty od drapieżników ×1,3, z głodu ×1,2) i zużywa 1 ⚡ na turę.' },
+    K: { label: 'Strategia K — jakość', icon: '🐘', art: 'strategy:K', birthMult: 0.75, predLossMult: 0.75, starveLossMult: 0.75, reserveDrain: 0,
+      desc: 'Mało potomstwa, dobrze chronionego: rozród ×0,75, ale straty od drapieżników i głodu ×0,75.' }
+  };
+
+  // Zachowanie w turze (jednorazowe — po turze wraca „zwykłe życie”). `cost` w ⚡.
+  var BEHAVIORS = {
+    brak: { label: 'Zwykłe życie', icon: '🌿', art: 'behavior:brak', cost: 0, desc: 'Bez dodatkowych działań.' },
+    zapasy: { label: 'Gromadzenie zapasów', icon: '🌰', art: 'behavior:zapasy', cost: 0, birthMult: 0.5, storeBonus: 3,
+      desc: 'Energia idzie w zapasy, nie w potomstwo: +3 ⚡, rozród ×0,5.' },
+    ukrycie: { label: 'Ukrywanie się', icon: '🕳️', art: 'behavior:ukrycie', cost: 3, foodMult: 0.7, predPressureMult: 0.5,
+      desc: 'Kosztuje 3 ⚡: presja drapieżników ×0,5, ale pokarm ×0,7.' },
+    zerowanie: { label: 'Intensywne żerowanie', icon: '🦷', art: 'trait:jaws', cost: 2, foodMult: 1.25, predAdd: 3,
+      desc: 'Kosztuje 2 ⚡: pokarm ×1,25, ale presja drapieżników +3 (większa ekspozycja).' }
+  };
+
+  /*
+   * Karty decyzji — zdarzenia z wyborem (obok losowych zdarzeń pozytywnych).
+   * Po turze bez katastrofy z szansą CHOICE_CHANCE losowana jest karta dla jednej
+   * żywej linii. Gracz wybiera opcję przed turą; bez wyboru działa opcja `default`.
+   * `icon` — zapasowe emoji, `art` — klucz ikony SVG (src/art/icons.ts).
+   * Opcja: `cost` { reserves, variation } — płatność; `effects` { stats, reserves,
+   * predatorLevel, found } — skutek natychmiastowy (`found` — odsetek populacji
+   * zakładający nową linię); `turnMod`/`nextMod` — modyfikatory tej / następnej
+   * tury (foodBonus, predBonus, birthMult, diseaseLoss); `knowledge` — karta wiedzy.
+   */
+  var CHOICE_CHANCE = 0.3;
+  var CHOICE_EVENTS = [
+    { id: 'island', name: 'Wynurza się wyspa', icon: '🏝️', art: 'choice:island', minPop: 60,
+      desc: 'Nowy ląd lub rafa w zasięgu linii. Grupa osobników mogłaby się tam przedostać i żyć w izolacji.',
+      options: [
+        { id: 'colonize', label: 'Wyślij kolonistów', effects: { found: 0.25 }, knowledge: 'founder',
+          desc: '¼ populacji zakłada nową linię (bez kosztu 🧬), ale z małą zmiennością — efekt założyciela.' },
+        { id: 'ignore', label: 'Zostań na miejscu', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'predator', name: 'Nowy drapieżnik w niszy', icon: '🦈', art: 'know:predation',
+      desc: 'Do niszy linii wkracza sprawny łowca.',
+      options: [
+        { id: 'hide', label: 'Przeczekaj w ukryciu', cost: { reserves: 4 }, turnMod: { noPredators: true }, desc: 'Kosztuje 4 ⚡ — w tej turze drapieżnik nie zagrozi.' },
+        { id: 'arms', label: 'Wyścig zbrojeń', effects: { stats: { defense: 1 }, predatorLevel: 1.5 }, knowledge: 'coevolution',
+          desc: '+1 obrony na stałe, ale drapieżniki szybciej ewoluują (koewolucja +1,5).' },
+        { id: 'endure', label: 'Stawić czoła', default: true, turnMod: { predBonus: 4 },
+          desc: 'W tej turze presja drapieżników +4.' }
+      ] },
+    { id: 'bloom', name: 'Zakwit pokarmu', icon: '🌾', art: 'ui:sprout',
+      desc: 'Nagła obfitość pokarmu. Jak ją wykorzystać?',
+      options: [
+        { id: 'feast', label: 'Najeść się na zapas', effects: { reserves: 5 }, knowledge: 'reserves', default: true,
+          desc: '+5 ⚡ od razu.' },
+        { id: 'breed', label: 'Rozmnażać się', turnMod: { birthMult: 1.5 }, nextMod: { foodBonus: -3 }, knowledge: 'boom',
+          desc: 'Rozród ×1,5 w tej turze, ale w następnej −3 pokarmu (załamanie po boomie).' }
+      ] },
+    { id: 'disease', name: 'Epidemia pasożytów', icon: '🦠', art: 'choice:disease',
+      desc: 'W populacji szerzy się choroba.',
+      options: [
+        { id: 'resist', label: 'Postaw na odporność', cost: { variation: 4 }, knowledge: 'variation',
+          desc: 'Kosztuje 4 🧬 — w zmiennej populacji są osobniki odporne; choroba nie zabija.' },
+        { id: 'endure', label: 'Przetrwać chorobę', default: true, turnMod: { diseaseLoss: 0.2 },
+          desc: 'W tej turze choroba zabije ok. 20% populacji.' }
+      ] }
+  ];
 
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
-  // reprodukcyjny (liczebność, wzrost) + za inteligencję najlepszej linii.
+  // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
+  // najlepszej linii.
   // Skalibrowane symulacją (test „balans”): stały plan nie wygrywa zawsze.
-  var EP_RULES = { base: 10, perPopulation: 120, perGrowth: 12, intelligenceDiv: 2 };
+  var EP_RULES = { base: 9, perPopulation: 45, perGrowth: 8, intelligenceDiv: 2 };
 
   // Zmienność środowiska (ZALOZENIA 3: faza środowiska). Po każdej turze silnik
   // losuje odchylenia warunków następnej tury od wartości historycznych; gracz
@@ -49,7 +153,7 @@
   // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
   var DIFFICULTIES = {
     latwy:    { label: 'Łatwy',    startEp: 50, goal: 14, catMult: 0.6, predMult: 0.8, coevo: 0.5 },
-    normalny: { label: 'Normalny', startEp: 35, goal: 15, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
+    normalny: { label: 'Normalny', startEp: 34, goal: 15, catMult: 1.0, predMult: 1.0, coevo: 1.0 },
     trudny:   { label: 'Trudny',   startEp: 35, goal: 17, catMult: 1.1, predMult: 1.0, coevo: 1.1 }
   };
 
@@ -66,6 +170,17 @@
       without: { trait: 'amniotic_egg', effects: { reproduction: -2 }, note: 'bez jaja lądowego rozród zależy od wody' } },
     powietrze:  { label: 'Powietrze',  icon: '🕊️', requires: 'flight', foodMult: 0.7, predMult: 0.3,  epBonus: 2 }
   };
+
+  /*
+   * Pojemność środowiska (nośność, K): ile osobników wyżywi nisza w danej turze.
+   * K = `perFood[nisza]` × pokarm niszy w tej turze. Linie w tej samej niszy dzielą
+   * pojemność (konkurencja). Rozród słabnie, gdy liczebność zbliża się do K
+   * (wzrost logistyczny: × (1 − (N/K)^theta)), a nadmiar ponad K ginie z przegęszczenia (do `crowdMax`
+   * populacji na turę, `crowdRate` za każde 100% nadwyżki). Nowa nisza = nowa
+   * pojemność — to daje sens specjacji i migracji (radiacja adaptacyjna).
+   */
+  var CAPACITY = { perFood: { woda: 30, przybrzeze: 24, lad: 40, powietrze: 28 }, min: 60, theta: 3,
+    crowdRate: 0.35, crowdMax: 0.35, warnAt: 0.8 };
 
   var CATEGORIES = {
     pokarm: 'Pokarm', lokomocja: 'Lokomocja', obrona: 'Obrona', zmysly: 'Zmysły',
@@ -195,7 +310,8 @@
           note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
         { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
           note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
-          catastrophe: { name: 'Wymieranie ordowickie', niche: 'woda', severity: 0.35, knowledge: 'extinction',
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.45,
+            nicheSeverity: { przybrzeze: 0.3, lad: 0.05, powietrze: 0.05 }, knowledge: 'extinction',
             survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka do cieplejszych wód' }] } },
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
           note: 'Klimat łagodnieje; pierwsze rośliny wychodzą na ląd.' },
@@ -208,7 +324,8 @@
         { title: 'Perm — Wielkie Wymieranie', oxygen: 8, food: 7, predators: 9, climate: 'cieplo', land: land(8, 5),
           note: 'Erupcje trapów syberyjskich: gwałtowne ocieplenie, zakwaszone i niedotlenione oceany. ' +
             'Najmocniej cierpią morza, ale ląd także.',
-          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.55, nicheSeverity: { lad: 0.35 },
+          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.65,
+            nicheSeverity: { przybrzeze: 0.5, lad: 0.35, powietrze: 0.35 },
             knowledge: 'extinction',
             survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'niski metabolizm — mniejsze zapotrzebowanie na tlen' }] } }
       ]
@@ -231,7 +348,8 @@
           note: 'Rośliny kwiatowe i owady tworzą nowe źródła pokarmu.' },
         { title: 'Kreda — uderzenie asteroidy', oxygen: 10, food: 6, predators: 8, climate: 'zimno', land: land(6, 8),
           note: 'Asteroida i zima uderzeniowa kończą erę dinozaurów.',
-          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.5, knowledge: 'extinction',
+          catastrophe: { name: 'Wymieranie kredowe (K–Pg)', niche: 'all', severity: 0.55,
+            nicheSeverity: { woda: 0.3, przybrzeze: 0.4, powietrze: 0.45 }, knowledge: 'extinction',
             survival: [
               { stat: 'metabolism', max: 7, mult: 0.6, reason: 'mały, oszczędny organizm przetrwał zimę uderzeniową' },
               { trait: 'omnivory', mult: 0.75, reason: 'wszystkożerność — elastyczna dieta w czasie głodu' }] } }
@@ -253,7 +371,8 @@
           note: 'Chłód premiuje izolację, zapasy i inteligencję.' },
         { title: 'Plejstocen — epoki lodowcowe', oxygen: 10, food: 7, predators: 8, climate: 'zimno', land: land(8, 8),
           note: 'Zlodowacenia to twarda szkoła — przetrwają najbardziej elastyczni.',
-          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'lad', severity: 0.3, knowledge: 'extinction',
+          catastrophe: { name: 'Zlodowacenie plejstoceńskie', niche: 'all', severity: 0.4,
+            nicheSeverity: { woda: 0.05, przybrzeze: 0.15, powietrze: 0.25 }, knowledge: 'extinction',
             survival: [
               { trait: 'insulation', mult: 0.6, reason: 'izolacja (futro/pióra) chroni przed mrozem' },
               { trait: 'social', mult: 0.8, reason: 'życie w grupie — wspólne przetrwanie zimy' }] } },
@@ -276,7 +395,7 @@
     { id: 'land', name: 'Podbój lądu', icon: '🏝️', difficulty: 'latwy', startEra: 0,
       intro: 'Łagodniejsze wyzwanie ze szczególnym naciskiem na wyjście na ląd i rozwój na nim.' },
     { id: 'ice', name: 'Epoki lodowcowe', icon: '❄️', difficulty: 'trudny', startEra: 2,
-      startEp: 76, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
+      startEp: 73, goal: 14, startNiche: 'lad', startTraits: ['fins', 'scales', 'endothermy', 'insulation', 'ganglia', 'limbs'],
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
         'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
   ];
@@ -326,6 +445,43 @@
         'szansę, że któraś przetrwa.',
       fossil: 'Wymieranie permskie (~252 mln lat temu), wywołane erupcjami trapów syberyjskich i ociepleniem, ' +
         'zgładziło ok. 90% gatunków morskich i ok. 70% kręgowców lądowych.' },
+    reserves: { icon: '🌰', title: 'Zapasy energii',
+      body: 'Zwierzęta magazynują nadwyżki energii — w tłuszczu, wątrobie, a nawet w zakopanych zapasach. ' +
+        'Rezerwy pozwalają przetrwać chude okresy, ale energia odłożona na zapas nie idzie w potomstwo.',
+      fossil: 'Niedźwiedzie przed snem zimowym przybierają nawet 30% masy, by przetrwać miesiące bez jedzenia.' },
+    rk: { icon: '🐸', title: 'Strategie r i K',
+      body: 'Strategia r to dużo potomstwa bez opieki — szybki wzrost tam, gdzie warunki są zmienne. ' +
+        'Strategia K to mało potomstwa, ale dobrze chronionego — przewaga w stabilnym, zatłoczonym świecie. ' +
+        'Większość gatunków leży gdzieś pomiędzy.' },
+    variation: { icon: '🧬', title: 'Zmienność — paliwo doboru',
+      body: 'Dobór naturalny może działać tylko na różnice między osobnikami. Im większa zmienność genetyczna, ' +
+        'tym większa szansa, że część populacji przetrwa nową chorobę czy zmianę klimatu. Silny dobór ' +
+        'zużywa zmienność — „odsiewa” warianty.' },
+    drift: { icon: '🎲', title: 'Dryf genetyczny i wąskie gardło',
+      body: 'W małej populacji o losie wariantów genów decyduje przypadek, a nie dobór — to dryf genetyczny. ' +
+        'Gdy populacja gwałtownie maleje (wąskie gardło), traci większość zmienności na długo.',
+      fossil: 'Gepardy przeszły wąskie gardło ok. 10 tys. lat temu — do dziś są genetycznie niemal identyczne.' },
+    founder: { icon: '🛶', title: 'Efekt założyciela i specjacja przez izolację',
+      body: 'Nową populację zakłada czasem garstka osobników, np. na wyspie. Niesie tylko ułamek zmienności ' +
+        'gatunku, a izolacja pozwala jej ewoluować osobno — tak powstają nowe gatunki (specjacja allopatryczna).',
+      fossil: 'Galapagos i Hawaje zasiedliły nieliczne osobniki, z których wyewoluowały dziesiątki nowych gatunków.' },
+    boom: { icon: '📈', title: 'Boom i załamanie',
+      body: 'Obfitość pokarmu pozwala populacji gwałtownie urosnąć, ale gdy zasoby się kończą, liczebność ' +
+        'spada — często poniżej stanu sprzed boomu. Tak działają cykle populacyjne.',
+      fossil: 'Populacje zajęcy i rysi w Kanadzie od stuleci wahają się w ok. 10-letnim cyklu.' },
+    capacity: { icon: '📏', title: 'Pojemność środowiska',
+      body: 'Każde środowisko wyżywi tylko określoną liczbę osobników — to jego pojemność (nośność). ' +
+        'Mała populacja w bogatym środowisku rośnie szybko, ale im bliżej granicy, tym wolniej; nadmiar ginie z głodu i ' +
+        'przegęszczenia. Wzrost przyjmuje kształt litery S (wzrost logistyczny).' },
+    competition: { icon: '⚔️', title: 'Konkurencja',
+      body: 'Gatunki korzystające z tych samych zasobów konkurują ze sobą — dzielą tę samą pojemność środowiska. ' +
+        'Dwa gatunki o identycznej niszy nie mogą długo współistnieć (zasada Gausego): jeden wypiera drugi albo ' +
+        'ich nisze się rozchodzą.' },
+    radiation: { icon: '🌳', title: 'Radiacja adaptacyjna',
+      body: 'Gdy przodek trafia do świata pełnego wolnych nisz, jego potomkowie szybko rozdzielają się na wiele ' +
+        'gatunków — każdy zajmuje inną niszę i ma własne zasoby. W nowym miejscu często brakuje też ' +
+        'wyspecjalizowanych wrogów, co ułatwia start.',
+      fossil: 'Po wymarciu dinozaurów ssaki w kilka milionów lat rozdzieliły się na drapieżniki, roślinożerców, nietoperze i walenie.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
         'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
@@ -333,8 +489,9 @@
 
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
-    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
-    MIGRATION: MIGRATION, WIN_TRAIT: WIN_TRAIT, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
+    SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
+    MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
     TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:
