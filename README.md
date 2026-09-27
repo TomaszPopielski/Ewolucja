@@ -87,8 +87,8 @@ przechodnia świadomą strategią.
   do inteligencji oznaczona ⭐.
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją —
   każda ma inny pokarm i zagrożenia; dywersyfikacja realnie pomaga przetrwać.
-- **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny (żywe i
-  wymarłe gałęzie, oś er).
+- **Specjacja i drzewo życia** — interaktywny diagram filogenetyczny z miniaturami
+  zwierząt, animowanym rozgałęzianiem i powiększaniem (żywe i wymarłe gałęzie, oś er).
 - **Katastrofy / wymierania masowe** (permskie, K–Pg, zlodowacenia) oraz
   **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
@@ -99,6 +99,8 @@ przechodnia świadomą strategią.
 - **Tura jako wydarzenie** — przed raportem krótka animacja: żerowanie, ataki
   drapieżników, głód, narodziny, mutacja i katastrofy (meteoryt, zlodowacenie,
   wulkanizm); można ją pominąć.
+- **Ekran końcowy z historią** — rycina gatunku, „droga ewolucji” w miniaturach
+  i wykres populacji na osi er.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
   widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.

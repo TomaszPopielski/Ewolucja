@@ -421,7 +421,28 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .sparkline-box { margin-bottom: 14px; }
 .sparkline-label { display: block; font-size: .9rem; margin-bottom: 4px; }
 .sparkline { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
-.sparkline svg { display: block; }
+
+/* Wykres populacji (oś całej gry) — jedna seria, stonowana siatka */
+.popchart { position: relative; }
+.popchart svg { display: block; overflow: visible; }
+.pc-era { font-family: var(--serif); font-size: 9px; font-variant-caps: all-small-caps; letter-spacing: .05em; fill: var(--ink-soft); }
+.pc-axis { stroke: var(--line-strong); stroke-width: 1; }
+.pc-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.pc-tick { font-size: 9px; fill: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pc-cat line { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 1 3; opacity: .55; }
+.pc-cat path { fill: var(--danger); }
+.pc-area { fill: var(--brand); opacity: .14; }
+.pc-line { fill: none; stroke: var(--brand); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pc-dot { fill: var(--brand); stroke: var(--bg-elev); stroke-width: 2; }
+.pc-value { font-size: 11px; font-weight: 700; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.pc-cross { stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 2 2; }
+.pc-tip {
+  position: absolute; top: -6px; transform: translateY(-100%); pointer-events: none; z-index: 2;
+  display: flex; gap: 8px; align-items: baseline; white-space: nowrap;
+  background: var(--bg-panel); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: var(--shadow);
+  padding: 3px 8px; font-size: .74rem; color: var(--ink-soft);
+}
+.pc-tip strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* --- Układ gry --- */
 .game-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
@@ -591,9 +612,42 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 
 /* --- Drzewo życia --- */
 .tree-container { margin-top: 12px; overflow-x: auto; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
-.tree-container svg { min-width: 480px; }
+.tree-container svg { min-width: 560px; display: block; }
 .tree-container text { font-family: var(--serif); }
 .tree-container [data-lineage] text { user-select: none; }
+.tree-tools { display: flex; gap: 6px; }
+.tree-era { fill: transparent; }
+.tree-era-1 { fill: var(--line); opacity: .28; }
+.tree-era-name { font-size: 12px; font-variant-caps: all-small-caps; letter-spacing: .06em; fill: var(--ink-soft); }
+.tree-cat line { stroke: var(--danger); stroke-dasharray: 1 4; opacity: .5; }
+.tree-cat path { fill: var(--danger); }
+.tree-now { stroke: var(--accent); stroke-dasharray: 4 3; stroke-width: 1.2; }
+.tree-branch { fill: none; stroke: var(--brand); stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 0; animation: treeGrow 1.1s ease-out both; }
+.tree-branch.extinct { stroke: var(--ink-soft); stroke-dasharray: .012 .01; animation: none; opacity: .75; }
+.tree-branch.active { stroke: var(--accent); }
+@keyframes treeGrow { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.tree-node { animation: treeNodeIn .5s ease-out both; }
+@keyframes treeNodeIn { from { opacity: 0; } to { opacity: 1; } }
+.tree-frame { fill: var(--bg-panel); stroke: var(--brand); stroke-width: 1.5; }
+.tree-node.extinct .tree-frame { stroke: var(--ink-soft); stroke-dasharray: 3 2; }
+.tree-node.extinct .tree-thumb { filter: grayscale(1); opacity: .55; }
+.tree-ring { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.tree-node:focus-visible { outline: none; }
+.tree-node:focus-visible .tree-frame { stroke: var(--accent); stroke-width: 3; }
+.tree-name { font-size: 14px; font-style: italic; font-weight: 600; fill: var(--ink); }
+.tree-node.active .tree-name { fill: var(--accent); }
+.tree-sub { font-family: var(--font) !important; font-size: 11px; fill: var(--ink-soft); }
+
+/* --- Ekran startowy: diorama w nagłówku karty --- */
+.diorama.start-hero { height: 190px; margin: -28px -28px 22px; border-radius: var(--radius) var(--radius) 0 0;
+  border: 0; border-bottom: 1px solid var(--line-strong); box-shadow: none; }
+@media (max-width: 480px) { .diorama.start-hero { height: 140px; margin: -20px -20px 18px; } }
+.scenario-card { grid-template-columns: auto 1fr auto; }
+.scenario-card .scenario-name, .scenario-card .scenario-diff { grid-column: 2; }
+.scenario-card .scenario-intro { grid-column: 2 / 4; }
+.scenario-thumb { grid-column: 3; grid-row: 1 / 3; width: 96px; height: 52px; object-fit: contain; }
+@media (max-width: 480px) { .scenario-thumb { width: 72px; height: 39px; } }
 
 /* --- Ekran końcowy --- */
 .screen-end { display: flex; justify-content: center; padding-top: 4vh; }
@@ -609,6 +663,21 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .end-stats { list-style: none; padding: 0; margin: 18px 0; display: flex; flex-direction: column; gap: 6px; }
 .end-stats li { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg-elev); border-radius: 6px; border: 1px solid var(--line); }
 .end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.end-card { max-width: 720px; }
+.end-figure { margin: 18px 0 8px; }
+.end-section-title { font-size: 1.05rem; text-align: left; margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+.end-section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.end-path-list { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.end-path-list li {
+  flex: 1 1 0; min-width: 84px; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px 8px;
+  font-size: .72rem; color: var(--ink-soft); text-align: center; line-height: 1.25;
+}
+.end-path-list li + li::before {
+  content: "→"; position: absolute; left: -9px; top: 32px; color: var(--ink-soft); font-size: .8rem;
+}
+.end-path-list img { width: 100%; max-width: 110px; height: auto; aspect-ratio: 110 / 70; object-fit: contain; }
+.end-chart .popchart { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 18px 6px 6px; }
 
 /* --- Responsywność (tablet / telefon) --- */
 @media (max-width: 820px) {

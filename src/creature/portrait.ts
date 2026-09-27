@@ -63,8 +63,11 @@ export class Portrait {
   private time = 0;
   private reduced: boolean;
   private width = 280;
+  /** Wysokość ryciny (atrybut data-height kontenera, domyślnie 156 px). */
+  private height: number;
 
   constructor(private host: HTMLElement) {
+    this.height = Number(host.dataset.height) || HEIGHT;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'creature-canvas';
     this.canvas.setAttribute('role', 'img');
@@ -120,9 +123,9 @@ export class Portrait {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.width = Math.max(160, this.host.clientWidth || 280);
     this.canvas.width = Math.round(this.width * dpr);
-    this.canvas.height = Math.round(HEIGHT * dpr);
+    this.canvas.height = Math.round(this.height * dpr);
     this.canvas.style.width = '100%';
-    this.canvas.style.height = HEIGHT + 'px';
+    this.canvas.style.height = this.height + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.draw();
   }
@@ -156,7 +159,7 @@ export class Portrait {
   private draw() {
     if (!this.spec) return;
     drawPortrait(this.ctx, {
-      layout: { width: this.width, height: HEIGHT },
+      layout: { width: this.width, height: this.height },
       spec: this.spec,
       theme: this.theme,
       o: { time: this.time, pres: this.pres, ghost: this.ghost, climate: this.climate, still: this.reduced }

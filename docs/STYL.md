@@ -135,3 +135,23 @@ liczba ofiar i młodych na scenie jest do nich proporcjonalna.
 - `prefers-reduced-motion` albo brak dioramy: raport pojawia się od razu.
 - Specjacja: nowa gałąź powstaje z połowy stada rodzica, które się rozchodzi.
 - Raport ma ikony i kolejność pozycji zgodne z fazami animacji.
+
+## Drzewo życia, wykres i ekrany (etap 5)
+
+- **Miniatury** (`src/creature/thumb.ts`): ten sam rysunek co rycina, nieruchomy,
+  zapamiętywany. Używane w drzewie życia, na kartach scenariuszy i w „drodze
+  ewolucji” na ekranie końcowym.
+- **Drzewo życia**: pasma er, znaczniki katastrof, linia „teraz”. Gałęzie
+  rysują się po otwarciu (od pnia do najmłodszych). Grubość gałęzi zależy od
+  szczytowej populacji. Na końcu gałęzi jest miniatura w obecnej postaci;
+  wymarłe gałęzie są szare, z przerywaną ramką. Przyciski − i + powiększają
+  drzewo. Węzły żywych linii da się wybrać myszą i klawiaturą.
+- **Wykres populacji**: oś całej gry od ery startowej scenariusza, pasma er,
+  znaczniki katastrof, podpis ostatniej wartości. Po najechaniu pojawia się
+  celownik z turą i liczebnością. Jedna seria, więc bez legendy (tytuł nazywa
+  serię). Opis tekstowy trafia do `aria-label`.
+- **Ekran startowy**: w nagłówku karty diorama kambryjskiego morza. Karty
+  scenariuszy pokazują miniaturę formy startowej.
+- **Ekran końcowy**: rycina linii, która doszła najdalej. Pod nią „droga
+  ewolucji” (kolejne stadia wg kolejności zdobywania cech, od form startowych
+  scenariusza) i wykres jej populacji.

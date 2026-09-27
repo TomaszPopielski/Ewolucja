@@ -9,6 +9,7 @@ import { Portrait, readTheme, type PortraitUpdate } from '../creature/portrait.t
 import type { Diorama, DioramaData } from '../diorama/diorama.ts';
 import type { TurnPlay } from '../diorama/turnplay.ts';
 import type { LineageLike } from '../creature/spec.ts';
+import { creatureThumb } from '../creature/thumb.ts';
 
 export interface GameArtApi {
   icon: (key: string, extraClass?: string) => string;
@@ -18,6 +19,10 @@ export interface GameArtApi {
   portrait: {
     update: (host: HTMLElement, lineage: LineageLike, opts?: PortraitUpdate) => void;
     preview: (host: HTMLElement, traitId: string | null) => void;
+  };
+  /** Miniatura zwierzęcia (data URL PNG) — drzewo życia, ekrany startowy i końcowy. */
+  creature: {
+    thumb: (lineage: LineageLike, width: number, height: number) => string;
   };
   /** Żywa diorama środowiska; gdy nie da się jej narysować, kontener dostaje klasę .diorama-off. */
   diorama: {
@@ -70,6 +75,9 @@ const api: GameArtApi = {
   portrait: {
     update: (host, lineage, opts) => { portraitFor(host)?.update(lineage, opts); },
     preview: (host, traitId) => { portraitFor(host)?.preview(traitId); }
+  },
+  creature: {
+    thumb: (lineage, width, height) => { try { return creatureThumb(lineage, { width, height }); } catch (e) { return ''; } }
   },
   diorama: {
     update: dioramaUpdate,

@@ -26,6 +26,9 @@
     <!-- Ekran startowy -->
     <section id="screen-start" class="screen screen-start" aria-labelledby="start-title">
       <div class="card intro-card">
+        <section class="diorama start-hero" id="start-diorama" aria-label="Kambryjskie morze — początek Twojej linii">
+          <p class="diorama-caption"><strong>Kambr</strong> · 539 mln lat temu — tu zaczyna się Twoja linia</p>
+        </section>
         <h1 id="start-title" data-i18n="start.title">Ewolucja</h1>
         <p class="lead">
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
@@ -95,7 +98,7 @@
 
           <div class="sparkline-box">
             <span class="sparkline-label" data-i18n="species.popOverTime">Populacja w czasie</span>
-            <div id="sparkline" class="sparkline" aria-hidden="true"></div>
+            <div id="sparkline" class="sparkline popchart" role="img"></div>
           </div>
 
           <div class="forecast-box" id="forecast-box">
@@ -131,6 +134,18 @@
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <figure class="creature-figure end-figure" id="end-figure">
+          <div id="end-portrait" class="creature-portrait" data-height="210"></div>
+          <figcaption class="creature-caption" id="end-caption"></figcaption>
+        </figure>
+        <section class="end-path" id="end-path-box" aria-labelledby="end-path-title">
+          <h2 class="end-section-title" id="end-path-title">Droga ewolucji</h2>
+          <ol class="end-path-list" id="end-path"></ol>
+        </section>
+        <section class="end-chart" aria-labelledby="end-chart-title">
+          <h2 class="end-section-title" id="end-chart-title">Populacja w czasie</h2>
+          <div id="end-chart" class="popchart" role="img"></div>
+        </section>
         <ul class="end-stats" id="end-stats"></ul>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
@@ -170,7 +185,11 @@
     <div class="modal-box modal-box-wide">
       <div class="modal-head">
         <h2 id="tree-title" class="modal-title" data-i18n="tree.title" data-icon="ui:tree">Drzewo życia</h2>
-        <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+        <div class="tree-tools">
+          <button id="btn-tree-zoom-out" class="btn btn-ghost btn-icon" type="button" aria-label="Pomniejsz drzewo">−</button>
+          <button id="btn-tree-zoom-in" class="btn btn-ghost btn-icon" type="button" aria-label="Powiększ drzewo">+</button>
+          <button id="btn-tree-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+        </div>
       </div>
       <p class="panel-hint" data-i18n="tree.hint"></p>
       <div id="tree-container" class="tree-container"></div>

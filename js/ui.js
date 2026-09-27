@@ -33,7 +33,10 @@
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
     speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
     portrait: $('creature-portrait'), portraitCaption: $('creature-caption'),
-    diorama: $('diorama'), dioramaCaption: $('diorama-caption'),
+    diorama: $('diorama'), dioramaCaption: $('diorama-caption'), startDiorama: $('start-diorama'),
+    endFigure: $('end-figure'), endPortrait: $('end-portrait'), endCaption: $('end-caption'),
+    endPath: $('end-path'), endPathBox: $('end-path-box'), endChart: $('end-chart'),
+    btnTreeZoomIn: $('btn-tree-zoom-in'), btnTreeZoomOut: $('btn-tree-zoom-out'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -109,7 +112,9 @@
       card.type = 'button';
       card.className = 'scenario-card';
       card.dataset.scenario = sc.id;
+      var thumb = (ART && ART.creature) ? ART.creature.thumb({ id: 'sc-' + sc.id, name: sc.name, traits: sc.startTraits || [], niche: 'woda' }, 96, 52) : '';
       card.innerHTML = '<span class="scenario-icon">' + ico('scenario:' + sc.id, sc.icon) + '</span>' +
+        (thumb ? '<img class="scenario-thumb" alt="" src="' + thumb + '">' : '') +
         '<span class="scenario-name">' + sc.name + '</span>' +
         '<span class="scenario-diff">' + diff.label + ' · cel int. ' + (sc.goal != null ? sc.goal : diff.goal) + '</span>' +
         '<span class="scenario-intro">' + sc.intro + '</span>';
@@ -252,26 +257,104 @@
   }
 
   // ===================== Render — wykres populacji =====================
-  function renderSparkline(lineage) {
-    var d = lineage.popHistory, w = 260, h = 46, pad = 4;
-    if (!d || d.length < 2) {
-      el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h +
-        '"><line x1="' + pad + '" y1="' + (h - pad) + '" x2="' + (w - pad) + '" y2="' + (h - pad) +
-        '" stroke="var(--line)"/></svg>';
-      return;
-    }
-    var max = Math.max.apply(null, d), min = Math.min.apply(null, d), range = Math.max(1, max - min);
-    var stepX = (w - 2 * pad) / (d.length - 1);
-    var pts = d.map(function (v, i) {
-      return Math.round(pad + i * stepX) + ',' + Math.round((h - pad) - ((v - min) / range) * (h - 2 * pad));
-    });
-    var last = pts[pts.length - 1].split(',');
-    var area = 'M' + pad + ',' + (h - pad) + ' L' + pts.join(' L') + ' L' + (w - pad) + ',' + (h - pad) + ' Z';
-    el.sparkline.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
-      '<path d="' + area + '" fill="var(--brand)" opacity="0.12"/>' +
-      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
-      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="var(--brand)"/></svg>';
+  // Oś całej gry (wszystkie ery), pasma er, znaczniki katastrof, podpowiedź
+  // po najechaniu. Jedna seria (linia) — bez legendy; tytuł nazywa serię.
+  var TOTAL_T = Engine.totalTurns(DATA);
+  // Początek osi = początek ery, w której zaczęła się gra (scenariusz może startować później).
+  function gameStartT() {
+    var root = state && state.lineages[0];
+    return root ? Engine.globalTurn(DATA, root.bornEra, 0) : 0;
   }
+  function eraBounds() {
+    var acc = 0, t0 = gameStartT();
+    return DATA.ERAS.map(function (e) { var b = { name: e.name, id: e.id, start: acc, end: acc + e.turns.length }; acc += e.turns.length; return b; })
+      .filter(function (b) { return b.end > t0; });
+  }
+  function catastropheTurns() {
+    var out = [], acc = 0;
+    DATA.ERAS.forEach(function (e) {
+      e.turns.forEach(function (t, i) { if (t.catastrophe) out.push({ x: acc + i + 1, name: t.catastrophe.name }); });
+      acc += e.turns.length;
+    });
+    var t0 = gameStartT();
+    return out.filter(function (c) { return c.x > t0; });
+  }
+  // Etykieta punktu osi: x = liczba przeżytych tur od początku gry.
+  function turnLabel(x) {
+    if (x <= 0) return 'Start';
+    var acc = 0, label = 'Tura ' + x;
+    DATA.ERAS.forEach(function (e) {
+      if (x - 1 >= acc && x - 1 < acc + e.turns.length) label += ' · ' + e.turns[x - 1 - acc].title.split(' — ')[0];
+      acc += e.turns.length;
+    });
+    return label;
+  }
+  function niceCeil(v) {
+    var p = Math.pow(10, Math.floor(Math.log(Math.max(1, v)) / Math.LN10));
+    var steps = [1, 2, 2.5, 5, 10];
+    for (var i = 0; i < steps.length; i++) if (steps[i] * p >= v) return steps[i] * p;
+    return 10 * p;
+  }
+  function renderPopChart(box, lineage, height) {
+    var W = Math.max(220, box.clientWidth - 8 || 280), H = height || 92;
+    var padL = 6, padR = 34, padT = 16, padB = 14;
+    var born = Engine.globalTurn(DATA, lineage.bornEra, lineage.bornTurn);
+    var d = lineage.popHistory || [];
+    var maxV = niceCeil(Math.max(10, Math.max.apply(null, d.length ? d : [0])));
+    var T0 = gameStartT(), span = Math.max(1, TOTAL_T - T0);
+    var xOf = function (t) { return padL + ((t - T0) / span) * (W - padL - padR); };
+    var yOf = function (v) { return H - padB - (v / maxV) * (H - padT - padB); };
+    var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">';
+    // pasma er (naprzemienne tło) z nazwą ery
+    eraBounds().forEach(function (b, i) {
+      var x0 = xOf(b.start), x1 = xOf(b.end);
+      if (i % 2 === 1) svg += '<rect x="' + x0 + '" y="' + padT + '" width="' + (x1 - x0) + '" height="' + (H - padT - padB) + '" fill="var(--line)" opacity="0.35"/>';
+      svg += '<text x="' + (x0 + 3) + '" y="' + (padT - 5) + '" class="pc-era">' + escapeHtml(b.name) + '</text>';
+    });
+    // siatka: linia bazowa i górna wartość skali
+    svg += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yOf(0) + '" y2="' + yOf(0) + '" class="pc-axis"/>';
+    svg += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yOf(maxV) + '" y2="' + yOf(maxV) + '" class="pc-grid"/>';
+    svg += '<text x="' + (W - padR + 4) + '" y="' + (yOf(maxV) + 3) + '" class="pc-tick">' + maxV + '</text>';
+    // katastrofy — znacznik na górnej krawędzi (ikona + opis w tytule)
+    catastropheTurns().forEach(function (c) {
+      var x = xOf(c.x);
+      svg += '<g class="pc-cat"><title>' + escapeHtml(c.name) + '</title><line x1="' + x + '" x2="' + x + '" y1="' + padT + '" y2="' + (H - padB) + '"/>' +
+        '<path d="M' + (x - 3.5) + ' ' + (padT - 1) + 'l3.5 5 3.5-5z"/></g>';
+    });
+    if (d.length >= 1) {
+      var pts = d.map(function (v, i) { return [xOf(born + i), yOf(v)]; });
+      var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+      if (pts.length > 1) {
+        svg += '<path d="' + line + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + yOf(0) + ' L' + pts[0][0].toFixed(1) + ' ' + yOf(0) + ' Z" class="pc-area"/>';
+        svg += '<path d="' + line + '" class="pc-line"/>';
+      }
+      var last = pts[pts.length - 1];
+      svg += '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="4" class="pc-dot"/>';
+      svg += '<text x="' + (last[0] + 7) + '" y="' + (last[1] + 4) + '" class="pc-value">' + d[d.length - 1] + '</text>';
+    }
+    svg += '<g class="pc-hover" visibility="hidden"><line class="pc-cross" y1="' + padT + '" y2="' + (H - padB) + '"/><circle r="4" class="pc-dot"/></g>';
+    svg += '</svg><div class="pc-tip" hidden></div>';
+    box.innerHTML = svg;
+    box.setAttribute('aria-label', 'Populacja linii ' + lineage.name + ': ' +
+      (d.length ? 'od ' + d[0] + ' do ' + d[d.length - 1] + ' (maks. ' + Math.max.apply(null, d) + ')' : 'brak danych') + '.');
+    // podpowiedź: celownik na najbliższej turze
+    var svgEl = box.querySelector('svg'), hov = box.querySelector('.pc-hover'), tip = box.querySelector('.pc-tip');
+    if (!d.length) return;
+    svgEl.addEventListener('mousemove', function (e) {
+      var r = svgEl.getBoundingClientRect();
+      var t = T0 + Math.round(((e.clientX - r.left - padL) / (W - padL - padR)) * span);
+      var i = Math.max(0, Math.min(d.length - 1, t - born));
+      var x = xOf(born + i), y = yOf(d[i]);
+      hov.setAttribute('visibility', 'visible');
+      hov.querySelector('line').setAttribute('x1', x); hov.querySelector('line').setAttribute('x2', x);
+      hov.querySelector('circle').setAttribute('cx', x); hov.querySelector('circle').setAttribute('cy', y);
+      tip.hidden = false;
+      tip.innerHTML = '<span>' + escapeHtml(turnLabel(born + i)) + '</span><strong>' + d[i] + '</strong>';
+      tip.style.left = Math.min(W - 120, Math.max(0, x - 50)) + 'px';
+    });
+    svgEl.addEventListener('mouseleave', function () { hov.setAttribute('visibility', 'hidden'); tip.hidden = true; });
+  }
+  function renderSparkline(lineage) { renderPopChart(el.sparkline, lineage, 92); }
 
   // ===================== Render — prognoza (co-jeśli) =====================
   function renderForecast(previewTrait) {
@@ -615,56 +698,79 @@
       if (lin && lin.alive) {
         n.style.cursor = 'pointer';
         n.addEventListener('click', function () { onSelectLineage(id); closeModal(el.modalTree); });
+        n.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectLineage(id); closeModal(el.modalTree); } });
       }
     });
     openModal(el.modalTree);
   }
+  var treeZoom = 1;
+  var TREE_ZOOMS = [0.75, 1, 1.5, 2];
+  function setTreeZoom(dir) {
+    var i = TREE_ZOOMS.indexOf(treeZoom);
+    treeZoom = TREE_ZOOMS[Math.max(0, Math.min(TREE_ZOOMS.length - 1, i + dir))];
+    var svg = el.treeContainer.querySelector('svg');
+    if (svg) svg.style.width = (treeZoom * 100) + '%';
+  }
+  // Drzewo filogenetyczne: gałęzie (grubość ∝ szczytowej populacji) rysują się
+  // po otwarciu; na końcu każdej gałęzi miniatura zwierzęcia w obecnej postaci.
   function buildTreeSvg() {
-    var lineages = state.lineages, rowH = 46, topPad = 24, leftPad = 90, rightPad = 140, innerW = 620;
-    var maxT = Engine.totalTurns(DATA);
-    var nowT = Engine.globalTurn(DATA, state.eraIndex >= DATA.ERAS.length ? DATA.ERAS.length - 0 : state.eraIndex, state.turn);
-    var rows = {}, order = [], childrenOf = {};
+    var lineages = state.lineages, rowH = 70, topPad = 40, leftPad = 18, rightPad = 230, innerW = 620;
+    var maxT = TOTAL_T;
+    var nowT = Math.min(maxT, Engine.globalTurn(DATA, state.eraIndex >= DATA.ERAS.length ? DATA.ERAS.length - 0 : state.eraIndex, state.turn));
+    var rows = {}, order = [], childrenOf = {}, depthOf = {};
     lineages.forEach(function (l) { var p = l.parentId || '__root'; (childrenOf[p] = childrenOf[p] || []).push(l); });
     function bornGT(l) { return Engine.globalTurn(DATA, l.bornEra, l.bornTurn); }
-    function dfs(l) { rows[l.id] = order.length; order.push(l); (childrenOf[l.id] || []).forEach(dfs); }
-    (childrenOf['__root'] || []).forEach(dfs);
+    function dfs(l, depth) { rows[l.id] = order.length; depthOf[l.id] = depth; order.push(l); (childrenOf[l.id] || []).forEach(function (c) { dfs(c, depth + 1); }); }
+    (childrenOf['__root'] || []).forEach(function (l) { dfs(l, 0); });
 
-    var height = topPad * 2 + order.length * rowH;
-    var xOf = function (t) { return leftPad + (t / Math.max(1, maxT)) * innerW; };
+    var height = topPad + order.length * rowH + 16;
+    var W = leftPad + innerW + rightPad;
+    var T0 = gameStartT();
+    var xOf = function (t) { return leftPad + ((t - T0) / Math.max(1, maxT - T0)) * innerW; };
     var yOf = function (id) { return topPad + rows[id] * rowH + rowH / 2; };
-    var svg = '<svg viewBox="0 0 ' + (leftPad + innerW + rightPad) + ' ' + height + '" width="100%" role="img" aria-label="Drzewo życia">';
-
-    // znaczniki er na osi
-    var acc = 0;
-    DATA.ERAS.forEach(function (era) {
-      var x = xOf(acc);
-      svg += '<line x1="' + x + '" y1="' + (topPad - 8) + '" x2="' + x + '" y2="' + (height - topPad + 8) + '" stroke="var(--line)"/>';
-      svg += '<text x="' + (x + 4) + '" y="' + (topPad - 12) + '" font-size="11" fill="var(--ink-soft)">' + era.name + '</text>';
-      acc += era.turns.length;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + height + '" style="width:' + (treeZoom * 100) + '%" role="img" aria-label="Drzewo życia: ' +
+      order.length + ' linii rozwojowych">';
+    // pasma er
+    eraBounds().forEach(function (b, i) {
+      var x0 = xOf(b.start), x1 = xOf(b.end);
+      svg += '<rect x="' + x0 + '" y="' + (topPad - 16) + '" width="' + (x1 - x0) + '" height="' + (height - topPad + 6) + '" class="tree-era tree-era-' + i + '"/>';
+      svg += '<text x="' + (x0 + 6) + '" y="' + (topPad - 22) + '" class="tree-era-name">' + escapeHtml(b.name) + '</text>';
     });
+    catastropheTurns().forEach(function (c) {
+      var x = xOf(c.x);
+      svg += '<g class="tree-cat"><title>' + escapeHtml(c.name) + '</title><line x1="' + x + '" x2="' + x + '" y1="' + (topPad - 16) + '" y2="' + (height - 10) + '"/>' +
+        '<path d="M' + (x - 4) + ' ' + (topPad - 16) + 'l4 6 4-6z"/></g>';
+    });
+    // „teraz”
+    svg += '<line x1="' + xOf(nowT) + '" x2="' + xOf(nowT) + '" y1="' + (topPad - 16) + '" y2="' + (height - 10) + '" class="tree-now"/>';
 
+    var defs = '<defs>';
     order.forEach(function (l) {
       var y = yOf(l.id), xStart = xOf(bornGT(l));
       var endGT = (l.extinctGlobalTurn != null) ? l.extinctGlobalTurn : nowT;
-      var xEnd = xOf(endGT); if (xEnd - xStart < 10) xEnd = xStart + 10;
-      var color = l.alive ? 'var(--brand)' : 'var(--ink-soft)';
+      var xEnd = Math.max(xOf(endGT), xStart + 30);
       var isActive = (l.id === state.activeLineageId);
-      if (l.parentId) {
-        svg += '<line x1="' + xStart + '" y1="' + yOf(l.parentId) + '" x2="' + xStart + '" y2="' + y + '" stroke="var(--line)" stroke-width="2"/>';
-      }
-      svg += '<line x1="' + xStart + '" y1="' + y + '" x2="' + xEnd + '" y2="' + y + '" stroke="' + color +
-        '" stroke-width="' + (isActive ? 4 : 2.5) + '" ' + (l.alive ? '' : 'stroke-dasharray="4 3" ') + 'stroke-linecap="round"/>';
-      // Ikona niszy jako zagnieżdżony <svg> przed nazwą (wewnątrz <text> nie wolno).
-      var nIco = (ART && l.alive) ? ico('niche:' + l.niche, '') : '';
-      var labelX = xEnd + (nIco ? 30 : 10);
-      svg += '<g data-lineage="' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="' + (isActive ? 6 : 4.5) + '" fill="' + color +
-        '"' + (isActive ? ' stroke="var(--accent)" stroke-width="2"' : '') + '/>' +
-        (nIco ? '<g data-niche="' + l.niche + '" color="var(--ink)" transform="translate(' + (xEnd + 10) + ' ' + (y - 8) + ')">' +
-          nIco.replace('<svg ', '<svg width="16" height="16" ') + '</g>' : '') +
-        '<text x="' + labelX + '" y="' + (y + 4) + '" font-size="12" fill="var(--ink)" ' + (isActive ? 'font-weight="700"' : '') + '>' +
-        escapeHtml(l.name) + (l.alive ? (nIco ? '' : ' ' + DATA.NICHES[l.niche].icon) + ' (' + l.population + ')' : ' †') + '</text></g>';
+      var w = (2 + 3.2 * Math.log(1 + (l.peakPopulation || l.population)) / Math.LN10 / 2.5).toFixed(1);
+      var delay = (depthOf[l.id] * 0.35).toFixed(2) + 's';
+      var cls = 'tree-branch' + (l.alive ? '' : ' extinct') + (isActive ? ' active' : '');
+      var dPath = l.parentId
+        ? 'M' + xStart + ' ' + yOf(l.parentId) + ' C' + (xStart + 14) + ' ' + yOf(l.parentId) + ' ' + (xStart + 4) + ' ' + y + ' ' + (xStart + 26) + ' ' + y + ' L' + (xEnd - 24) + ' ' + y
+        : 'M' + xStart + ' ' + y + ' L' + (xEnd - 24) + ' ' + y;
+      svg += '<path d="' + dPath + '" pathLength="1" class="' + cls + '" stroke-width="' + w + '" style="animation-delay:' + delay + '"/>';
+      // węzeł: miniatura w okrągłej ramce
+      var thumb = (ART && ART.creature) ? ART.creature.thumb(l, 64, 44) : '';
+      defs += '<clipPath id="tclip-' + l.id + '"><circle cx="' + xEnd + '" cy="' + y + '" r="22"/></clipPath>';
+      svg += '<g data-lineage="' + l.id + '" class="tree-node' + (l.alive ? '' : ' extinct') + (isActive ? ' active' : '') + '" style="animation-delay:' + delay + '" tabindex="' + (l.alive ? '0' : '-1') + '">' +
+        (isActive ? '<circle cx="' + xEnd + '" cy="' + y + '" r="27" class="tree-ring"/>' : '') +
+        '<circle cx="' + xEnd + '" cy="' + y + '" r="23" class="tree-frame"/>' +
+        (thumb ? '<image href="' + thumb + '" x="' + (xEnd - 32) + '" y="' + (y - 22) + '" width="64" height="44" clip-path="url(#tclip-' + l.id + ')" class="tree-thumb"/>' : '') +
+        '<text x="' + (xEnd + 32) + '" y="' + (y - 3) + '" class="tree-name">' + escapeHtml(l.name) + (l.alive ? '' : ' †') + '</text>' +
+        '<text x="' + (xEnd + 32) + '" y="' + (y + 13) + '" class="tree-sub">' +
+        (l.alive ? escapeHtml(nicheLabel(l.niche)) + ' · ' + l.population + ' osobn. · cech: ' + l.traits.length
+          : 'wymarła (tura ' + l.extinctGlobalTurn + ')') + '</text></g>';
     });
-    return svg + '</svg>';
+    defs += '</defs>';
+    return svg.replace('>', '>' + defs) + '</svg>';
   }
 
   // ===================== Ekran końcowy =====================
@@ -688,6 +794,45 @@
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
     showScreen('end');
+    renderEndStory(s);
+  }
+  // Bohater podsumowania: linia, która doszła najdalej (inteligencja, potem liczebność).
+  function featuredLineage(s) {
+    var ls = state.lineages.slice();
+    if (s === 'won') ls.sort(function (a, b) { return b.stats.intelligence - a.stats.intelligence; });
+    else ls.sort(function (a, b) { return (b.alive - a.alive) || (b.peakPopulation - a.peakPopulation); });
+    return ls[0];
+  }
+  function renderEndStory(s) {
+    var l = featuredLineage(s);
+    if (!l) return;
+    if (ART && ART.portrait) {
+      el.endFigure.hidden = false;
+      ART.portrait.update(el.endPortrait, l, { traitNames: TRAIT_NAMES });
+      el.endCaption.textContent = 'Ryc. ' + l.name + (l.alive ? '' : ' †') + ' — nisza: ' + nicheLabel(l.niche).toLowerCase() +
+        ', cech: ' + l.traits.length + ', inteligencja ' + l.stats.intelligence;
+    } else el.endFigure.hidden = true;
+    // Droga ewolucji: kolejne stadia wg kolejności zdobywania cech.
+    el.endPath.innerHTML = '';
+    // Punkt wyjścia: cechy startowe scenariusza (dostane „na start”, nie wyewoluowane w grze).
+    var sc = DATA.SCENARIOS.filter(function (x) { return x.id === state.scenario; })[0];
+    var k0 = Math.min(l.traits.length, (sc && sc.startTraits) ? sc.startTraits.length : 0);
+    var n = l.traits.length, marks = [];
+    for (var j = 0; j <= 5; j++) { var k = k0 + Math.round(j * (n - k0) / 5); if (marks.indexOf(k) === -1) marks.push(k); }
+    if (!ART || !ART.creature || n - k0 === 0) { el.endPathBox.hidden = true; }
+    else {
+      el.endPathBox.hidden = false;
+      marks.forEach(function (k, i) {
+        var prev = i ? marks[i - 1] : 0;
+        var added = l.traits.slice(prev, k).map(traitName);
+        var label = i === 0 ? (k0 ? 'Na starcie' : 'Początek') : added.slice(0, 2).join(', ') + (added.length > 2 ? ' +' + (added.length - 2) : '');
+        var src = ART.creature.thumb({ id: l.id, name: l.name, traits: l.traits.slice(0, k), niche: i === marks.length - 1 ? l.niche : 'woda' }, 110, 70);
+        var li = document.createElement('li');
+        li.innerHTML = '<img alt="" src="' + src + '"><span>' + escapeHtml(label) + '</span>';
+        el.endPath.appendChild(li);
+      });
+    }
+    renderPopChart(el.endChart, l, 120);
   }
   function endStat(label, value) {
     var li = document.createElement('li'); li.innerHTML = '<span>' + label + '</span><strong>' + value + '</strong>';
@@ -817,6 +962,12 @@
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
 
     renderScenarios();
+    if (ART && ART.diorama && el.startDiorama) {
+      ART.diorama.update(el.startDiorama, {
+        era: 'paleozoik', niche: 'woda', climate: 'cieplo', food: 12, predators: 6,
+        lineages: [{ id: 'start', name: 'Prazwierzę', traits: [], niche: 'woda', population: 160, active: true }]
+      });
+    } else if (el.startDiorama) el.startDiorama.hidden = true;
     // Enter w polu nazwy startuje domyślny scenariusz (pełna ewolucja).
     el.formStart.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -830,6 +981,8 @@
     el.btnCodex.addEventListener('click', showCodex);
     el.btnCodexClose.addEventListener('click', function () { closeModal(el.modalCodex); });
     el.btnTreeClose.addEventListener('click', function () { closeModal(el.modalTree); });
+    el.btnTreeZoomIn.addEventListener('click', function () { setTreeZoom(1); });
+    el.btnTreeZoomOut.addEventListener('click', function () { setTreeZoom(-1); });
     el.btnOpenCodexEnd.addEventListener('click', showCodex);
     el.btnSummary.addEventListener('click', showSummary);
     el.btnSummaryClose.addEventListener('click', function () { closeModal(el.modalSummary); });
