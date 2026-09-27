@@ -271,11 +271,31 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
   border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--bg-elev); color: var(--ink);
   resize: vertical; margin-top: 10px; }
 
-/* --- Pasek stanu --- */
+/* --- Pasek stanu ---
+   Przykleja się pod nagłówkiem, by EP, populacja i cel były widoczne także przy
+   przewijaniu kart adaptacji. Po przyklejeniu (.is-stuck) robi się zwarty. */
+.status-sentinel { height: 1px; margin-bottom: -1px; }
 .status-bar {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-  margin-bottom: 16px;
+  margin: 0 -8px 12px; padding: 4px 8px;
+  position: sticky; top: var(--topbar-h, 61px); z-index: 15;
+  background: var(--bg);
 }
+.status-bar.is-stuck { box-shadow: 0 8px 10px -10px rgba(0, 0, 0, .45); padding-bottom: 6px; }
+.status-bar.is-stuck .status-item { padding: 3px 10px; box-shadow: none; }
+.status-bar.is-stuck .status-label { font-size: .7rem; }
+.status-bar.is-stuck .status-value { font-size: 1.2rem; margin-top: 0; line-height: 1.2; }
+.status-bar.is-stuck .status-era .status-value { font-size: .95rem; line-height: 1.5; }
+.status-sub { display: block; font-size: .72rem; color: var(--ink-soft); min-height: 1em; }
+.status-bar.is-stuck .status-sub { font-size: .66rem; }
+.status-alert {
+  grid-column: 1 / -1; justify-self: center;
+  font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer;
+  color: var(--bg-panel); background: var(--accent); border: 0; border-radius: 14px; padding: 3px 14px;
+  animation: alertPulse 1.6s ease-in-out infinite;
+}
+.status-alert[hidden] { display: none; }
+@keyframes alertPulse { 50% { opacity: .75; } }
 .status-item {
   background: var(--bg-panel); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 10px 14px; text-align: center;
@@ -369,6 +389,16 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .choice-option span { color: var(--ink-soft); }
 .choice-option .choice-block { color: var(--danger); font-weight: 600; }
 .choice-default { font-size: .74rem; color: var(--ink-soft); margin: 6px 0 0; }
+.choice-option .choice-risk { font-style: normal; font-size: .74rem; font-weight: 700; color: var(--accent); }
+.choice-outcome { margin-top: 6px; padding: 5px 8px; border-radius: 6px; font-weight: 600; }
+.choice-outcome.win { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
+.choice-outcome.lose { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.choice-outcome-chance { font-weight: 400; color: var(--ink-soft); }
+.knowledge-card.is-new { border-left: 3px solid var(--brand); }
+.knowledge-recall { font-size: .85rem; color: var(--ink-soft); }
+.knowledge-recall > summary { cursor: pointer; padding: 4px 0; }
+.knowledge-recall[open] > summary { margin-bottom: 8px; }
+.knowledge-recall .knowledge-card { margin-bottom: 8px; }
 
 .forecast-box { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
 /* Stała minimalna wysokość — podgląd „co-jeśli” nie przesuwa przycisków. */
@@ -504,8 +534,8 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
    także przy najechaniu na cechy niżej na liście. */
 @media (min-width: 821px) {
   .panel-species {
-    position: sticky; top: 64px;
-    max-height: calc(100vh - 80px); overflow-y: auto;
+    position: sticky; top: calc(var(--topbar-h, 61px) + var(--statusbar-h, 70px) + 6px);
+    max-height: calc(100vh - var(--topbar-h, 61px) - var(--statusbar-h, 70px) - 18px); overflow-y: auto;
   }
 }
 .panel {
@@ -748,6 +778,13 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 @media (max-width: 820px) {
   .game-grid { grid-template-columns: 1fr; }
   .status-bar { grid-template-columns: repeat(2, 1fr); }
+  /* Na wąskim ekranie przyklejony pasek mieści się w jednym rzędzie. */
+  .status-bar.is-stuck { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .status-bar.is-stuck .status-item { padding: 2px 4px; }
+  .status-bar.is-stuck .status-label { font-size: .58rem; }
+  .status-bar.is-stuck .status-value { font-size: 1rem; }
+  .status-bar.is-stuck .status-era .status-value { font-size: .72rem; }
+  .status-bar.is-stuck .status-sub { display: none; }
   .era-step { min-width: 0; font-size: 0; padding: 8px 2px; }
   .era-step .era-step-num { font-size: .8rem; }
 }

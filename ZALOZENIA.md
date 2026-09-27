@@ -86,7 +86,7 @@ Oprócz EP (trwałe cechy) każda linia ma dwie własne waluty o krótszym horyz
 - **⚡ Rezerwy energii** — nadwyżka energii odkładana na chude tury; deficyt najpierw je zużywa. Płaci się nimi za **migrację** (wędrówka to wydatek energii) i **zachowania w turze** (ukrywanie się, intensywne żerowanie; gromadzenie zapasów jest darmowe, ale kosztem potomstwa). Uczą budżetu energetycznego.
 - **🧬 Zmienność genetyczna** — rośnie z czasem i liczebnością, maleje w wąskim gardle i katastrofie (dryf genetyczny). Płaci się nią za **specjację** (nowy gatunek wymaga zmienności) i **ukierunkowany dobór** (silny dobór zużywa zmienność); wysoka zmienność łagodzi katastrofy. Uczy, że zmienność to paliwo doboru.
 - **Strategia rozrodu r/K** — przełącznik bez kosztu, czysty kompromis między liczbą a przeżywalnością potomstwa.
-- **Karty decyzji** — zdarzenia z wyborem (wyspa i efekt założyciela, nowy drapieżnik i wyścig zbrojeń, zakwit i boom z załamaniem, epidemia i odporność) obok losowych zdarzeń pozytywnych; bez wyboru działa opcja domyślna.
+- **Karty decyzji** — zdarzenia z wyborem (wyspa i efekt założyciela, nowy drapieżnik i wyścig zbrojeń, zakwit i boom z załamaniem, epidemia i odporność, trujący pokarm, konkurencja i przemieszczenie cech, wulkan, hybrydyzacja, dobór płciowy, padlina, symbioza, odrętwienie w chudym sezonie, niezwykły mutant) obok losowych zdarzeń pozytywnych; bez wyboru działa opcja domyślna. Część opcji to **ryzyko** z wynikiem pozytywnym albo negatywnym, losowanym w turze; szansa zależy od cech linii (np. obrona przy odstraszaniu łowcy). Karta nie powtarza się w partii, dopóki pula się nie wyczerpie.
 
 ### 4.3. Środowisko i presja selekcyjna
 Parametry epoki, które modyfikują skuteczność cech:

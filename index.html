@@ -54,10 +54,12 @@
     <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
       <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
 
-      <div class="status-bar">
+      <div class="status-sentinel" id="status-sentinel" aria-hidden="true"></div>
+      <div class="status-bar" id="status-bar">
         <div class="status-item status-ep">
-          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
+          <span class="status-label" data-i18n="status.ep">Punkty ewolucji do wydania</span>
           <span class="status-value" id="ep-value">0</span>
+          <span class="status-sub" id="ep-afford"></span>
         </div>
         <div class="status-item">
           <span class="status-label" data-i18n="status.population">Populacja</span>
@@ -71,6 +73,7 @@
           <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
         </div>
+        <button type="button" class="status-alert" id="status-choice" hidden>Karta decyzji czeka</button>
       </div>
 
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>

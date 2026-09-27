@@ -45,8 +45,13 @@ Vite i sam z pliku nie zadziała.
    K — mało, ale dobrze chronionego) i **zachowanie w turze** (gromadzenie
    zapasów, ukrywanie się, intensywne żerowanie). Najedź na przycisk, by
    zobaczyć skutek w prognozie. Co kilka tur pojawia się **karta decyzji**
-   (wyspa, nowy drapieżnik, zakwit, epidemia) — wybierz odpowiedź przed turą,
-   inaczej zadziała opcja domyślna.
+   (13 zdarzeń: wyspa, nowy drapieżnik, zakwit, epidemia, nieznany pokarm,
+   konkurent, wulkan, pokrewna populacja, wyścig godowy, padlina, symbioza,
+   chudy sezon, niezwykły mutant). Karta nie powtarza się w partii. Część
+   opcji to **ryzyko**: wynik losuje się w turze, a szansa powodzenia (widoczna
+   na przycisku) zależy od cech linii. Wybierz odpowiedź przed turą, inaczej
+   zadziała opcja domyślna. Gdy karta czeka, sygnalizuje to przyklejony pasek
+   stanu u góry ekranu.
 4. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
    rozród i mutacje, a raport wyjaśni, *co się stało i dlaczego*.
 5. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować

@@ -28,6 +28,7 @@
     formStart: $('form-start'), speciesInput: $('species-name'), introGoal: $('intro-goal'),
     scenarioCards: $('scenario-cards'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
+    epAfford: $('ep-afford'), statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
     timeline: $('era-timeline'),
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
@@ -139,6 +140,38 @@
     el.era.textContent = era.name + ' ' + tno + '/' + era.turns.length;
     el.era.title = era.dates || '';
     el.intel.textContent = Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal;
+    // Ile cech aktywnej linii można kupić teraz — widać to bez przewijania do kart.
+    var afford = DATA.TRAITS.filter(function (t) { return Engine.traitStatus(state, t) === 'available'; }).length;
+    el.epAfford.textContent = state.status !== 'playing' ? '' :
+      (afford ? 'stać Cię na ' + afford + ' ' + plural(afford, 'cechę', 'cechy', 'cech') : 'na razie nic do kupienia');
+    el.statusChoice.hidden = !(state.pendingChoice && state.status === 'playing');
+  }
+  function plural(n, one, few, many) {
+    if (n === 1) return one;
+    var d = n % 10, h = n % 100;
+    return (d >= 2 && d <= 4 && (h < 12 || h > 14)) ? few : many;
+  }
+  /* Pasek stanu przykleja się pod nagłówkiem. Gdy jest „przyklejony”, robi się
+     zwarty; jego wysokość trafia do CSS, by panel linii przyklejał się niżej. */
+  function initStickyStatus() {
+    var root = document.documentElement, topbar = document.querySelector('.topbar');
+    function measure() {
+      if (topbar) root.style.setProperty('--topbar-h', topbar.offsetHeight + 'px');
+      if (el.statusBar && el.statusBar.offsetHeight) root.style.setProperty('--statusbar-h', el.statusBar.offsetHeight + 'px');
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    if (window.ResizeObserver) new ResizeObserver(measure).observe(el.statusBar);
+    if (window.IntersectionObserver && el.statusSentinel) {
+      var io = new IntersectionObserver(function (entries) {
+        el.statusBar.classList.toggle('is-stuck', !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0 + (topbar ? topbar.offsetHeight : 0));
+      }, { rootMargin: '-' + ((topbar && topbar.offsetHeight) || 60) + 'px 0px 0px 0px' });
+      io.observe(el.statusSentinel);
+    }
+    el.statusChoice.addEventListener('click', function () {
+      el.choiceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var first = el.choiceCard.querySelector('.choice-option:not(:disabled)'); if (first) first.focus({ preventScroll: true });
+    });
   }
   function setAnimated(node, value) {
     if (node.textContent !== String(value)) {
@@ -527,7 +560,9 @@
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'choice-option';
       b.disabled = !can.ok || turnBusy;
-      b.innerHTML = '<strong>' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+      var risk = o.gamble ? '<em class="choice-risk">' + ico('ui:target', '🎲') + ' Ryzyko — szansa powodzenia ' +
+        Math.round(Engine.gambleChance(DATA, l, o.gamble) * 100) + '%</em>' : '';
+      b.innerHTML = '<strong>' + escapeHtml(o.label) + '</strong>' + risk + '<span>' + escapeHtml(o.desc) + '</span>' +
         (can.ok ? '' : '<span class="choice-block">' + escapeHtml(can.error) + '</span>');
       if (can.ok) b.addEventListener('click', function () { onChoose(o.id); });
       box.appendChild(b);
@@ -808,6 +843,11 @@
       var ch = report.choice, cev = Engine.choiceEvent(DATA, ch.eventId);
       var chHtml = (cev ? ico(cev.art, cev.icon) : '') + ' ' + escapeHtml(ch.name) + ' (' + escapeHtml(ch.lineageName) +
         '): wybrano „' + escapeHtml(ch.option) + '”' + (ch.colonyName ? ' — powstała linia „' + escapeHtml(ch.colonyName) + '”' : '') + '.';
+      if (ch.outcome) {
+        chHtml += '<div class="choice-outcome ' + (ch.outcome.win ? 'win' : 'lose') + '">' +
+          (ch.outcome.win ? ico('ui:check', '✓') + ' Udało się' : ico('ui:close', '✗') + ' Nie udało się') +
+          ' <span class="choice-outcome-chance">(szansa ' + ch.outcome.chance + '%)</span>: ' + escapeHtml(ch.outcome.text) + '</div>';
+      }
       el.reportEvent.hidden = false;
       el.reportEvent.innerHTML = (report.event ? el.reportEvent.innerHTML + '<br>' : '') + chHtml;
     }
@@ -857,16 +897,29 @@
     if (report.epBase) sum.appendChild(line('Premia bazowa za przetrwanie', '+' + report.epBase, 'pos'));
     if (report.epIntel) sum.appendChild(line('Premia za inteligencję (najlepsza linia)', '+' + report.epIntel, 'pos'));
     sum.appendChild(line('Zdobyte punkty ewolucji (razem)', '+' + report.epGain, 'pos'));
-    if (report.predatorLevel > 2) {
-      sum.appendChild(line('Presja drapieżników (koewolucja)', '↑ ' + report.predatorLevel, 'neg'));
+    // Koewolucja — tylko gdy presja drapieżników wyraźnie się zmieniła (bez powtarzania co turę).
+    var pd = report.predatorDelta || 0;
+    if (report.predatorLevel > 2 && Math.abs(pd) >= 0.3) {
+      sum.appendChild(line('Presja drapieżników (koewolucja)', (pd > 0 ? '↑ ' : '↓ ') + num(report.predatorLevel) +
+        ' (' + (pd > 0 ? '+' : '') + num(pd) + ')', pd > 0 ? 'neg' : 'pos'));
     }
     el.reportBody.appendChild(sum);
 
+    // Nowe pojęcia — pełne karty; znane — tylko zwinięte przypomnienie.
     el.reportKnowledge.innerHTML = '';
-    report.knowledge.forEach(function (key) {
+    var fresh = report.newKnowledge || report.knowledge;
+    fresh.forEach(function (key) {
       var k = DATA.KNOWLEDGE[key]; if (!k) return;
-      el.reportKnowledge.appendChild(knowledgeCard(key, k));
+      var card = knowledgeCard(key, k); card.classList.add('is-new');
+      el.reportKnowledge.appendChild(card);
     });
+    var known = report.knowledge.filter(function (key) { return fresh.indexOf(key) === -1 && DATA.KNOWLEDGE[key]; });
+    if (known.length) {
+      var det = document.createElement('details'); det.className = 'knowledge-recall';
+      det.innerHTML = '<summary>Przypomnij pojęcia z tej tury: ' + known.map(function (key) { return escapeHtml(DATA.KNOWLEDGE[key].title); }).join(', ') + '</summary>';
+      known.forEach(function (key) { det.appendChild(knowledgeCard(key, DATA.KNOWLEDGE[key])); });
+      el.reportKnowledge.appendChild(det);
+    }
 
     el.btnReportClose.textContent = (state.status === 'playing') ? T('report.next') : T('report.summary');
     openModal(el.modalReport);
@@ -1202,6 +1255,7 @@
   // ===================== Inicjalizacja =====================
   function init() {
     window.GameI18n.applyStatic(document);
+    initStickyStatus();
     el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i używania narzędzi, ' +
       'utrzymując co najmniej ' + DATA.WIN_MIN_POP + ' osobników, przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (' + ico('ui:star', '⭐', 'ico-star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +

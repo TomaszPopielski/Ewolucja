@@ -20,6 +20,7 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function round1(v) { return Math.round(v * 10) / 10; }
+  function num1(v) { return String(round1(v)).replace('.', ','); }
   /* Losowe zaokrąglanie: 0,4 osobnika to 0 lub 1 z szansą 40%. Wartość oczekiwana
      się zgadza, a mała populacja nie staje się „nieśmiertelna” (Math.round(2 × 0,22) = 0). */
   function sround(x, rng) { var f = Math.floor(x); return f + (rng() < x - f ? 1 : 0); }
@@ -101,6 +102,8 @@
       nextLineageNum: 1,
       unlockedKnowledge: root.niche === 'lad' ? ['intro', 'land'] : ['intro'],
       pendingChoice: null,       // karta decyzji czekająca na wybór gracza
+      pendingGamble: null,       // ryzykowna opcja karty — wynik losowany w turze
+      choiceHistory: [],         // karty, które już padły (bez powtórek w partii)
       resolvedChoice: null,      // wybór do pokazania w raporcie tury
       status: 'playing',
       history: []
@@ -536,22 +539,66 @@
     return { ok: true, state: n, error: null };
   }
   function applyChoice(data, n, l, ev, opt) {
-    var c = opt.cost || {}, fx = opt.effects || {}, now = nowTurn(data, n), colony = null;
+    var c = opt.cost || {}, fx = opt.effects || {}, colony = null;
     if (c.reserves) l.reserves -= c.reserves;
     if (c.variation) l.variation -= c.variation;
-    if (fx.stats) applyEffects(l, fx.stats);
-    if (fx.reserves) l.reserves = Math.min(reservesCap(data, l), (l.reserves || 0) + fx.reserves);
-    if (fx.predatorLevel) n.predatorLevel = clamp((n.predatorLevel || 0) + fx.predatorLevel, 0, 12);
+    applyOutcome(data, n, l, opt, nowTurn(data, n));
     if (fx.found) {
       colony = splitLineage(data, n, l, Math.floor(l.population * fx.found), l.name + ' (wyspa)',
         { variation: data.VARIATION.founder });
     }
-    if (opt.turnMod) l.mods.push(Object.assign({ turn: now }, opt.turnMod));
-    if (opt.nextMod) l.mods.push(Object.assign({ turn: now + 1 }, opt.nextMod));
-    if (opt.knowledge) unlockKnowledge(n, opt.knowledge);
+    // Ryzykowna opcja: wynik losowany dopiero w turze (szansa zależy od cech linii w tej chwili).
+    n.pendingGamble = opt.gamble ? { eventId: ev.id, optionId: opt.id, lineageId: l.id } : null;
     n.pendingChoice = null;
     n.resolvedChoice = { eventId: ev.id, name: ev.name, option: opt.label, lineageId: l.id, lineageName: l.name,
       colonyName: colony ? colony.name : null };
+  }
+  /* Skutek opcji lub wyniku ryzyka: `effects` { stats, reserves, variation, predatorLevel,
+     ep, popLoss, popGain } działa od razu, `turnMod`/`nextMod` — w tej / następnej turze.
+     Zwraca zmianę populacji (popLoss/popGain), by raport mógł ją podać. */
+  function applyOutcome(data, n, l, o, now) {
+    var fx = o.effects || {}, V = data.VARIATION, popDelta = 0;
+    if (fx.stats) applyEffects(l, fx.stats);
+    if (fx.reserves) l.reserves = round1(clamp((l.reserves || 0) + fx.reserves, 0, reservesCap(data, l)));
+    if (fx.variation) l.variation = clamp((l.variation || 0) + fx.variation, 0, V.cap);
+    if (fx.predatorLevel) n.predatorLevel = clamp((n.predatorLevel || 0) + fx.predatorLevel, 0, 12);
+    if (fx.ep) n.ep = Math.max(0, n.ep + fx.ep);
+    if (fx.popLoss) popDelta -= Math.round(l.population * fx.popLoss);
+    if (fx.popGain) popDelta += Math.round(l.population * fx.popGain);
+    if (popDelta) {
+      l.population = Math.max(0, l.population + popDelta);
+      l.popHistory[l.popHistory.length - 1] = l.population;
+      if (l.population > l.peakPopulation) l.peakPopulation = l.population;
+    }
+    if (o.turnMod) l.mods.push(Object.assign({ turn: now }, o.turnMod));
+    if (o.nextMod) l.mods.push(Object.assign({ turn: now + 1 }, o.nextMod));
+    if (o.knowledge) unlockKnowledge(n, o.knowledge);
+    return popDelta;
+  }
+  /* Szansa powodzenia ryzykownej opcji: bazowa + premia za statystykę linii
+     (np. obrona przy odstraszaniu drapieżnika), w granicach 5–95%. */
+  function gambleChance(data, lineage, gamble) {
+    var p = gamble.chance || 0.5;
+    if (gamble.stat) p += (gamble.per || 0) * (lstat(lineage, gamble.stat) - (gamble.from || 0));
+    return clamp(p, 0.05, 0.95);
+  }
+  function resolveGamble(data, n, rng) {
+    var g = n.pendingGamble; n.pendingGamble = null;
+    if (!g) return null;
+    var ev = choiceEvent(data, g.eventId), opt = choiceOption(ev, g.optionId), l = getLineage(n, g.lineageId);
+    if (!opt || !opt.gamble || !l || !l.alive) return null;
+    var chance = gambleChance(data, l, opt.gamble), win = rng() < chance;
+    var out = win ? opt.gamble.win : opt.gamble.lose;
+    var popDelta = applyOutcome(data, n, l, out, nowTurn(data, n));
+    return { win: win, chance: Math.round(chance * 100), text: out.text, popDelta: popDelta,
+      knowledge: out.knowledge || null };
+  }
+  // Czy karta pasuje do linii i chwili: minimalna populacja, era, nisze.
+  function choiceFits(e, n, l) {
+    if (e.minPop && l.population < e.minPop) return false;
+    if (e.minEra != null && n.eraIndex < e.minEra) return false;
+    if (e.niches && e.niches.indexOf(l.niche) === -1) return false;
+    return true;
   }
   // Losowanie karty decyzji na następną turę (bez katastrofy).
   function rollChoice(data, n, rng) {
@@ -559,9 +606,15 @@
     if (!data.CHOICE_EVENTS || rng() >= (data.CHOICE_CHANCE || 0)) return null;
     var alive = aliveLineages(n); if (!alive.length) return null;
     var l = alive[Math.floor(rng() * alive.length)];
-    var pool = data.CHOICE_EVENTS.filter(function (e) { return !e.minPop || l.population >= e.minPop; });
+    var pool = data.CHOICE_EVENTS.filter(function (e) { return choiceFits(e, n, l); });
+    // Bez powtórek: karta, która już padła, wraca dopiero, gdy pula się wyczerpie.
+    var seen = n.choiceHistory || [];
+    var fresh = pool.filter(function (e) { return seen.indexOf(e.id) === -1; });
+    if (fresh.length) pool = fresh;
+    else if (pool.length > 1) pool = pool.filter(function (e) { return e.id !== seen[seen.length - 1]; });
     if (!pool.length) return null;
     var ev = pool[Math.floor(rng() * pool.length)];
+    n.choiceHistory = seen.concat([ev.id]);
     return { eventId: ev.id, lineageId: l.id, turn: nowTurn(data, n) };
   }
 
@@ -581,8 +634,13 @@
       else n.pendingChoice = null;
     }
     var choice = n.resolvedChoice; n.resolvedChoice = null;
-
     var knowledge = [];
+    var gamble = resolveGamble(data, n, rng);
+    if (gamble) {
+      if (choice) choice = Object.assign({}, choice, { outcome: gamble });
+      if (gamble.knowledge) knowledge.push(gamble.knowledge);
+    }
+
     var lineReports = [];
     var totalEp = 0, anyAlive = false;
 
@@ -614,6 +672,7 @@
     n.ep += totalEp;
 
     // Koewolucja: presja drapieżników „dogania” dobrze bronione linie.
+    var predBefore = n.predatorLevel || 0;
     var target = Math.max(0, (maxDefense(n) - data.BASE_STATS.defense) * 0.7) * diff.coevo;
     n.predatorLevel = clamp((n.predatorLevel || 0) + (target - (n.predatorLevel || 0)) * 0.35, 0, 12);
     if (n.predatorLevel > 2) unlockKnowledge(n, 'coevolution');
@@ -651,11 +710,14 @@
       choice: choice || null,
       lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel,
       epPopulation: epPopulation, epGrowth: epGrowth,
-      predatorLevel: round1(n.predatorLevel),
+      predatorLevel: round1(n.predatorLevel), predatorDelta: round1(n.predatorLevel - predBefore),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
       intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
       newEraName: eraChanged ? data.ERAS[n.eraIndex].name : null,
-      knowledge: dedupe(knowledge), status: n.status
+      knowledge: dedupe(knowledge),
+      // Pojęcia odkryte w tej turze — raport pokazuje je w całości, znane tylko przypomina.
+      newKnowledge: dedupe(knowledge).filter(function (k) { return state.unlockedKnowledge.indexOf(k) === -1; }),
+      status: n.status
     };
     n.history.push(report);
     return { state: n, report: report };
@@ -724,7 +786,11 @@
     if (mut) l.variation += V.mutation;
     l.variation = clamp(l.variation, 0, V.cap);
     if (d.acclimatizing) events.push('Aklimatyzacja w nowej niszy — mniej pokarmu w tej turze.');
-    if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
+    if (d.predationLossRate > 0.15) {
+      events.push('Silna presja drapieżników: zginęło ' + predationDeaths + ' osobników (' + Math.round(d.predationLossRate * 100) +
+        '% populacji) — drapieżniki przewyższają obronę linii o ' + num1(d.predationPressure) + '.');
+      knowledge.push('predation');
+    }
     if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
     if (env.climate === 'zimno') knowledge.push('cold');
     if (l.niche !== 'woda') knowledge.push('niche');
@@ -835,7 +901,7 @@
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
     setStrategy: setStrategy, setBehavior: setBehavior, canSetBehavior: canSetBehavior, setSelection: setSelection,
     reservesCap: reservesCap, forecastWithTactics: forecastWithTactics, nicheLoad: nicheLoad,
-    choiceEvent: choiceEvent, canChoose: canChoose, resolveChoice: resolveChoice, defaultOption: defaultOption,
+    choiceEvent: choiceEvent, gambleChance: gambleChance, canChoose: canChoose, resolveChoice: resolveChoice, defaultOption: defaultOption,
     forecast: forecast, forecastWithTrait: forecastWithTrait, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, sround: sround, alleeFactor: alleeFactor, clamp: clamp, computeDynamics: computeDynamics }
   };

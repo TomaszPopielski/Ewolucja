@@ -651,6 +651,68 @@ group('balans: specjacja do nowej niszy się opłaca, mnożenie linii w jednej �
   ok(crowd < single, 'klony w tej samej niszy szkodzą (' + crowd + '% < ' + single + '%)');
 });
 
+// ---------- Karty decyzji z ryzykiem ----------
+group('karty z ryzykiem: wynik losowany w turze, szansa zależy od cech', function () {
+  function withChoice(eventId) {
+    var s = Engine.createInitialState(GameData, 'X'); active(s).population = 200;
+    s.pendingChoice = { eventId: eventId, lineageId: 'L0', turn: Engine.nowTurn(GameData, s) };
+    return s;
+  }
+  function rngSeq(first) { var used = false; return function () { if (!used) { used = true; return first; } return 0.99; }; }
+  var ev = Engine.choiceEvent(GameData, 'toxic_food'), taste = ev.options[0];
+  var st = Engine.resolveChoice(GameData, withChoice('toxic_food'), 'taste').state;
+  ok(st.pendingGamble && st.pendingGamble.optionId === 'taste', 'ryzykowna opcja czeka na rozstrzygnięcie w turze');
+  var win = Engine.simulateTurn(GameData, st, rngSeq(0));
+  ok(win.report.choice.outcome.win, 'rng poniżej szansy — sukces');
+  eq(active(win.state).stats.feeding, GameData.BASE_STATS.feeding + 1, 'sukces: odżywianie +1 na stałe');
+  var lose = Engine.simulateTurn(GameData, st, rngSeq(0.999));
+  ok(!lose.report.choice.outcome.win && lose.report.choice.outcome.popDelta === -30, 'porażka: ginie 15% populacji (−30)');
+  eq(lose.state.pendingGamble, null, 'ryzyko rozstrzygnięte raz');
+
+  var l = active(withChoice('predator')), scare = Engine.choiceEvent(GameData, 'predator').options.filter(function (o) { return o.id === 'scare'; })[0];
+  var low = Engine.gambleChance(GameData, l, scare.gamble); l.stats.defense += 4;
+  ok(Engine.gambleChance(GameData, l, scare.gamble) > low, 'lepsza obrona — większa szansa odstraszenia łowcy');
+
+  // Domyślna opcja też może być ryzykiem (wulkan) — rozstrzyga się bez wyboru gracza.
+  var vol = Engine.simulateTurn(GameData, withChoice('volcano'), rngSeq(0.999));
+  ok(vol.report.choice.outcome && !vol.report.choice.outcome.win, 'bez wyboru: domyślne ryzyko też się rozstrzyga');
+
+  // Każda opcja z ryzykiem ma oba wyniki z opisem.
+  var bad = [];
+  GameData.CHOICE_EVENTS.forEach(function (e) { e.options.forEach(function (o) {
+    if (o.gamble && !(o.gamble.win && o.gamble.win.text && o.gamble.lose && o.gamble.lose.text)) bad.push(e.id + '/' + o.id);
+    [o.knowledge, o.gamble && o.gamble.win.knowledge, o.gamble && o.gamble.lose.knowledge].forEach(function (k) {
+      if (k && !GameData.KNOWLEDGE[k]) bad.push(e.id + ': brak karty wiedzy ' + k);
+    });
+  }); });
+  eq(bad.length, 0, 'opcje ryzyka mają opis sukcesu i porażki, a karty wiedzy istnieją ' + bad.join(', '));
+  ok(GameData.CHOICE_EVENTS.filter(function (e) { return e.options.some(function (o) { return o.gamble; }); }).length >= 8,
+    'co najmniej 8 kart ma opcję z ryzykiem');
+});
+
+group('karty decyzji nie powtarzają się w partii', function () {
+  var repeats = 0, games = 0;
+  for (var k = 1; k <= 60; k++) {
+    var g = Engine.createInitialState(GameData, 'X'), r = Bots.seededRng(k), seen = {};
+    while (g.status === 'playing') {
+      g = Engine.simulateTurn(GameData, g, r).state;
+      if (g.pendingChoice) { if (seen[g.pendingChoice.eventId]) repeats++; seen[g.pendingChoice.eventId] = 1; }
+    }
+    games++;
+  }
+  eq(repeats, 0, 'w ' + games + ' partiach żadna karta nie padła dwa razy');
+});
+
+group('raport: pełne karty wiedzy tylko dla nowych pojęć', function () {
+  var s = Engine.createInitialState(GameData, 'X');
+  var r1 = Engine.simulateTurn(GameData, s, noMut).report;
+  ok(r1.newKnowledge.every(function (k) { return s.unlockedKnowledge.indexOf(k) === -1; }), 'nowe pojęcia to te nieznane przed turą');
+  var s2 = Engine.simulateTurn(GameData, s, noMut).state;
+  var r2 = Engine.simulateTurn(GameData, s2, noMut).report;
+  ok(r2.newKnowledge.length < r2.knowledge.length || r2.knowledge.length === 0, 'znane pojęcia nie wracają jako nowe');
+  ok(typeof r2.predatorDelta === 'number', 'raport podaje zmianę presji drapieżników');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);
