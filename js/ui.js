@@ -16,6 +16,8 @@
 
   var state = null;
   var undoStack = [];
+  // Trwa animacja tury — akcje zmieniające stan są wstrzymane, by nie zgubić zmian.
+  var turnBusy = false;
   var UNDO_LIMIT = 50;
 
   var $ = function (id) { return document.getElementById(id); };
@@ -74,7 +76,7 @@
 
   // ===================== Cofanie =====================
   function pushUndo() { undoStack.push(JSON.stringify(state)); if (undoStack.length > UNDO_LIMIT) undoStack.shift(); }
-  function onUndo() { if (!undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); }
+  function onUndo() { if (turnBusy || !undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); }
   function updateUndoButton() {
     el.btnUndo.disabled = (undoStack.length === 0);
     el.btnUndo.textContent = '↶ Cofnij' + (undoStack.length ? ' (' + undoStack.length + ')' : '') + ' — tryb nauczyciela';
@@ -202,10 +204,12 @@
     });
   }
   function onSelectLineage(id) {
+    if (turnBusy) return;
     state = Engine.setActiveLineage(state, id); save();
     renderActiveLineage(); renderLineageBar(); renderTraits(); renderForecast(); renderEnv(); renderDiorama();
   }
   function onMigrateTo(niche) {
+    if (turnBusy) return;
     var a = Engine.getActiveLineage(state);
     var res = Engine.migrateLineage(DATA, state, a.id, niche);
     if (!res.ok) { flash(res.error); return; }
@@ -341,7 +345,7 @@
       era: era.id, niche: a.niche, climate: env ? env.climate : undefined,
       food: ne.food, predators: ne.predators, catastrophe: !!cat,
       lineages: state.lineages.filter(function (l) { return l.alive && l.niche === a.niche; }).map(function (l) {
-        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id };
+        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id, parentId: l.parentId };
       })
     });
     var others = state.lineages.filter(function (l) { return l.alive && l.niche === a.niche && l.id !== a.id; }).length;
@@ -434,12 +438,14 @@
 
   // ===================== Akcje =====================
   function onBuyTrait(traitId) {
+    if (turnBusy) return;
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
     renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderForecast(); renderDiorama(); updateUndoButton();
   }
   function onSpeciate() {
+    if (turnBusy) return;
     var can = Engine.canSpeciate(DATA, state);
     if (!can.ok) { flash(can.error); return; }
     var base = Engine.getActiveLineage(state).name;
@@ -457,9 +463,55 @@
     pushUndo(); state = res.state; save(); renderAll();
   }
   function onSimulate() {
+    if (turnBusy) return;
     var res = Engine.simulateTurn(DATA, state);
     if (!res.report) return;
-    pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
+    var play = buildTurnPlay(res.report, state);
+    function applyTurn() {
+      setTurnBusy(false);
+      pushUndo(); state = res.state; save(); renderAll(); showReport(res.report);
+    }
+    if (!play || !ART || !ART.diorama || !el.diorama || el.diorama.hidden) { applyTurn(); return; }
+    setTurnBusy(true);
+    // Diorama poza ekranem → przewiń do niej, by gracz zobaczył przebieg tury.
+    var rect = el.diorama.getBoundingClientRect();
+    var offscreen = rect.bottom < 60 || rect.top > window.innerHeight - 60;
+    if (offscreen) el.diorama.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(function () {
+      if (!ART.diorama.canPlay(el.diorama)) { applyTurn(); return; }
+      ART.diorama.playTurn(el.diorama, play).then(applyTurn, applyTurn);
+    }, offscreen ? 500 : 0);
+  }
+  function setTurnBusy(on) {
+    turnBusy = on;
+    document.body.classList.toggle('turn-busy', on);
+    el.btnSimulate.disabled = on || (state && state.status !== 'playing');
+  }
+  // Dane animacji tury dla aktywnej linii (liczby z raportu silnika).
+  function buildTurnPlay(report, before) {
+    var a = Engine.getActiveLineage(before);
+    var lr = report.lineReports.filter(function (x) { return x.lineageId === a.id; })[0];
+    if (!lr) return null;
+    var mut = null;
+    lr.events.forEach(function (t) {
+      var m = /^(Korzystna|Szkodliwa) mutacja: (.+?)\.?$/.exec(t);
+      if (m) mut = { beneficial: m[1] === 'Korzystna', text: m[2] };
+    });
+    var cat = null;
+    if (report.catastrophe && (report.catastrophe.niche === 'all' || report.catastrophe.niche === a.niche)) {
+      var nm = report.catastrophe.name;
+      cat = { name: nm, kind: /lodow|ordowick/i.test(nm) ? 'ice' : (/permsk/i.test(nm) ? 'volcano' : 'meteor') };
+    }
+    return {
+      lineageId: a.id, popBefore: lr.popBefore, popAfter: lr.popAfter,
+      births: lr.births, predationDeaths: lr.predationDeaths, starvationDeaths: lr.starvationDeaths, catDeaths: lr.catDeaths,
+      mutation: mut, catastrophe: cat,
+      labels: {
+        feed: T('turn.feed'), feedSub: T('turn.feedSub', { energy: (lr.energy >= 0 ? '+' : '') + lr.energy }),
+        predation: T('turn.predation'), starvation: T('turn.starvation'), births: T('turn.births'),
+        mutationGood: T('turn.mutationGood'), mutationBad: T('turn.mutationBad'), skip: T('turn.skip')
+      }
+    };
   }
   function renderAll() {
     renderStatus(); renderTimeline(); renderLineageBar();
@@ -496,12 +548,13 @@
         if (/Katastrofa/.test(txt)) d.className += ' danger';
         d.textContent = txt; block.appendChild(d);
       });
-      block.appendChild(line('Populacja', lr.popBefore + ' → ' + lr.popAfter, lr.popAfter >= lr.popBefore ? 'pos' : 'neg'));
-      if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos'));
-      if (lr.predationDeaths > 0) block.appendChild(line('Straty od drapieżników', '-' + lr.predationDeaths, 'neg'));
-      if (lr.starvationDeaths > 0) block.appendChild(line('Straty z głodu', '-' + lr.starvationDeaths, 'neg'));
-      if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg'));
-      block.appendChild(line('Inteligencja', lr.intelligence + ' / ' + report.intelligenceGoal, 'plain'));
+      // Kolejność jak w animacji tury: drapieżniki → głód → narodziny → katastrofa.
+      block.appendChild(line('Populacja', lr.popBefore + ' → ' + lr.popAfter, lr.popAfter >= lr.popBefore ? 'pos' : 'neg', 'ui:paw'));
+      if (lr.predationDeaths > 0) block.appendChild(line('Straty od drapieżników', '-' + lr.predationDeaths, 'neg', 'know:predation'));
+      if (lr.starvationDeaths > 0) block.appendChild(line('Straty z głodu', '-' + lr.starvationDeaths, 'neg', 'know:starvation'));
+      if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos', 'ui:sprout'));
+      if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
+      block.appendChild(line('Inteligencja', lr.intelligence + ' / ' + report.intelligenceGoal, 'plain', 'trait:brain'));
       // Rozbicie EP tej linii (skąd punkty).
       if (lr.epGain > 0) {
         var b = lr.epBreakdown;
@@ -546,10 +599,10 @@
     var e = DATA.ERAS.filter(function (x) { return x.name === name; })[0];
     return e ? e.milestone : '';
   }
-  function line(label, value, tone) {
+  function line(label, value, tone, icon) {
     var d = document.createElement('div'); d.className = 'report-line';
     var cls = tone === 'pos' ? 'num pos' : (tone === 'neg' ? 'num neg' : 'num');
-    d.innerHTML = '<span>' + label + '</span><span class="' + cls + '">' + value + '</span>';
+    d.innerHTML = '<span class="report-label">' + (icon ? ico(icon, '') + ' ' : '') + label + '</span><span class="' + cls + '">' + value + '</span>';
     return d;
   }
   function onReportClose() { closeModal(el.modalReport); if (state.status !== 'playing') showEnd(); }

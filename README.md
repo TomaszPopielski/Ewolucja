@@ -96,6 +96,9 @@ przechodnia świadomą strategią.
   (skąd pochodzą punkty).
 - **Diorama środowiska** — animowana scena niszy i ery: populacja jako ławica
   lub stado, pokarm, drapieżniki i klimat tury wynikają wprost z symulacji.
+- **Tura jako wydarzenie** — przed raportem krótka animacja: żerowanie, ataki
+  drapieżników, głód, narodziny, mutacja i katastrofy (meteoryt, zlodowacenie,
+  wulkanizm); można ją pominąć.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
   widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.

@@ -47,6 +47,15 @@
       'traits.title': 'Adaptacje — wydaj punkty ewolucji',
       'traits.hint': 'Cechy dotyczą aktywnej linii. Każda ma koszt i kompromis; cechy zależne odblokowują się po zdobyciu wymaganych. Gwiazdka oznacza drogę do inteligencji.',
 
+      'turn.feed': 'Żerowanie',
+      'turn.feedSub': 'bilans energii {energy}',
+      'turn.predation': 'Drapieżniki atakują',
+      'turn.starvation': 'Głód',
+      'turn.births': 'Narodziny',
+      'turn.mutationGood': 'Korzystna mutacja',
+      'turn.mutationBad': 'Szkodliwa mutacja',
+      'turn.skip': 'Pomiń ▸',
+
       'report.title': 'Wynik tury',
       'report.next': 'Dalej',
       'report.summary': 'Zobacz podsumowanie',

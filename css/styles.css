@@ -376,6 +376,34 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .diorama-warn { color: var(--danger); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
 @media (max-width: 820px) { .diorama { height: 160px; } .diorama-caption { font-size: .72rem; } }
 
+/* --- Tura jako wydarzenie (animacja w dioramie) --- */
+.turn-banner {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: baseline; gap: 8px; max-width: calc(100% - 140px);
+  padding: 6px 16px; border-radius: 20px; border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent); box-shadow: var(--shadow);
+  font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  animation: bannerIn .25s ease;
+}
+.turn-banner strong { font-family: var(--serif); font-size: 1.05rem; }
+.turn-banner-step { font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.turn-banner-sub { font-weight: 700; font-variant-numeric: tabular-nums; }
+.turn-banner.tone-good .turn-banner-sub { color: var(--good); }
+.turn-banner.tone-bad { border-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.turn-banner.tone-bad .turn-banner-sub, .turn-banner.tone-bad strong { color: var(--danger); }
+.turn-banner.tone-ep .turn-banner-sub, .turn-banner.tone-ep strong { color: var(--ep); }
+.turn-banner-out { opacity: 0; transition: opacity .4s ease; }
+@keyframes bannerIn { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.turn-skip { position: absolute; top: 10px; right: 10px; padding: 4px 12px; font-size: .82rem; }
+.diorama.turn-playing .diorama-caption { opacity: .35; }
+body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-events: none; transition: opacity .2s ease; }
+.report-label { display: inline-flex; align-items: center; gap: 6px; }
+.report-label .ico { color: var(--ink-soft); }
+@media (max-width: 820px) {
+  .turn-banner { top: 8px; max-width: calc(100% - 100px); font-size: .8rem; left: 10px; transform: none; animation: none; }
+  .turn-skip { top: 6px; right: 6px; }
+}
+
 /* --- Rycina: żywy portret aktywnej linii --- */
 .creature-figure { margin: 0 0 14px; }
 .creature-portrait {

@@ -18,7 +18,11 @@ import {
   type Era, type NicheKey, type SceneLayout, type PaintArgs
 } from './scenery.ts';
 
-export interface DioramaLineage { id: string; name: string; traits: string[]; niche: string; population: number; active: boolean }
+export interface DioramaLineage {
+  id: string; name: string; traits: string[]; niche: string; population: number; active: boolean;
+  /** Linia macierzysta — przy specjacji część stada rodzica „przechodzi” do nowej gałęzi. */
+  parentId?: string | null;
+}
 
 export interface DioramaData {
   era: Era;
@@ -65,7 +69,10 @@ interface SceneSet {
   alpha: number; target: number;
 }
 
-interface Agent {
+/** Los osobnika w trakcie tury (animacja przyczyny straty). */
+export type DoomKind = 'caught' | 'starve' | 'freeze' | 'ash' | 'impact';
+
+export interface Agent {
   sprite: Sprite;
   baked: Baked;
   lineageId: string;
@@ -76,9 +83,30 @@ interface Agent {
   phase: number; speed: number;
   alpha: number; leaving: boolean;
   dash: number; dashCool: number;
+  /** 0…1 — nowo narodzony osobnik rośnie do pełnego rozmiaru. */
+  grow: number;
+  /** Strata w trakcie tury: rodzaj i czas trwania animacji. */
+  doom: { kind: DoomKind; t: number } | null;
+  /** Reżyser tury prowadzi osobnika (bez błądzenia). */
+  directed: boolean;
+  /** Tymczasowy drapieżnik sprowadzony na potrzeby animacji tury. */
+  temp: boolean;
 }
 
-interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; life: number; kind: 'food' | 'bubble' | 'snow' | 'dust' }
+/** Dostęp reżysera tury (turnplay.ts) do sceny. */
+export interface StageAccess {
+  W: number; H: number; lay: SceneLayout; niche: NicheKey; theme: Theme;
+  agents: Agent[];
+  fx: Graphics; overlay: Graphics; texts: Container; stage: Container;
+  host: HTMLElement;
+  rand: () => number;
+  setFeeding(on: boolean): void;
+  spawnNewborn(lineageId: string, x: number, y: number): Agent | null;
+  spawnTempPredator(): Agent | null;
+  addWeather(kind: 'snow' | 'ash', n: number): void;
+}
+
+interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; life: number; kind: 'food' | 'bubble' | 'snow' | 'dust' | 'ash'; temp?: boolean }
 
 export class Diorama {
   private app!: Application;
@@ -96,6 +124,11 @@ export class Diorama {
   private fxLayer = new Container();
   private nearRoot = new Container();
   private tint = new Graphics();
+  private fxG = new Graphics();
+  private overlay = new Graphics();
+  private texts = new Container();
+  private feeding = false;
+  private director: { update(dt: number): void; finish(): void } | null = null;
   private vignette: Sprite | null = null;
   private dispSprite: Sprite | null = null;
   private dispFilter: DisplacementFilter | null = null;
@@ -146,7 +179,7 @@ export class Diorama {
     this.rayTex = tex(paintRay(this.res), this.res);
 
     this.lifeLayer.sortableChildren = true;
-    this.app.stage.addChild(this.sceneRoot, this.foodLayer, this.lifeLayer, this.fxLayer, this.nearRoot, this.tint);
+    this.app.stage.addChild(this.sceneRoot, this.foodLayer, this.lifeLayer, this.fxG, this.fxLayer, this.nearRoot, this.tint, this.overlay, this.texts);
     if (this.filtersOk) {
       // falowanie obrazu pod wodą — mapa przemieszczeń z zapętlonego szumu
       const noise = tex(paintNoise(128, 7), 1);
@@ -216,6 +249,7 @@ export class Diorama {
   // ------------------------------------------------------------------ aktualizacja danych
 
   update(data: DioramaData) {
+    if (this.director) this.director.finish();
     const prev = this.data;
     this.data = data;
     const sceneKey = [data.niche, data.era, this.W, this.theme.dark].join('|');
@@ -347,7 +381,21 @@ export class Diorama {
     want.forEach((w, id) => {
       const n = w.predator ? w.n : Math.max(1, Math.round(w.n * scaleDown));
       const baked = this.bakedFor(w.spec, w.key, this.unitPxFor(w.spec, w.predator));
-      const mine = this.agents.filter((a) => !a.leaving && (w.predator ? a.predator : a.lineageId === id));
+      let mine = this.agents.filter((a) => !a.leaving && (w.predator ? a.predator : a.lineageId === id));
+      // Specjacja: nowa gałąź powstaje z połowy stada rodzica, które się rozchodzi.
+      const lin = d.lineages.find((l) => l.id === id);
+      if (!w.predator && !mine.length && lin && lin.parentId && !nicheChanged) {
+        const parents = this.agents.filter((a) => !a.leaving && !a.doom && a.lineageId === lin.parentId);
+        const moved = parents.slice(0, Math.floor(parents.length / 2));
+        const cx = moved.reduce((s2, a) => s2 + a.x, 0) / Math.max(1, moved.length);
+        moved.forEach((a) => {
+          a.lineageId = id; a.baked = baked; a.sprite.anchor.set(baked.anchorX, baked.anchorY);
+          a.grow = 0.55; // krótkie „pulsowanie” przy zmianie
+          a.tx = cx < this.W / 2 ? this.W * (0.65 + this.r() * 0.3) : this.W * (0.05 + this.r() * 0.3);
+          a.retarget = 4;
+        });
+        mine = moved;
+      }
       // nowe cechy → podmiana klatek bez znikania osobników
       mine.forEach((a) => { if (a.baked !== baked) { a.baked = baked; a.sprite.anchor.set(baked.anchorX, baked.anchorY); } });
       for (let i = mine.length; i < n; i++) this.spawn(id, baked, w.predator, d);
@@ -360,7 +408,7 @@ export class Diorama {
     });
   }
 
-  private spawn(lineageId: string, baked: Baked, predator: boolean, d: DioramaData) {
+  private spawn(lineageId: string, baked: Baked, predator: boolean, d: DioramaData): Agent {
     const s = new Sprite(baked.frames[0]);
     s.anchor.set(baked.anchorX, baked.anchorY);
     const lay = sceneLayout(d.niche, this.W, this.H);
@@ -371,12 +419,14 @@ export class Diorama {
       vx: 0, vy: 0, tx: 0, ty: 0, retarget: 0,
       depth, scale: predator ? 1 : 0.72 + 0.28 * depth, facing: this.r() > 0.5 ? 1 : -1,
       phase: this.r(), speed: (predator ? 0.7 : 1) * (0.85 + this.r() * 0.3),
-      alpha: 0, leaving: false, dash: 0, dashCool: 4 + this.r() * 6
+      alpha: 0, leaving: false, dash: 0, dashCool: 4 + this.r() * 6,
+      grow: 1, doom: null, directed: false, temp: false
     };
     if (d.niche === 'powietrze') a.facing = 1;
     this.pickTarget(a);
     this.lifeLayer.addChild(s);
     this.agents.push(a);
+    return a;
   }
 
   private pickTarget(a: Agent) {
@@ -411,8 +461,11 @@ export class Diorama {
     });
 
     for (const a of this.agents) {
+      if (a.grow < 1) a.grow = Math.min(1, a.grow + dt / 0.9);
+      if (a.doom) { this.stepDoom(a, dt); this.placeAgent(a); continue; }
       a.alpha = Math.max(0, Math.min(1, a.alpha + (a.leaving ? -dt : dt) / FADE));
       a.retarget -= dt;
+      if (a.directed) a.retarget = 1;
       if (a.retarget <= 0 || Math.hypot(a.tx - a.x, a.ty - a.y) < 12) this.pickTarget(a);
       let dx = a.tx - a.x, dy = a.ty - a.y;
       let len = Math.hypot(dx, dy) || 1;
@@ -467,26 +520,54 @@ export class Diorama {
     this.cleanupAgents();
   }
 
+  /** Animacja straty: każda przyczyna wygląda inaczej (gracz widzi „dlaczego”). */
+  private stepDoom(a: Agent, dt: number) {
+    const d = a.doom!;
+    d.t += dt;
+    if (d.t < 0) return; // fala uderzeniowa jeszcze nie dotarła
+    const water = this.data && (this.data.niche === 'woda' || this.data.niche === 'przybrzeze');
+    let dur = 1.2;
+    switch (d.kind) {
+      case 'caught':
+        dur = 0.7; a.sprite.tint = d.t < 0.25 ? 0xd0604a : 0x8a5a4a; a.vx *= 0.8; a.vy *= 0.8; break;
+      case 'starve':
+        dur = 1.6; a.sprite.tint = 0xa8a296; a.vx *= 0.9; a.vy = water ? 10 : 0; a.phase = 0; break;
+      case 'freeze':
+        dur = 1.8; a.sprite.tint = 0xd8ecff; a.vx = 0; a.vy = 0; break;
+      case 'ash':
+        dur = 1.8; a.sprite.tint = 0x9a8a78; a.vx *= 0.9; a.vy = water ? -12 : 0; break;
+      case 'impact':
+        dur = 1.1; a.sprite.tint = 0x6a5a4e; a.vx *= 0.94; a.vy *= 0.94; break;
+    }
+    a.x += a.vx * dt; a.y += a.vy * dt;
+    a.alpha = Math.max(0, 1 - Math.max(0, d.t - dur * 0.35) / (dur * 0.65));
+    if (d.t >= dur) { a.alpha = 0; a.leaving = true; }
+  }
+
   private placeAgent(a: Agent) {
     const lay = this.lay; const niche = this.data ? this.data.niche : 'woda';
     const s = a.sprite;
     const frames = a.baked.frames;
     s.texture = frames[Math.floor(a.phase * frames.length) % frames.length];
     let sc = a.scale;
+    const grow = a.grow < 1 ? 0.35 + 0.65 * (1 - Math.pow(1 - a.grow, 3)) : 1;
     if (niche === 'lad') {
       // głębia z pozycji na gruncie: dalej = wyżej, mniejsze, bledsze
       const dep = (a.y - lay.lifeTop) / Math.max(1, lay.lifeBottom - lay.lifeTop);
-      sc = (a.predator ? 1 : 0.95) * (0.72 + 0.28 * dep);
+      sc = (a.predator ? 1 : 0.95) * (0.72 + 0.28 * dep) * grow;
       s.zIndex = a.y;
       s.y = a.y - a.baked.foot * a.baked.unitPx * sc;
     } else {
       s.zIndex = a.depth * 100 + (a.predator ? 50 : 0);
       s.y = a.y;
+      sc *= grow;
     }
     s.x = a.x;
     const f = Math.abs(a.facing) < 0.12 ? 0.12 * Math.sign(a.facing || 1) : a.facing;
     s.scale.set(f * sc, sc);
     s.rotation = niche === 'lad' ? 0 : Math.max(-0.35, Math.min(0.35, Math.atan2(a.vy, Math.abs(a.vx) + 20) * 0.6)) * Math.sign(f);
+    if (a.doom && a.doom.kind === 'ash') s.rotation = Math.min(Math.PI, a.doom.t * 3) * (niche === 'lad' ? 0.5 : 1); // „brzuchem do góry”
+    if (!a.doom) s.tint = 0xffffff;
     const far = niche === 'lad' ? 0 : (1 - a.depth) * 0.25;
     s.alpha = a.alpha * (1 - far);
   }
@@ -530,11 +611,25 @@ export class Diorama {
     const lay = this.lay;
     for (const p of this.particles) {
       p.life += dt;
-      if (p.kind === 'food') {
+      if (p.kind === 'food' && this.feeding) {
+        // żerowanie: pokarm „wpada” do najbliższego osobnika
+        let best: Agent | null = null, bd = 150;
+        for (const a of this.agents) {
+          if (a.predator || a.doom || a.leaving) continue;
+          const dd = Math.hypot(a.x - p.x, a.y - p.y); if (dd < bd) { bd = dd; best = a; }
+        }
+        if (best) {
+          const k = Math.min(1, (70 * dt) / Math.max(1, bd));
+          p.x += (best.x - p.x) * k; p.y += (best.y - p.y) * k;
+          if (bd < 7) { p.x = this.r() * this.W; p.y = lay.lifeTop + this.r() * (lay.lifeBottom - lay.lifeTop); }
+        }
+      } else if (p.kind === 'food') {
         p.x += (p.vx + Math.sin(p.life * 0.8 + p.y) * 3) * dt; p.y += (p.vy * 0.2 + Math.cos(p.life + p.x) * 2) * dt;
       } else { p.x += p.vx * dt + Math.sin(p.life * 2) * 0.2; p.y += p.vy * dt; }
       if (p.kind === 'bubble' && p.y < (lay.surfaceY > 0 ? lay.surfaceY : 0)) { p.y = lay.floorY - 4; p.x = this.r() * this.W; }
-      if (p.kind === 'snow' && p.y > this.H) { p.y = -4; p.x = this.r() * this.W; }
+      if ((p.kind === 'snow' || p.kind === 'ash') && p.y > this.H) {
+        if (p.temp) { p.s.visible = false; } else { p.y = -4; p.x = this.r() * this.W; }
+      }
       if (p.x < -10) p.x += this.W + 20; if (p.x > this.W + 10) p.x -= this.W + 20;
       if (p.y < -10) p.y += this.H; if (p.y > this.H + 10) p.y -= this.H;
       p.s.x = p.x - (p.kind === 'food' ? 0 : 0); p.s.y = p.y;
@@ -564,6 +659,67 @@ export class Diorama {
     if (this.dispSprite) { this.dispSprite.x = -((this.time * 12) % 384); this.dispSprite.y = -((this.time * 6) % 384); }
     this.stepAgents(dt);
     this.stepParticles(dt);
+    if (this.director) this.director.update(dt);
+  }
+
+  // ------------------------------------------------------------------ tura jako wydarzenie
+
+  /** Czy scena może teraz odegrać animację (widoczna, z ruchem). */
+  canPlay(): boolean {
+    return !!this.data && this.visible && !document.hidden && !this.reduced && this.app.ticker.started;
+  }
+
+  /**
+   * Odegranie przebiegu tury (turnplay.ts). Zwraca obietnicę spełnianą po
+   * zakończeniu albo pominięciu; potem gra pokazuje raport i nowy stan.
+   */
+  async playTurn(play: import('./turnplay.ts').TurnPlay): Promise<void> {
+    if (!this.canPlay()) return;
+    if (this.director) this.director.finish();
+    const { TurnDirector } = await import('./turnplay.ts');
+    await new Promise<void>((resolve) => {
+      const dir = new TurnDirector(this.access(), play, () => { this.director = null; this.feeding = false; resolve(); });
+      this.director = dir;
+    });
+  }
+
+  private access(): StageAccess {
+    const self = this;
+    return {
+      get W() { return self.W; }, get H() { return self.H; }, get lay() { return self.lay; },
+      get niche() { return self.data!.niche; }, get theme() { return self.theme; },
+      get agents() { return self.agents; },
+      fx: this.fxG, overlay: this.overlay, texts: this.texts, stage: this.app.stage, host: this.host,
+      rand: this.r,
+      setFeeding: (on) => { this.feeding = on; },
+      spawnNewborn: (id, x, y) => {
+        const parent = this.agents.find((a) => a.lineageId === id && !a.predator);
+        if (!parent || !this.data) return null;
+        const a = this.spawn(id, parent.baked, false, this.data);
+        a.x = x; a.y = y; a.grow = 0; a.alpha = 1; a.depth = parent.depth; a.scale = parent.scale; a.facing = parent.facing;
+        this.placeAgent(a);
+        return a;
+      },
+      spawnTempPredator: () => {
+        if (!this.data) return null;
+        const d = this.data;
+        const spec = this.predatorSpec(d);
+        const baked = this.bakedFor(spec, 'pred|' + d.niche + '|' + d.era, this.unitPxFor(spec, true));
+        const a = this.spawn('__pred', baked, true, d);
+        a.x = this.r() > 0.5 ? -40 : this.W + 40; a.alpha = 1; a.temp = true;
+        return a;
+      },
+      addWeather: (kind, n) => {
+        for (let i = 0; i < n; i++) {
+          const s = new Sprite(kind === 'snow' ? this.snowTex : this.dotTex);
+          s.anchor.set(0.5);
+          const p: Particle = { s, x: this.r() * this.W, y: -this.r() * this.H * 0.8, vx: -6 + this.r() * 4, vy: 30 + this.r() * 30, life: 0, kind, temp: true };
+          if (kind === 'ash') { s.tint = 0x5a5048; s.scale.set(0.5 + this.r() * 0.5); s.alpha = 0.85; p.vy = 14 + this.r() * 16; }
+          else s.scale.set(0.7 + this.r() * 0.6);
+          this.fxLayer.addChild(s); this.particles.push(p);
+        }
+      }
+    };
   }
 
   /**

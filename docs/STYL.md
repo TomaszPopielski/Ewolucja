@@ -113,3 +113,25 @@ Wydajność i dostępność:
   (wyłącza falowanie wody i gęstość pikseli).
 - `prefers-reduced-motion`: nieruchoma scena. Poza ekranem animacja stoi.
 - Płótno jest ukryte przed czytnikami ekranu; treść niesie podpis sceny.
+
+## Tura jako wydarzenie (`src/diorama/turnplay.ts`)
+
+Po kliknięciu „Przeżyj turę” diorama odgrywa przebieg tury aktywnej linii,
+a dopiero potem pokazuje się raport. Liczby pochodzą wprost z raportu silnika;
+liczba ofiar i młodych na scenie jest do nich proporcjonalna.
+
+| Faza | Na scenie | Warunek |
+|---|---|---|
+| Żerowanie | pokarm „wpada” do osobników, bilans energii w banerze | zawsze |
+| Drapieżnictwo | drapieżniki atakują wybrane ofiary (czerwony błysk) | straty od drapieżników > 0 |
+| Głód | ofiary szarzeją i opadają | straty z głodu > 0 |
+| Narodziny | młode rosną przy rodzicach (zielone kręgi) | narodziny > 0 |
+| Mutacja | wyróżniony osobnik z opisem zmiany (fiolet / czerwień) | mutacja w tej turze |
+| Katastrofa | meteoryt (błysk, fala uderzeniowa, pył), zlodowacenie (szron, śnieg, zamarzanie) albo wulkanizm (popiół, rdzawa woda) | katastrofa w niszy linii |
+
+- Całość trwa ok. 4–7 s; pominięcie: przycisk „Pomiń”, Esc, Enter albo spacja.
+- W trakcie animacji akcje zmieniające stan gry są wstrzymane.
+- Gdy diorama jest poza ekranem, gra przewija do niej przed animacją.
+- `prefers-reduced-motion` albo brak dioramy: raport pojawia się od razu.
+- Specjacja: nowa gałąź powstaje z połowy stada rodzica, które się rozchodzi.
+- Raport ma ikony i kolejność pozycji zgodne z fazami animacji.

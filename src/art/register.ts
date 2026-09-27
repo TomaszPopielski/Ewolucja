@@ -7,6 +7,7 @@
 import { icon, hasIcon, iconKeys } from './icons.ts';
 import { Portrait, readTheme, type PortraitUpdate } from '../creature/portrait.ts';
 import type { Diorama, DioramaData } from '../diorama/diorama.ts';
+import type { TurnPlay } from '../diorama/turnplay.ts';
 import type { LineageLike } from '../creature/spec.ts';
 
 export interface GameArtApi {
@@ -21,6 +22,10 @@ export interface GameArtApi {
   /** Żywa diorama środowiska; gdy nie da się jej narysować, kontener dostaje klasę .diorama-off. */
   diorama: {
     update: (host: HTMLElement, data: DioramaData) => void;
+    /** Czy diorama może teraz odegrać animację tury. */
+    canPlay: (host: HTMLElement) => boolean;
+    /** Animacja przebiegu tury; obietnica spełnia się po końcu lub pominięciu. */
+    playTurn: (host: HTMLElement, play: TurnPlay) => Promise<void>;
   };
 }
 
@@ -66,6 +71,10 @@ const api: GameArtApi = {
     update: (host, lineage, opts) => { portraitFor(host)?.update(lineage, opts); },
     preview: (host, traitId) => { portraitFor(host)?.preview(traitId); }
   },
-  diorama: { update: dioramaUpdate }
+  diorama: {
+    update: dioramaUpdate,
+    canPlay: (host) => { const d = dioramas.get(host)?.d; return !!d && d.canPlay(); },
+    playTurn: (host, play) => { const d = dioramas.get(host)?.d; return d ? d.playTurn(play) : Promise.resolve(); }
+  }
 };
 self.GameArt = api;
