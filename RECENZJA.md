@@ -6,6 +6,12 @@ uruchomieniu testów i budowy, zrzutach ekranu z Chromium (`npm run shots`)
 oraz na symulacji Monte Carlo: 500 partii na każdą strategię i poziom
 trudności, prowadzonych przez boty grające bezpośrednio na silniku.
 
+> **Aktualizacja (27.09.2026):** wykonano kroki 1 i 2 rekomendacji. Paski
+> statystyk są naprawione, a silnik i dane z `game-improvements-fixes-xt7ru9`
+> zostały przeniesione na obecną warstwę graficzną (błędy 1–5 z sekcji 1
+> naprawione, 98 testów silnika). Opis poniżej dotyczy stanu **sprzed** tych
+> zmian.
+
 ---
 
 ## Werdykt w skrócie
