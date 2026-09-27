@@ -70,7 +70,7 @@ rozbudowy bez zmian w kodzie.
 Silnik ma zestaw testów bez zależności zewnętrznych:
 
 ```bash
-npm test          # albo: node test/engine.test.js
+npm test          # silnik + opis wyglądu zwierzęcia
 ```
 
 Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
@@ -94,6 +94,8 @@ przechodnia świadomą strategią.
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
+- **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
+  widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
 - **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
@@ -107,6 +109,7 @@ przechodnia świadomą strategią.
 js/i18n.js       — stringi interfejsu (warstwa i18n)
 src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę graficzną
 src/art/         — warstwa graficzna (TypeScript): ikony SVG, paleta
+src/creature/    — żywy portret zwierzęcia składanego z cech (Canvas 2D)
 src/fonts.css    — krój szeryfowy (Source Serif 4, OFL), wklejany offline
 docs/STYL.md     — zasady stylu „ilustracja naukowa”
 scripts/         — narzędzia (zrzuty ekranu)

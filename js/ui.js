@@ -30,6 +30,7 @@
     lineageChips: $('lineage-chips'), nicheButtons: $('niche-buttons'),
     btnSpeciate: $('btn-speciate'), btnTree: $('btn-tree'),
     speciesName: $('species-name-display'), speciesNiche: $('species-niche'),
+    portrait: $('creature-portrait'), portraitCaption: $('creature-caption'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -218,6 +219,18 @@
     el.speciesNiche.innerHTML = 'Nisza: <strong>' + nicheIcon(l.niche) + ' ' + nicheLabel(l.niche) + '</strong>';
     renderStats(l);
     renderSparkline(l);
+    renderPortrait(l);
+  }
+  // Żywy portret (warstwa graficzna). Bez niej rycina jest ukryta.
+  var TRAIT_NAMES = {};
+  DATA.TRAITS.forEach(function (t) { TRAIT_NAMES[t.id] = t.name; });
+  function renderPortrait(l) {
+    var fig = el.portrait && el.portrait.parentNode;
+    if (!ART || !ART.portrait || !fig) { if (fig) fig.hidden = true; return; }
+    var env = Engine.currentTurnEnv(DATA, state);
+    ART.portrait.update(el.portrait, l, { climate: env ? env.climate : undefined, traitNames: TRAIT_NAMES });
+    el.portraitCaption.textContent = 'Ryc. ' + (state.lineages.indexOf(l) + 1) + '. ' + l.name +
+      ' — ' + (l.traits.length ? 'cech: ' + l.traits.length : 'prosty organizm') + ', nisza: ' + nicheLabel(l.niche).toLowerCase();
   }
   function renderStats(lineage) {
     el.statsList.innerHTML = '';
@@ -258,6 +271,7 @@
   // ===================== Render — prognoza (co-jeśli) =====================
   function renderForecast(previewTrait) {
     var l = Engine.getActiveLineage(state);
+    if (ART && ART.portrait && el.portrait) ART.portrait.preview(el.portrait, previewTrait ? previewTrait.id : null);
     var base = Engine.forecast(DATA, state, l);
     if (!base) { el.forecastBody.innerHTML = '<span class="forecast-none">Era dobiega końca.</span>'; return; }
 

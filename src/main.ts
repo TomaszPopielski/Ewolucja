@@ -7,7 +7,7 @@
  * Nowy kod — warstwa graficzna — powstaje obok, w TypeScripcie (src/).
  */
 import './fonts.css';
-import './art/register';
+import './art/register.ts';
 import '../js/i18n.js';
 import '../js/data.js';
 import '../js/engine.js';

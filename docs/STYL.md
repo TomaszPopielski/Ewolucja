@@ -50,3 +50,36 @@ Przy zmianie barw trzeba zaktualizować oba miejsca.
 Każdą ikonę można zastąpić rysunkiem ilustratora (SVG 24×24). Wystarczy
 podmienić treść pod danym kluczem w `src/art/icons.ts`, zachowując klasy
 `.w`, `.f` i `.t`, jeśli rysunek ma reagować na tony i motyw.
+
+## Stworzenie (`src/creature/`)
+
+Portret aktywnej linii („rycina”) jest rysowany kodem na płótnie (Canvas 2D).
+
+- `spec.ts`: linia i jej cechy stają się opisem wyglądu (plan budowy, barwa,
+  proporcje, rozmiar). Czysta logika, testy w `test/creature.test.mjs`.
+- `draw.ts`: rysunek. Ciało to kręgosłup z profilem szerokości. Plan budowy
+  (robak → ryba → czworonóg → ssak/ptak) jest płynną mieszanką zależną od
+  obecności cech, dlatego nowa cecha „wyrasta”, a nie pojawia się skokiem.
+- `portrait.ts`: animacja, przejścia i podgląd „co-jeśli” (fioletowy szkic
+  przerywaną linią). Uwzględnia `prefers-reduced-motion` (nieruchoma rycina)
+  i nie rysuje, gdy portret jest niewidoczny.
+
+Każda cecha gry ma widoczny odpowiednik; test pilnuje, by nowa cecha w
+`js/data.js` nie została bez rysunku:
+
+| Cecha | Na rysunku |
+|---|---|
+| Filtrowanie | szczeliny skrzelowe, cząstki płynące do pyska |
+| Szczęki / Wszystkożerność | zęby i „kłapnięcie”; płaskie trzonowce |
+| Płetwy / Szybkie mięśnie | płetwy z promieniami; miomery (pasy mięśni) |
+| Kończyny / Stałocieplność | nogi w rozkroku → nogi pod ciałem, krótszy ogon |
+| Lot / Izolacja | skrzydła (błona albo pióra), futro, ogon z piór |
+| Ręka chwytna / Narzędzia | wyprostowana postawa, dłoń, pięściak w dłoni |
+| Łuski / Pancerz / Kamuflaż | wzór łusek, płytki grzbietowe, plamy |
+| Oczy / Linia boczna | oko z tęczówką i mruganiem; kropkowana linia |
+| Jaja / Opieka | skrzek, jaja z otoczką; młode obok rodzica |
+| Zwoje / Mózg / Rozbudowany mózg | układ nerwowy w przekroju, większa głowa |
+| Polowanie w grupie / Społeczność | towarzysze w tle |
+
+Podziałka w rogu ryciny pokazuje orientacyjny rozmiar ciała. Galeria
+wszystkich planów budowy powstaje przy `npm run shots` (`creatures-*.png`).
