@@ -27,7 +27,7 @@
       'start.button': 'Rozpocznij ewolucję',
       'start.eduNote': 'Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu mechanizmów, nie odwzorowaniu konkretnych gatunków.',
 
-      'status.ep': 'Punkty ewolucji',
+      'status.ep': 'Punkty ewolucji do wydania',
       'status.population': 'Populacja',
       'status.intelligence': 'Inteligencja (cel)',
       'status.era': 'Era',

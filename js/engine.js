@@ -20,10 +20,47 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function round1(v) { return Math.round(v * 10) / 10; }
+  function num1(v) { return String(round1(v)).replace('.', ','); }
   /* Losowe zaokrąglanie: 0,4 osobnika to 0 lub 1 z szansą 40%. Wartość oczekiwana
      się zgadza, a mała populacja nie staje się „nieśmiertelna” (Math.round(2 × 0,22) = 0). */
   function sround(x, rng) { var f = Math.floor(x); return f + (rng() < x - f ? 1 : 0); }
   function dedupe(a) { var s = {}, o = []; a.forEach(function (x) { if (!s[x]) { s[x] = 1; o.push(x); } }); return o; }
+  /* ---------- Losowość z ziarnem („kod świata”) ----------
+     Świat (warunki tur, kalendarz katastrof, zdarzenia, karty, cele er) wynika z
+     kodu świata i numeru tury — przy tym samym kodzie cała klasa gra w tym samym
+     świecie. Los linii (mutacje, straty, ryzyka) ma osobny strumień zapisany w
+     stanie, więc te same decyzje dają tę samą partię. */
+  function hashStr(str) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return h >>> 0;
+  }
+  function mulberryStep(a) {
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function seededRng(seedNum) {
+    var a = seedNum | 0;
+    return function () { a = (a + 0x6D2B79F5) | 0; return mulberryStep(a); };
+  }
+  function worldRngFor(seed, salt) { return seededRng(hashStr(seed + '|' + salt)); }
+  // Strumień gracza: stan generatora zapisany w stanie gry (przetrwa zapis i cofanie).
+  function stateRng(n) {
+    return function () { n.rngState = (n.rngState + 0x6D2B79F5) | 0; return mulberryStep(n.rngState); };
+  }
+  var SEED_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  function randomSeed(rng) {
+    rng = rng || Math.random; var out = '';
+    for (var i = 0; i < 6; i++) out += SEED_ALPHABET[Math.floor(rng() * SEED_ALPHABET.length)];
+    return out;
+  }
+  function normalizeSeed(x) {
+    if (x == null) return null;
+    var v = String(x).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    return v || null;
+  }
+
   function traitsById(data) { var m = {}; data.TRAITS.forEach(function (t) { m[t.id] = t; }); return m; }
 
   function makeLineage(id, name, parentId, population, stats, traits, niche, bornEra, bornTurn, res) {
@@ -85,8 +122,13 @@
       if (!nreq || root.traits.indexOf(nreq) !== -1) root.niche = opts.startNiche;
     }
 
-    return {
+    var seed = normalizeSeed(opts.seed);
+    var st = {
       version: 6,
+      seed: seed,                // kod świata (null — świat bez ziarna, tylko w testach)
+      rngState: seed ? hashStr(seed + '|linia') : 0,
+      calendar: seed ? buildCalendar(data, seed, startEra) : null,
+      eraGoals: seed ? pickEraGoals(data, seed, startEra) : [],
       difficulty: diffKey,
       scenario: opts.scenarioId || 'full',
       startEra: startEra,
@@ -101,10 +143,14 @@
       nextLineageNum: 1,
       unlockedKnowledge: root.niche === 'lad' ? ['intro', 'land'] : ['intro'],
       pendingChoice: null,       // karta decyzji czekająca na wybór gracza
+      pendingGamble: null,       // ryzykowna opcja karty — wynik losowany w turze
+      choiceHistory: [],         // karty, które już padły (bez powtórek w partii)
       resolvedChoice: null,      // wybór do pokazania w raporcie tury
       status: 'playing',
       history: []
     };
+    fixRegional(data, st);
+    return st;
   }
 
   // ---------- Ery / środowisko ----------
@@ -116,15 +162,118 @@
     // Wylosowane warunki bieżącej tury (jeśli dotyczą właśnie tej tury).
     var e = state.env;
     if (e && e.eraIndex === state.eraIndex && e.turn === state.turn) return e.conditions;
-    return era.turns[state.turn];
+    return turnBase(data, state, state.eraIndex, state.turn);
+  }
+
+  /* ---------- Kalendarz świata ----------
+     order[era] — kolejność tur ery po przesunięciu wymierań z `window`;
+     regional[era] — { turn, id } katastrofy regionalnej. */
+  function buildCalendar(data, seed, startEra) {
+    var cal = { order: {}, regional: {} };
+    for (var e = startEra || 0; e < data.ERAS.length; e++) {
+      var turns = data.ERAS[e].turns, order = turns.map(function (_, i) { return i; });
+      turns.forEach(function (t, i) {
+        var w = t.catastrophe && t.catastrophe.window;
+        if (!w || !w.length) return;
+        var target = w[Math.floor(worldRngFor(seed, 'cat:' + e + ':' + i)() * w.length)];
+        var pi = order.indexOf(i), pt = target;
+        var tmp = order[pi]; order[pi] = order[pt]; order[pt] = tmp;
+      });
+      cal.order[e] = order;
+      var R = data.REGIONAL, pool = (data.REGIONAL_DISASTERS || []).filter(function (d) {
+        return (d.minEra == null || e >= d.minEra) && (d.niche !== 'powietrze' || e >= 1);
+      });
+      if (!R || !R.perEra || !pool.length) continue;
+      var rr = worldRngFor(seed, 'regional:' + e);
+      var free = [];
+      for (var j = 1; j < turns.length; j++) if (!turns[order[j]].catastrophe) free.push(j);
+      if (!free.length) continue;
+      // Rodzaj katastrofy ustala się dopiero przy zapowiedzi (fixRegional) — uderza
+      // w niszę, w której żyje najwięcej osobników gatunku.
+      cal.regional[e] = { turn: free[Math.floor(rr() * free.length)], id: null };
+    }
+    return cal;
+  }
+  /* Zapowiedź katastrofy regionalnej na następną turę: wybór rodzaju według niszy
+     z największą populacją (kto trzyma wszystko w jednej niszy, ten ryzykuje). */
+  function fixRegional(data, n) {
+    var cal = n.calendar; if (!cal || !n.seed || n.status !== 'playing') return;
+    var nx = nextTurnOf(data, n.eraIndex, n.turn), cur = [n.eraIndex, n.turn];
+    [cur, nx].forEach(function (t) {
+      if (!t) return;
+      var reg = cal.regional && cal.regional[t[0]];
+      if (!reg || reg.turn !== t[1] || reg.id) return;
+      var load = nicheLoad(n), top = null;
+      Object.keys(load).forEach(function (k) { if (top === null || load[k] > load[top]) top = k; });
+      var r = worldRngFor(n.seed, 'regional-type:' + t[0]);
+      var local = (data.REGIONAL_DISASTERS || []).filter(function (d) {
+        return d.niche === top && (d.minEra == null || t[0] >= d.minEra);
+      });
+      var global = (data.REGIONAL_DISASTERS || []).filter(function (d) { return d.niche === 'all'; });
+      var pool = (local.length && r() >= 0.2) ? local : (global.length ? global : local);
+      reg.id = pool.length ? pool[Math.floor(r() * pool.length)].id : 'none';
+    });
+  }
+  function regionalById(data, id) { return (data.REGIONAL_DISASTERS || []).filter(function (d) { return d.id === id; })[0]; }
+  // Warunki historyczne danej tury po uwzględnieniu kalendarza świata.
+  function turnBase(data, state, eraIndex, turn) {
+    var era = data.ERAS[eraIndex]; if (!era) return null;
+    var cal = state && state.calendar;
+    var idx = cal && cal.order && cal.order[eraIndex] ? cal.order[eraIndex][turn] : turn;
+    var base = era.turns[idx];
+    var reg = cal && cal.regional && cal.regional[eraIndex];
+    if (reg && reg.id && reg.turn === turn && base && !base.catastrophe) {
+      var d = regionalById(data, reg.id);
+      if (d) {
+        base = clone(base);
+        base.catastrophe = { name: d.name, niche: d.niche, severity: d.severity, regional: true, note: d.note,
+          knowledge: d.knowledge, survival: d.survival || [] };
+        if (d.env && d.env.oxygen) base.oxygen = Math.max(5, base.oxygen + d.env.oxygen);
+        if (d.env && d.env.landFood) base.land = { food: Math.max(1, base.land.food + d.env.landFood), predators: base.land.predators };
+      }
+    }
+    return base;
+  }
+  // Globalny numer tury → [era, tura] (null poza grą).
+  function nextTurnOf(data, eraIndex, turn) {
+    if (eraIndex >= data.ERAS.length) return null;
+    if (turn + 1 < data.ERAS[eraIndex].turns.length) return [eraIndex, turn + 1];
+    return eraIndex + 1 < data.ERAS.length ? [eraIndex + 1, 0] : null;
+  }
+  /* Zapowiedź: katastrofa w NASTĘPNEJ turze (gracz widzi ją turę wcześniej). */
+  function upcomingThreat(data, state) {
+    if (state.status !== 'playing') return null;
+    var nx = nextTurnOf(data, state.eraIndex, state.turn); if (!nx) return null;
+    var b = turnBase(data, state, nx[0], nx[1]);
+    if (!b || !b.catastrophe) return null;
+    return { name: b.catastrophe.name, niche: b.catastrophe.niche, regional: !!b.catastrophe.regional,
+      note: b.catastrophe.note || b.note, title: b.title, newEra: nx[0] !== state.eraIndex ? data.ERAS[nx[0]].name : null };
+  }
+  /* Oś czasu bieżącej ery — co gracz wie o katastrofach: minione, bieżąca i
+     zapowiedziana są jawne; stałe wymierania historyczne też; wymierania z
+     `window` pokazują tylko możliwe tury („?”), regionalne są ukryte do zapowiedzi. */
+  function eraTimeline(data, state) {
+    var e = Math.min(state.eraIndex, data.ERAS.length - 1), era = data.ERAS[e], cal = state.calendar;
+    var out = era.turns.map(function (_, i) {
+      var b = turnBase(data, state, e, i), c = b.catastrophe, known = null;
+      var revealed = state.eraIndex > e || i <= state.turn + 1;
+      if (c && (revealed || !cal || (!c.regional && !c.window))) known = c;
+      return { title: b.title, catastrophe: known, maybe: false };
+    });
+    if (cal) era.turns.forEach(function (t) {
+      var w = t.catastrophe && t.catastrophe.window; if (!w) return;
+      var hit = out.some(function (x) { return x.catastrophe && x.catastrophe.name === t.catastrophe.name; });
+      if (!hit) w.forEach(function (i) { if (out[i] && !out[i].catastrophe) out[i].maybe = t.catastrophe.name; });
+    });
+    return out;
   }
 
   var CLIMATES = ['zimno', 'umiarkowanie', 'cieplo'];
   /* Faza środowiska: odchylenia od warunków historycznych danej tury. Tura z
      katastrofą zachowuje historyczny klimat. rng()=0.5 daje warunki bazowe. */
-  function rollEnv(data, eraIndex, turn, rng) {
+  function rollEnv(data, state, eraIndex, turn, rng) {
     if (eraIndex >= data.ERAS.length || turn >= data.ERAS[eraIndex].turns.length) return null;
-    var base = data.ERAS[eraIndex].turns[turn], v = data.ENV_VARIATION;
+    var base = turnBase(data, state, eraIndex, turn), v = data.ENV_VARIATION;
     var jitter = function (x, amp, lo) { return Math.max(lo, x + Math.round((rng() * 2 - 1) * amp)); };
     var c = clone(base);
     c.food = jitter(base.food, v.food, 1);
@@ -239,6 +388,8 @@
     if (trait.id === 'endothermy') unlockKnowledge(state, 'cold');
     if (trait.id === 'limbs' || trait.id === 'amniotic_egg' || trait.id === 'flight') unlockKnowledge(state, 'niche');
     if (trait.id === 'limbs') unlockKnowledge(state, 'land');
+    if (trait.id === 'echolocation') unlockKnowledge(state, 'echolocation');
+    if (trait.id === 'vocal_culture') unlockKnowledge(state, 'culture');
   }
 
   // ---------- Specjacja ----------
@@ -536,22 +687,66 @@
     return { ok: true, state: n, error: null };
   }
   function applyChoice(data, n, l, ev, opt) {
-    var c = opt.cost || {}, fx = opt.effects || {}, now = nowTurn(data, n), colony = null;
+    var c = opt.cost || {}, fx = opt.effects || {}, colony = null;
     if (c.reserves) l.reserves -= c.reserves;
     if (c.variation) l.variation -= c.variation;
-    if (fx.stats) applyEffects(l, fx.stats);
-    if (fx.reserves) l.reserves = Math.min(reservesCap(data, l), (l.reserves || 0) + fx.reserves);
-    if (fx.predatorLevel) n.predatorLevel = clamp((n.predatorLevel || 0) + fx.predatorLevel, 0, 12);
+    applyOutcome(data, n, l, opt, nowTurn(data, n));
     if (fx.found) {
       colony = splitLineage(data, n, l, Math.floor(l.population * fx.found), l.name + ' (wyspa)',
         { variation: data.VARIATION.founder });
     }
-    if (opt.turnMod) l.mods.push(Object.assign({ turn: now }, opt.turnMod));
-    if (opt.nextMod) l.mods.push(Object.assign({ turn: now + 1 }, opt.nextMod));
-    if (opt.knowledge) unlockKnowledge(n, opt.knowledge);
+    // Ryzykowna opcja: wynik losowany dopiero w turze (szansa zależy od cech linii w tej chwili).
+    n.pendingGamble = opt.gamble ? { eventId: ev.id, optionId: opt.id, lineageId: l.id } : null;
     n.pendingChoice = null;
     n.resolvedChoice = { eventId: ev.id, name: ev.name, option: opt.label, lineageId: l.id, lineageName: l.name,
       colonyName: colony ? colony.name : null };
+  }
+  /* Skutek opcji lub wyniku ryzyka: `effects` { stats, reserves, variation, predatorLevel,
+     ep, popLoss, popGain } działa od razu, `turnMod`/`nextMod` — w tej / następnej turze.
+     Zwraca zmianę populacji (popLoss/popGain), by raport mógł ją podać. */
+  function applyOutcome(data, n, l, o, now) {
+    var fx = o.effects || {}, V = data.VARIATION, popDelta = 0;
+    if (fx.stats) applyEffects(l, fx.stats);
+    if (fx.reserves) l.reserves = round1(clamp((l.reserves || 0) + fx.reserves, 0, reservesCap(data, l)));
+    if (fx.variation) l.variation = clamp((l.variation || 0) + fx.variation, 0, V.cap);
+    if (fx.predatorLevel) n.predatorLevel = clamp((n.predatorLevel || 0) + fx.predatorLevel, 0, 12);
+    if (fx.ep) n.ep = Math.max(0, n.ep + fx.ep);
+    if (fx.popLoss) popDelta -= Math.round(l.population * fx.popLoss);
+    if (fx.popGain) popDelta += Math.round(l.population * fx.popGain);
+    if (popDelta) {
+      l.population = Math.max(0, l.population + popDelta);
+      l.popHistory[l.popHistory.length - 1] = l.population;
+      if (l.population > l.peakPopulation) l.peakPopulation = l.population;
+    }
+    if (o.turnMod) l.mods.push(Object.assign({ turn: now }, o.turnMod));
+    if (o.nextMod) l.mods.push(Object.assign({ turn: now + 1 }, o.nextMod));
+    if (o.knowledge) unlockKnowledge(n, o.knowledge);
+    return popDelta;
+  }
+  /* Szansa powodzenia ryzykownej opcji: bazowa + premia za statystykę linii
+     (np. obrona przy odstraszaniu drapieżnika), w granicach 5–95%. */
+  function gambleChance(data, lineage, gamble) {
+    var p = gamble.chance || 0.5;
+    if (gamble.stat) p += (gamble.per || 0) * (lstat(lineage, gamble.stat) - (gamble.from || 0));
+    return clamp(p, 0.05, 0.95);
+  }
+  function resolveGamble(data, n, rng) {
+    var g = n.pendingGamble; n.pendingGamble = null;
+    if (!g) return null;
+    var ev = choiceEvent(data, g.eventId), opt = choiceOption(ev, g.optionId), l = getLineage(n, g.lineageId);
+    if (!opt || !opt.gamble || !l || !l.alive) return null;
+    var chance = gambleChance(data, l, opt.gamble), win = rng() < chance;
+    var out = win ? opt.gamble.win : opt.gamble.lose;
+    var popDelta = applyOutcome(data, n, l, out, nowTurn(data, n));
+    return { win: win, chance: Math.round(chance * 100), text: out.text, popDelta: popDelta,
+      knowledge: out.knowledge || null };
+  }
+  // Czy karta pasuje do linii i chwili: minimalna populacja, era, nisze.
+  function choiceFits(e, n, l) {
+    if (e.minPop && l.population < e.minPop) return false;
+    if (e.minEra != null && n.eraIndex < e.minEra) return false;
+    if (e.niches && e.niches.indexOf(l.niche) === -1) return false;
+    return true;
   }
   // Losowanie karty decyzji na następną turę (bez katastrofy).
   function rollChoice(data, n, rng) {
@@ -559,17 +754,26 @@
     if (!data.CHOICE_EVENTS || rng() >= (data.CHOICE_CHANCE || 0)) return null;
     var alive = aliveLineages(n); if (!alive.length) return null;
     var l = alive[Math.floor(rng() * alive.length)];
-    var pool = data.CHOICE_EVENTS.filter(function (e) { return !e.minPop || l.population >= e.minPop; });
+    var pool = data.CHOICE_EVENTS.filter(function (e) { return choiceFits(e, n, l); });
+    // Bez powtórek: karta, która już padła, wraca dopiero, gdy pula się wyczerpie.
+    var seen = n.choiceHistory || [];
+    var fresh = pool.filter(function (e) { return seen.indexOf(e.id) === -1; });
+    if (fresh.length) pool = fresh;
+    else if (pool.length > 1) pool = pool.filter(function (e) { return e.id !== seen[seen.length - 1]; });
     if (!pool.length) return null;
     var ev = pool[Math.floor(rng() * pool.length)];
+    n.choiceHistory = seen.concat([ev.id]);
     return { eventId: ev.id, lineageId: l.id, turn: nowTurn(data, n) };
   }
 
   // ---------- Symulacja tury ----------
   function simulateTurn(data, state, rng) {
-    rng = rng || Math.random;
     if (state.status !== 'playing') return { state: state, report: null };
     var n = clone(state);
+    rng = rng || (n.seed ? stateRng(n) : Math.random);
+    var gNow = nowTurn(data, n);
+    // Strumień świata: przy kodzie świata zależy tylko od kodu i tury.
+    function W(salt) { return n.seed ? worldRngFor(n.seed, salt + ':' + gNow) : rng; }
     var era = data.ERAS[n.eraIndex];
     var env = currentTurnEnv(data, n);
     var diff = difficultyOf(data, n);
@@ -581,15 +785,20 @@
       else n.pendingChoice = null;
     }
     var choice = n.resolvedChoice; n.resolvedChoice = null;
-
     var knowledge = [];
+    var gamble = resolveGamble(data, n, rng);
+    if (gamble) {
+      if (choice) choice = Object.assign({}, choice, { outcome: gamble });
+      if (gamble.knowledge) knowledge.push(gamble.knowledge);
+    }
+
     var lineReports = [];
     var totalEp = 0, anyAlive = false;
 
     // Pozytywne zdarzenie losowe (gdy brak katastrofy).
-    var event = null;
-    if (!env.catastrophe && rng() < 0.22 && data.POSITIVE_EVENTS.length) {
-      event = data.POSITIVE_EVENTS[Math.floor(rng() * data.POSITIVE_EVENTS.length)];
+    var event = null, er = W('event');
+    if (!env.catastrophe && er() < 0.22 && data.POSITIVE_EVENTS.length) {
+      event = data.POSITIVE_EVENTS[Math.floor(er() * data.POSITIVE_EVENTS.length)];
       knowledge.push(event.knowledge || 'events');
     }
     var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
@@ -608,12 +817,19 @@
     var epPopulation = anyAlive ? Math.floor(popAfterAll / R.perPopulation) : 0;
     var epGrowth = anyAlive ? Math.max(0, Math.floor((popAfterAll - popBeforeAll) / R.perGrowth)) : 0;
     totalEp += epPopulation + epGrowth;
+    // Radiacja: każda kolejna zajęta nisza to nowe okazje do ewolucji.
+    var occupied = Object.keys(nicheLoad(n)).length;
+    var epRadiation = anyAlive ? Math.max(0, occupied - 1) * (R.perExtraNiche || 0) : 0;
+    totalEp += epRadiation;
+    var goalsDone = evaluateEraGoals(data, n, env, lineReports, n.turn + 1 >= era.turns.length);
+    goalsDone.forEach(function (g) { if (g.status === 'done') totalEp += g.reward; });
     var epBase = anyAlive ? data.EP_RULES.base : 0;
     var epIntel = anyAlive ? Math.floor(maxIntelligence(n) / data.EP_RULES.intelligenceDiv) : 0;
     totalEp += epBase + epIntel;
     n.ep += totalEp;
 
     // Koewolucja: presja drapieżników „dogania” dobrze bronione linie.
+    var predBefore = n.predatorLevel || 0;
     var target = Math.max(0, (maxDefense(n) - data.BASE_STATS.defense) * 0.7) * diff.coevo;
     n.predatorLevel = clamp((n.predatorLevel || 0) + (target - (n.predatorLevel || 0)) * 0.35, 0, 12);
     if (n.predatorLevel > 2) unlockKnowledge(n, 'coevolution');
@@ -634,14 +850,16 @@
     }
     n.status = evaluateStatus(n, data);
     n.endReason = n.status === 'lost' ? (totalPopulation(n) > 0 ? 'nonviable' : 'extinct') : null;
-    n.env = n.status === 'playing' ? rollEnv(data, n.eraIndex, n.turn, rng) : null;
+    fixRegional(data, n);
+    n.env = n.status === 'playing' ? rollEnv(data, n, n.eraIndex, n.turn, W('env')) : null;
+    if (n.status === 'won') n.winPath = winningPath(n, data);
     // Po turze: zachowania wracają do „zwykłego życia”, stare modyfikatory wygasają.
     var nextT = nowTurn(data, n);
     n.lineages.forEach(function (l) {
       l.behavior = 'brak';
       l.mods = (l.mods || []).filter(function (m) { return m.turn >= nextT; });
     });
-    n.pendingChoice = rollChoice(data, n, rng);
+    n.pendingChoice = rollChoice(data, n, W('choice'));
 
     var report = {
       eraIndex: prevEraIndex, eraName: era.name, turnIndex: state.turn,
@@ -649,13 +867,17 @@
       catastrophe: env.catastrophe || null,
       event: event ? { name: event.name, desc: event.desc } : null,
       choice: choice || null,
-      lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel,
-      epPopulation: epPopulation, epGrowth: epGrowth,
-      predatorLevel: round1(n.predatorLevel),
+      lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel, goals: goalsDone,
+      threat: upcomingThreat(data, n),
+      epPopulation: epPopulation, epGrowth: epGrowth, epRadiation: epRadiation,
+      predatorLevel: round1(n.predatorLevel), predatorDelta: round1(n.predatorLevel - predBefore),
       totalPopulation: totalPopulation(n), maxIntelligence: maxIntelligence(n),
       intelligenceGoal: n.intelligenceGoal, eraChanged: eraChanged,
       newEraName: eraChanged ? data.ERAS[n.eraIndex].name : null,
-      knowledge: dedupe(knowledge), status: n.status
+      knowledge: dedupe(knowledge),
+      // Pojęcia odkryte w tej turze — raport pokazuje je w całości, znane tylko przypomina.
+      newKnowledge: dedupe(knowledge).filter(function (k) { return state.unlockedKnowledge.indexOf(k) === -1; }),
+      status: n.status
     };
     n.history.push(report);
     return { state: n, report: report };
@@ -724,7 +946,11 @@
     if (mut) l.variation += V.mutation;
     l.variation = clamp(l.variation, 0, V.cap);
     if (d.acclimatizing) events.push('Aklimatyzacja w nowej niszy — mniej pokarmu w tej turze.');
-    if (d.predationLossRate > 0.15) { events.push('Silna presja drapieżników.'); knowledge.push('predation'); }
+    if (d.predationLossRate > 0.15) {
+      events.push('Silna presja drapieżników: zginęło ' + predationDeaths + ' osobników (' + Math.round(d.predationLossRate * 100) +
+        '% populacji) — drapieżniki przewyższają obronę linii o ' + num1(d.predationPressure) + '.');
+      knowledge.push('predation');
+    }
     if (d.starvationLossRate > 0) { events.push('Ujemny bilans energetyczny — głód.'); knowledge.push('starvation'); }
     if (env.climate === 'zimno') knowledge.push('cold');
     if (l.niche !== 'woda') knowledge.push('niche');
@@ -786,10 +1012,34 @@
     return { severity: clamp(sev * ((diff && diff.catMult) || 1), 0, 0.95), reasons: reasons };
   }
 
-  // Linia spełnia warunki „rozumu”: próg inteligencji i cecha kultury (WIN_TRAIT).
+  function winPaths(data) { return data.WIN_PATHS || (data.WIN_TRAIT ? [{ id: 'tools', trait: data.WIN_TRAIT }] : []); }
+  // Droga do rozumu, którą linia spełnia: cecha kultury w pasującej niszy.
+  function winPathOf(data, l) {
+    var ps = winPaths(data);
+    if (!ps.length) return { id: 'none' };
+    for (var i = 0; i < ps.length; i++) {
+      var p = ps[i];
+      if (l.traits.indexOf(p.trait) !== -1 && (!p.niches || p.niches.indexOf(l.niche) !== -1)) return p;
+    }
+    return null;
+  }
+  // Linia spełnia warunki „rozumu”: próg inteligencji i kultura (WIN_PATHS) w swojej niszy.
   function meetsWinTraits(n, data, l) {
-    return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal &&
-      (!data.WIN_TRAIT || l.traits.indexOf(data.WIN_TRAIT) !== -1);
+    return l.alive && l.population > 0 && l.stats.intelligence >= n.intelligenceGoal && !!winPathOf(data, l);
+  }
+  // Kultura jest, ale w niszy, w której nie działa (np. narzędzia w otwartym morzu).
+  function cultureNicheBlocked(n, data) {
+    return n.lineages.filter(function (l) {
+      return l.alive && !winPathOf(data, l) && winPaths(data).some(function (p) { return l.traits.indexOf(p.trait) !== -1; });
+    }).map(function (l) {
+      var p = winPaths(data).filter(function (q) { return l.traits.indexOf(q.trait) !== -1; })[0];
+      return { lineageId: l.id, name: l.name, path: p };
+    });
+  }
+  function winningPath(n, data) {
+    var w = n.lineages.filter(function (l) { return meetsWinTraits(n, data, l) && l.population >= (data.WIN_MIN_POP || 0); })[0];
+    var p = w && winPathOf(data, w);
+    return p ? p.id : null;
   }
   // Zwycięstwo: warunki „rozumu” w linii o żywotnej liczebności (WIN_MIN_POP) —
   // kilka ostatnich osobników to nie gatunek, który zbuduje kulturę.
@@ -814,6 +1064,158 @@
     return 'playing';
   }
 
+  // ---------- Cele ery ----------
+  function pickEraGoals(data, seed, startEra) {
+    var out = [], per = data.ERA_GOALS_PER_ERA || 0;
+    for (var e = startEra || 0; e < data.ERAS.length; e++) {
+      var pool = (data.ERA_GOALS || []).filter(function (g) { return !g.eras || g.eras.indexOf(e) !== -1; }).slice();
+      var r = worldRngFor(seed, 'goals:' + e);
+      for (var k = 0; k < per && pool.length; k++) {
+        var g = pool.splice(Math.floor(r() * pool.length), 1)[0];
+        out.push({ era: e, id: g.id, status: 'open' });
+      }
+    }
+    return out;
+  }
+  function goalDef(data, id) { return (data.ERA_GOALS || []).filter(function (g) { return g.id === id; })[0]; }
+  function goalMet(data, n, def, ctx) {
+    var alive = aliveLineages(n);
+    switch (def.type) {
+      case 'niche': return alive.some(function (l) { return l.niche === def.niche; });
+      case 'lineages': return alive.length >= def.min;
+      case 'population': return totalPopulation(n) >= def.min;
+      case 'stat': return alive.some(function (l) { return lstat(l, def.stat) >= def.min; });
+      case 'reserves': return alive.some(function (l) { return (l.reserves || 0) >= def.min; });
+      case 'variation': return alive.some(function (l) { return (l.variation || 0) >= def.min; });
+      case 'niches': return Object.keys(nicheLoad(n)).length >= def.min;
+      case 'catLoss': return ctx.catLoss != null && ctx.catLoss <= def.max;
+      case 'noStarvation': return !ctx.starved;
+    }
+    return false;
+  }
+  /* Sprawdza cele ery bieżącej tury; zwraca cele, które właśnie się rozstrzygnęły
+     (z nagrodą — dodaje ją wywołujący). */
+  function evaluateEraGoals(data, n, env, lineReports, eraEnd) {
+    var out = [], era = n.eraIndex;
+    var before = 0, catDeaths = 0, starved = false;
+    lineReports.forEach(function (r) { before += r.popBefore; catDeaths += r.catDeaths; if (r.starvationDeaths > 0) starved = true; });
+    var ctx = { catLoss: env.catastrophe ? (before ? catDeaths / before : 0) : null, starved: starved };
+    (n.eraGoals || []).forEach(function (g) {
+      if (g.era !== era || g.status !== 'open') return;
+      var def = goalDef(data, g.id); if (!def) return;
+      if (def.type === 'noStarvation' && starved) g.status = 'failed';
+      else if (!def.atEnd && goalMet(data, n, def, ctx)) g.status = 'done';
+      else if (eraEnd) g.status = (def.atEnd && goalMet(data, n, def, ctx)) ? 'done' : 'failed';
+      if (g.status !== 'open') out.push({ id: g.id, label: def.label, status: g.status, reward: def.reward });
+    });
+    return out;
+  }
+
+  // ---------- Czy zwycięstwo jest jeszcze możliwe? ----------
+  function missingTraits(byId, l, id, acc) {
+    acc = acc || [];
+    if (l.traits.indexOf(id) !== -1 || acc.indexOf(id) !== -1) return acc;
+    var t = byId[id]; if (!t) return acc;
+    t.requires.forEach(function (r) { missingTraits(byId, l, r, acc); });
+    acc.push(id);
+    return acc;
+  }
+  /* Hojne oszacowanie z góry: optymistyczny wzrost populacji (z efektem Allee) i
+     przychód EP. Zwraca { possible, reasons } — „niemożliwe” tylko wtedy, gdy
+     nawet przy najlepszym przebiegu żadna linia nie zdąży spełnić warunków. */
+  function victoryOutlook(data, state) {
+    if (state.status !== 'playing') return { possible: state.status === 'won', reasons: [], turnsLeft: 0 };
+    var O = data.OUTLOOK || { growth: 0.45, epPerTurn: 40 }, byId = traitsById(data);
+    var R = totalTurns(data) - elapsedTurns(data, state), mvp = data.MIN_VIABLE_POP || 1;
+    var popOkAny = false, pathOkAny = false, possible = false;
+    aliveLineages(state).forEach(function (l) {
+      var p = l.population;
+      for (var i = 0; i < R; i++) p += p * O.growth * Math.min(1, p / mvp);
+      var popOk = p >= (data.WIN_MIN_POP || 0);
+      var epMax = state.ep + O.epPerTurn * Math.max(0, R - 1);
+      var pathOk = winPaths(data).some(function (path) {
+        var miss = missingTraits(byId, l, path.trait), cost = 0, intel = lstat(l, 'intelligence');
+        miss.forEach(function (id) { cost += byId[id].cost; intel += (byId[id].effects.intelligence || 0); });
+        if (l.traits.indexOf('brain') !== -1 || miss.indexOf('brain') !== -1) intel += R;
+        return cost <= epMax && intel >= state.intelligenceGoal;
+      });
+      if (popOk) popOkAny = true;
+      if (pathOk) pathOkAny = true;
+      if (popOk && pathOk) possible = true;
+    });
+    var reasons = [];
+    if (!possible) {
+      if (!popOkAny) reasons.push('populacja nie zdąży odrosnąć do ' + data.WIN_MIN_POP + ' osobników przed końcem gry');
+      if (!pathOkAny) reasons.push('nie da się już uzbierać punktów ewolucji na brakujące cechy albo dojść do progu inteligencji');
+      if (popOkAny && pathOkAny) reasons.push('żadna linia nie zdąży jednocześnie odbudować populacji i zdobyć kultury');
+    }
+    return { possible: possible, reasons: reasons, turnsLeft: R };
+  }
+  // Zakończenie partii na życzenie gracza: przetrwanie, jeśli jest żywotna linia.
+  function concede(data, state) {
+    if (state.status !== 'playing') return state;
+    var n = clone(state);
+    n.status = hasViableLineage(n, data) ? 'survived' : 'lost';
+    n.endReason = n.status === 'lost' ? (totalPopulation(n) > 0 ? 'nonviable' : 'extinct') : null;
+    n.conceded = true; n.pendingChoice = null;
+    return n;
+  }
+
+  // ---------- Wynik i osiągnięcia ----------
+  function gameStats(data, state) {
+    var st = { maxNiches: 0, maxPop: totalPopulation(state), minPop: Infinity, gamblesWon: 0, sky: false, permLoss: null,
+      goalsDone: 0, goalsTotal: (state.eraGoals || []).length };
+    (state.history || []).forEach(function (r) {
+      var niches = {}, before = 0, cd = 0;
+      r.lineReports.forEach(function (lr) {
+        if (lr.alive) { niches[lr.niche] = 1; if (lr.niche === 'powietrze') st.sky = true; }
+        before += lr.popBefore; cd += lr.catDeaths;
+      });
+      st.maxNiches = Math.max(st.maxNiches, Object.keys(niches).length);
+      st.maxPop = Math.max(st.maxPop, r.totalPopulation);
+      st.minPop = Math.min(st.minPop, r.totalPopulation);
+      if (r.choice && r.choice.outcome && r.choice.outcome.win) st.gamblesWon++;
+      if (r.catastrophe && /permsk/.test(r.catastrophe.name)) st.permLoss = before ? cd / before : 0;
+    });
+    aliveLineages(state).forEach(function (l) { if (l.niche === 'powietrze') st.sky = true; });
+    st.goalsDone = (state.eraGoals || []).filter(function (g) { return g.status === 'done'; }).length;
+    st.turnsLeft = state.status === 'won' ? totalTurns(data) - elapsedTurns(data, state) : 0;
+    return st;
+  }
+  function earnedAchievements(data, state) {
+    var st = gameStats(data, state), won = state.status === 'won', out = [];
+    function add(id, cond) { if (cond) out.push(id); }
+    add('first_win', won);
+    add('tools_win', won && state.winPath === 'tools');
+    add('sound_win', won && state.winPath === 'sound');
+    add('hard_win', won && state.difficulty === 'trudny');
+    add('early_win', won && st.turnsLeft >= 2);
+    add('phoenix', won && st.minPop < 30);
+    add('radiation', st.maxNiches >= 4);
+    add('sky', st.sky);
+    add('perm', st.permLoss != null && st.permLoss < 0.3);
+    add('gambler', st.gamblesWon >= 3);
+    add('goals', st.goalsTotal > 0 && st.goalsDone === st.goalsTotal);
+    add('abundance', st.maxPop >= 600);
+    add('codex', (state.unlockedKnowledge || []).length >= 25);
+    return out;
+  }
+  function scoreGame(data, state) {
+    var S = data.SCORE, st = gameStats(data, state), parts = [];
+    function part(label, pts) { if (pts) parts.push({ label: label, points: Math.round(pts) }); }
+    part(state.status === 'won' ? 'Zwycięstwo' : (state.status === 'survived' ? 'Przetrwanie' : 'Wymarcie'),
+      state.status === 'won' ? S.won : (state.status === 'survived' ? S.survived : 0));
+    part('Inteligencja', S.perIntelligence * maxIntelligence(state));
+    part('Populacja końcowa', Math.min(S.popMax, Math.floor(totalPopulation(state) / S.popDiv)));
+    part('Cele er', S.perGoal * st.goalsDone);
+    part('Nisze zajęte jednocześnie', S.perNiche * st.maxNiches);
+    part('Tury zapasu', S.perTurnLeft * st.turnsLeft);
+    part('Osiągnięcia', S.perAchievement * earnedAchievements(data, state).length);
+    var sum = parts.reduce(function (a, p) { return a + p.points; }, 0);
+    var mult = (S.diffMult && S.diffMult[state.difficulty]) || 1;
+    return { parts: parts, subtotal: sum, mult: mult, total: Math.round(sum * mult) };
+  }
+
   function statLabel(k) {
     return ({ feeding: 'odżywianie', defense: 'obrona', reproduction: 'rozród',
       mobility: 'mobilność', metabolism: 'metabolizm', intelligence: 'inteligencja' })[k] || k;
@@ -822,6 +1224,11 @@
   return {
     createInitialState: createInitialState,
     currentEra: currentEra, currentTurnEnv: currentTurnEnv, globalTurn: globalTurn, totalTurns: totalTurns,
+    turnBase: turnBase, upcomingThreat: upcomingThreat, eraTimeline: eraTimeline,
+    randomSeed: randomSeed, normalizeSeed: normalizeSeed,
+    winPathOf: winPathOf, cultureNicheBlocked: cultureNicheBlocked, goalDef: goalDef,
+    victoryOutlook: victoryOutlook, concede: concede,
+    gameStats: gameStats, earnedAchievements: earnedAchievements, scoreGame: scoreGame,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
     goalBlockedByPopulation: goalBlockedByPopulation, hasViableLineage: hasViableLineage,
@@ -835,7 +1242,7 @@
     buyTrait: buyTrait, canSpeciate: canSpeciate, speciate: speciate,
     setStrategy: setStrategy, setBehavior: setBehavior, canSetBehavior: canSetBehavior, setSelection: setSelection,
     reservesCap: reservesCap, forecastWithTactics: forecastWithTactics, nicheLoad: nicheLoad,
-    choiceEvent: choiceEvent, canChoose: canChoose, resolveChoice: resolveChoice, defaultOption: defaultOption,
+    choiceEvent: choiceEvent, gambleChance: gambleChance, canChoose: canChoose, resolveChoice: resolveChoice, defaultOption: defaultOption,
     forecast: forecast, forecastWithTrait: forecastWithTrait, simulateTurn: simulateTurn, evaluateStatus: evaluateStatus, statLabel: statLabel,
     _internals: { rollMutation: rollMutation, sround: sround, alleeFactor: alleeFactor, clamp: clamp, computeDynamics: computeDynamics }
   };

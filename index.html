@@ -43,6 +43,10 @@
           <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
                  data-i18n-ph="start.namePlaceholder" autocomplete="off" />
+          <label for="world-seed">Kod świata <span class="label-opt">(opcjonalnie)</span>:</label>
+          <input id="world-seed" name="world-seed" type="text" maxlength="12" autocomplete="off"
+                 placeholder="np. K7Q2MX — puste = nowy, losowy świat" aria-describedby="world-seed-hint" />
+          <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go całej klasie, by porównać wyniki.</p>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
@@ -54,10 +58,12 @@
     <section id="screen-game" class="screen screen-game" hidden aria-labelledby="game-title">
       <h1 id="game-title" class="visually-hidden">Rozgrywka</h1>
 
-      <div class="status-bar">
+      <div class="status-sentinel" id="status-sentinel" aria-hidden="true"></div>
+      <div class="status-bar" id="status-bar">
         <div class="status-item status-ep">
-          <span class="status-label" data-i18n="status.ep">Punkty ewolucji</span>
+          <span class="status-label" data-i18n="status.ep">Punkty ewolucji do wydania</span>
           <span class="status-value" id="ep-value">0</span>
+          <span class="status-sub" id="ep-afford"></span>
         </div>
         <div class="status-item">
           <span class="status-label" data-i18n="status.population">Populacja</span>
@@ -71,9 +77,12 @@
           <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
         </div>
+        <button type="button" class="status-alert" id="status-choice" hidden>Karta decyzji czeka</button>
+        <button type="button" class="status-alert status-alert-lost" id="status-outlook" hidden>Zwycięstwo już nieosiągalne</button>
       </div>
 
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
+      <div class="era-info" id="era-info" aria-label="Cele ery i kod świata"></div>
 
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
@@ -133,6 +142,7 @@
             <p class="env-name" id="env-name">—</p>
             <p class="env-note" id="env-note">—</p>
             <div class="env-catastrophe" id="env-catastrophe" hidden></div>
+            <div class="env-threat" id="env-threat" hidden></div>
             <ul class="env-stats" id="env-stats"></ul>
           </div>
 
@@ -167,8 +177,18 @@
           <div id="end-chart" class="popchart" role="img"></div>
         </section>
         <ul class="end-stats" id="end-stats"></ul>
+        <section class="end-score" id="end-score-box" aria-labelledby="end-score-title">
+          <h2 class="end-section-title" id="end-score-title">Wynik partii</h2>
+          <div class="end-score-total" id="end-score-total"></div>
+          <ul class="end-score-parts" id="end-score-parts"></ul>
+        </section>
+        <section class="end-ach" aria-labelledby="end-ach-title">
+          <h2 class="end-section-title" id="end-ach-title">Osiągnięcia</h2>
+          <ul class="ach-list" id="end-ach"></ul>
+        </section>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
+          <button id="btn-play-same" class="btn btn-ghost" type="button">Ten sam świat jeszcze raz</button>
           <button id="btn-summary" class="btn btn-ghost" type="button" data-icon="ui:document">Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
@@ -240,6 +260,21 @@
       <div class="modal-actions">
         <button class="btn btn-primary" type="button" id="btn-confirm-yes" data-i18n="common.yes">Tak</button>
         <button class="btn btn-ghost" type="button" id="btn-confirm-no" data-i18n="common.cancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: ocena szans — zwycięstwo już nieosiągalne -->
+  <div id="modal-outlook" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="outlook-title">
+    <div class="modal-box">
+      <h2 id="outlook-title" class="modal-title">Tej partii nie da się już wygrać</h2>
+      <p class="outlook-text">Nawet przy najlepszym możliwym przebiegu do końca gry:</p>
+      <ul class="outlook-reasons" id="outlook-reasons"></ul>
+      <p class="outlook-text">Możesz grać dalej o przetrwanie gatunku (i wynik), cofnąć ostatnią turę albo zakończyć partię teraz.</p>
+      <div class="modal-actions">
+        <button id="btn-outlook-continue" class="btn btn-primary" type="button">Graj dalej o przetrwanie</button>
+        <button id="btn-outlook-undo" class="btn btn-ghost" type="button">↶ Cofnij turę</button>
+        <button id="btn-outlook-end" class="btn btn-ghost" type="button">Zakończ partię</button>
       </div>
     </div>
   </div>

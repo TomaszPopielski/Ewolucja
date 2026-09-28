@@ -714,6 +714,45 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
   // --- 6. głowa: oko, pysk, skrzela
   drawHead(ctx, body, spec, theme, o, st);
 
+  // echolokacja: wypukłe czoło („melon”) i fale dźwięku przed pyskiem
+  feature(ctx, 'echolocation', o, st, (s) => {
+    const h = at(body, 0.07);
+    const c = add(h.p, mul(h.n, h.w * 0.62));
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, h.w * 0.5, h.w * 0.32, Math.atan2(h.tan.y, h.tan.x), 0, Math.PI * 2);
+    ctx.fillStyle = s.fill(color, 0.55); ctx.fill(); inkLine(ctx, s, 0.9); ctx.stroke();
+    const a = at(body, 0), fwd = mul(a.tan, -1), ang = Math.atan2(fwd.y, fwd.x);
+    const tip = add(a.p, mul(fwd, 3));
+    const shift = o.still ? 0 : (time * 14) % 6;
+    for (let q = 0; q < 3; q++) {
+      const r = 7 + q * 6 + shift;
+      ctx.beginPath(); ctx.arc(tip.x, tip.y, r, ang - 0.55, ang + 0.55);
+      ctx.strokeStyle = s.ghost ? s.stroke : hexA(theme.ep, 0.75 - q * 0.2); ctx.lineWidth = 1.1;
+      ctx.setLineDash(s.ghost ? [2, 2] : []); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  });
+  // kultura akustyczna: nuty i fala nad głową — dźwięki przekazywane przez naukę
+  feature(ctx, 'vocal_culture', o, st, (s) => {
+    const h = at(body, 0.12);
+    const base = add(h.p, mul(h.n, h.w + 12));
+    const bob = o.still ? 0 : Math.sin(time * 3) * 2;
+    ctx.beginPath();
+    for (let q = 0; q <= 12; q++) {
+      const x = base.x - 14 + q * 2.4, y = base.y + bob + Math.sin(q * 0.9) * 2.2;
+      if (q === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = s.ghost ? s.stroke : hexA(theme.ep, 0.8); ctx.lineWidth = 1; ctx.setLineDash(s.ghost ? [2, 2] : []); ctx.stroke();
+    ctx.setLineDash([]);
+    [[-6, -9], [5, -13]].forEach(([dx, dy]) => {
+      const n = v(base.x + dx, base.y + dy + bob);
+      ctx.beginPath(); ctx.ellipse(n.x, n.y, 2.4, 1.8, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = s.ghost ? s.stroke : theme.ep; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(n.x + 2.2, n.y); ctx.lineTo(n.x + 2.2, n.y - 8); ctx.lineTo(n.x + 5.5, n.y - 6.5);
+      ctx.strokeStyle = s.ghost ? s.stroke : theme.ep; ctx.lineWidth = 1; ctx.stroke();
+    });
+  });
+
   // --- 7. strona bliższa: płetwa piersiowa, nogi, skrzydło, narzędzie
   feature(ctx, 'fins', o, st, (s, amt) => {
     if (finK > 0.05) {
