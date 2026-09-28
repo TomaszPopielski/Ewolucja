@@ -77,19 +77,20 @@
       desc: 'Mało potomstwa, dobrze chronionego: rozród ×0,75, ale straty od drapieżników i głodu ×0,75.' }
   };
 
-  // Zachowanie w turze (jednorazowe — po turze wraca „zwykłe życie”). `cost` w ⚡.
+  // Zachowanie linii: obowiązuje co turę, aż gracz je zmieni (do „Zwykłego życia”). `cost` w ⚡ płaci się w każdej turze;
+  // gdy rezerw brak, linia żyje zwyczajnie (do czasu, aż znów będzie ją stać).
   var BEHAVIORS = {
     brak: { label: 'Zwykłe życie', icon: '🌿', art: 'behavior:brak', cost: 0, desc: 'Bez dodatkowych działań.' },
-    zapasy: { label: 'Gromadzenie zapasów', icon: '🌰', art: 'behavior:zapasy', cost: 0, birthMult: 0.5, storeBonus: 3,
-      desc: 'Energia idzie w zapasy, nie w potomstwo: +3 ⚡, rozród ×0,5.' },
-    ukrycie: { label: 'Ukrywanie się', icon: '🕳️', art: 'behavior:ukrycie', cost: 3, foodMult: 0.7, predPressureMult: 0.5,
-      desc: 'Kosztuje 3 ⚡: presja drapieżników ×0,5, ale pokarm ×0,7.' },
-    zerowanie: { label: 'Intensywne żerowanie', icon: '🦷', art: 'trait:jaws', cost: 2, foodMult: 1.25, predAdd: 3,
-      desc: 'Kosztuje 2 ⚡: pokarm ×1,25, ale presja drapieżników +3 (większa ekspozycja).' }
+    zapasy: { label: 'Gromadzenie zapasów', icon: '🌰', art: 'behavior:zapasy', cost: 0, birthMult: 0.4, storeBonus: 2,
+      desc: 'Energia idzie w zapasy, nie w potomstwo: +2 ⚡ co turę, rozród ×0,4.' },
+    ukrycie: { label: 'Ukrywanie się', icon: '🕳️', art: 'behavior:ukrycie', cost: 2, foodMult: 0.8, predPressureMult: 0.45,
+      desc: 'Kosztuje 2 ⚡ co turę: presja drapieżników ×0,45, ale pokarm ×0,8.' },
+    zerowanie: { label: 'Intensywne żerowanie', icon: '🦷', art: 'trait:jaws', cost: 2, foodMult: 1.3, predAdd: 3,
+      desc: 'Kosztuje 2 ⚡ co turę: pokarm ×1,3, ale presja drapieżników +3 (większa ekspozycja).' }
   };
 
   /*
-   * Karty decyzji — zdarzenia z wyborem (obok losowych zdarzeń pozytywnych).
+   * Karty decyzji — zdarzenia z wyborem (także zdarzenia pozytywne — nic nie dzieje się bez wyboru gracza).
    * Po turze bez katastrofy z szansą CHOICE_CHANCE losowana jest karta dla jednej
    * żywej linii. Gracz wybiera opcję przed turą; bez wyboru działa opcja `default`.
    * `icon` — zapasowe emoji, `art` — klucz ikony SVG (src/art/icons.ts).
@@ -135,6 +136,16 @@
           desc: '+5 ⚡ od razu.' },
         { id: 'breed', label: 'Rozmnażać się', turnMod: { birthMult: 1.5 }, nextMod: { foodBonus: -3 }, knowledge: 'boom',
           desc: 'Rozród ×1,5 w tej turze, ale w następnej −3 pokarmu (załamanie po boomie).' }
+      ] },
+    { id: 'mild', name: 'Łagodny sezon', icon: '🌤️', art: 'ui:sun',
+      desc: 'Spokojny sezon — drapieżniki są mniej aktywne. Jak wykorzystać ciszę?',
+      options: [
+        { id: 'calm', label: 'Korzystaj z ciszy', default: true, turnMod: { predBonus: -2 }, knowledge: 'events',
+          desc: 'W tej turze presja drapieżników −2.' },
+        { id: 'breed', label: 'Wykorzystaj spokój na rozród', turnMod: { predBonus: -2, birthMult: 1.4 }, nextMod: { predBonus: 2 },
+          knowledge: 'boom', desc: 'Presja −2 i rozród ×1,4 w tej turze, ale w następnej drapieżniki wracają silniejsze (+2).' },
+        { id: 'forage', label: 'Żeruj śmiało', turnMod: { foodBonus: 2, predBonus: 1 },
+          desc: 'Pokarm +2, ale zamiast ciszy presja drapieżników +1 (większa ekspozycja).' }
       ] },
     { id: 'disease', name: 'Epidemia pasożytów', icon: '🦠', art: 'choice:disease',
       desc: 'W populacji szerzy się choroba.',
@@ -525,12 +536,6 @@
     }
   ];
 
-  // Pozytywne zdarzenia losowe (ZALOZENIA 4.3 — nie tylko katastrofy).
-  var POSITIVE_EVENTS = [
-    { id: 'bloom', name: 'Rozkwit pokarmu', foodBonus: 3, knowledge: 'events', desc: 'Zakwit roślinności/planktonu — więcej pokarmu w tej turze.' },
-    { id: 'mild', name: 'Łagodny sezon', predBonus: -2, knowledge: 'events', desc: 'Spokojny sezon — mniejsza presja drapieżników.' }
-  ];
-
   /*
    * Kalendarz świata. Wymierania z `window` trafiają w jedną z podanych tur ery
    * (tury zamieniają się miejscami w obrębie jednego okresu geologicznego).
@@ -745,7 +750,7 @@
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
-    TRAITS: TRAITS, ERAS: ERAS, POSITIVE_EVENTS: POSITIVE_EVENTS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
+    TRAITS: TRAITS, ERAS: ERAS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
     // Zgodność wsteczna:
     INTELLIGENCE_GOAL: DIFFICULTIES.normalny.goal, START_EP: DIFFICULTIES.normalny.startEp
   };

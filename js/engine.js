@@ -3,7 +3,7 @@
  *
  * ZALOZENIA.md sekcja 9: logika oddzielona od UI, testowalna, bez DOM.
  * Obsługuje: poziomy trudności, wiele er, wiele linii (specjacja), cztery nisze
- * z migracją, katastrofy i pozytywne zdarzenia, koewolucję (adaptacyjną presję
+ * z migracją, katastrofy, koewolucję (adaptacyjną presję
  * drapieżników), rozbicie EP i prognozę „co-jeśli”, trzy waluty (EP — cechy,
  * ⚡ rezerwy — taktyka tury, 🧬 zmienność — specjacja i dobór), strategie
  * rozrodu, zachowania w turze i karty decyzji.
@@ -570,11 +570,10 @@
     state.lineages.forEach(function (l) { if (l.alive) m[l.niche] = (m[l.niche] || 0) + l.population; });
     return m;
   }
-  function contextFor(data, state, extra) {
+  function contextFor(data, state) {
     var diff = difficultyOf(data, state);
     var ctx = { predatorLevel: state.predatorLevel || 0, predMult: diff.predMult, nowTurn: nowTurn(data, state),
       nicheLoad: nicheLoad(state) };
-    if (extra) { ctx.foodBonus = extra.foodBonus || 0; ctx.predBonus = extra.predBonus || 0; }
     return ctx;
   }
 
@@ -795,14 +794,7 @@
     var lineReports = [];
     var totalEp = 0, anyAlive = false;
 
-    // Pozytywne zdarzenie losowe (gdy brak katastrofy).
-    var event = null, er = W('event');
-    if (!env.catastrophe && er() < 0.22 && data.POSITIVE_EVENTS.length) {
-      event = data.POSITIVE_EVENTS[Math.floor(er() * data.POSITIVE_EVENTS.length)];
-      knowledge.push(event.knowledge || 'events');
-    }
-    var ctxExtra = event ? { foodBonus: event.foodBonus || 0, predBonus: event.predBonus || 0 } : null;
-    var ctx = contextFor(data, n, ctxExtra);
+    var ctx = contextFor(data, n);
 
     var nichesPaid = {}, popBeforeAll = totalPopulation(n);
     aliveLineages(n).forEach(function (l) {
@@ -853,10 +845,9 @@
     fixRegional(data, n);
     n.env = n.status === 'playing' ? rollEnv(data, n, n.eraIndex, n.turn, W('env')) : null;
     if (n.status === 'won') n.winPath = winningPath(n, data);
-    // Po turze: zachowania wracają do „zwykłego życia”, stare modyfikatory wygasają.
+    // Po turze stare modyfikatory wygasają (zachowanie zostaje do zmiany przez gracza).
     var nextT = nowTurn(data, n);
     n.lineages.forEach(function (l) {
-      l.behavior = 'brak';
       l.mods = (l.mods || []).filter(function (m) { return m.turn >= nextT; });
     });
     n.pendingChoice = rollChoice(data, n, W('choice'));
@@ -865,7 +856,6 @@
       eraIndex: prevEraIndex, eraName: era.name, turnIndex: state.turn,
       envTitle: env.title, envNote: env.note, climate: env.climate,
       catastrophe: env.catastrophe || null,
-      event: event ? { name: event.name, desc: event.desc } : null,
       choice: choice || null,
       lineReports: lineReports, epGain: totalEp, epBase: epBase, epIntel: epIntel, goals: goalsDone,
       threat: upcomingThreat(data, n),

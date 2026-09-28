@@ -889,11 +889,7 @@
         '<span class="report-era-milestone">' + eraMilestone(report.newEraName) + '</span>';
     } else el.reportEra.hidden = true;
 
-    // Baner pozytywnego zdarzenia.
-    if (report.event) {
-      el.reportEvent.hidden = false;
-      el.reportEvent.innerHTML = ico('ui:sprout', '🍀') + ' ' + escapeHtml(report.event.name + ' — ' + report.event.desc);
-    } else el.reportEvent.hidden = true;
+    el.reportEvent.hidden = true;
     if (report.choice) {
       var ch = report.choice, cev = Engine.choiceEvent(DATA, ch.eventId);
       var chHtml = (cev ? ico(cev.art, cev.icon) : '') + ' ' + escapeHtml(ch.name) + ' (' + escapeHtml(ch.lineageName) +
@@ -904,7 +900,7 @@
           ' <span class="choice-outcome-chance">(szansa ' + ch.outcome.chance + '%)</span>: ' + escapeHtml(ch.outcome.text) + '</div>';
       }
       el.reportEvent.hidden = false;
-      el.reportEvent.innerHTML = (report.event ? el.reportEvent.innerHTML + '<br>' : '') + chHtml;
+      el.reportEvent.innerHTML = chHtml;
     }
 
     el.reportBody.innerHTML = '';

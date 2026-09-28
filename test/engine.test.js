@@ -126,14 +126,14 @@ group('koewolucja — presja drapieżników rośnie', function () {
   ok(s.predatorLevel > p0, 'predatorLevel rośnie przy wysokiej obronie (' + Engine._internals.clamp(s.predatorLevel, 0, 99).toFixed(2) + ')');
 });
 
-group('pozytywne zdarzenie losowe', function () {
-  // rng: pierwszy 0.99 => brak mutacji linii; ale zdarzenie zależy od rng w simulateTurn.
-  // Wymuś zdarzenie: rng < 0.22 na etapie zdarzenia. Sekwencja: mutacja(0.99 brak), zdarzenie(0.1), wybór(0.0)
+group('zdarzenia losowe rozstrzyga gracz (karty decyzji)', function () {
+  ok(!GameData.POSITIVE_EVENTS, 'brak automatycznych zdarzeń pozytywnych');
+  ['bloom', 'mild'].forEach(function (id) {
+    var ev = Engine.choiceEvent(GameData, id);
+    ok(ev && ev.options.length >= 2 && ev.options.filter(function (o) { return o.default; }).length === 1, 'karta ' + id + ' z wyborem i jedną opcją domyślną');
+  });
   var s = Engine.createInitialState(GameData, 'X');
-  var rng = seeded([0.1, 0.0, 0.99, 0.99, 0.99, 0.99]);
-  // uwaga: kolejność wywołań rng: event-check, event-pick, potem per-lineage mutacja...
-  var out = Engine.simulateTurn(GameData, s, rng);
-  ok(out.report.event !== null, 'zdarzenie pozytywne wystąpiło');
+  eq(Engine.simulateTurn(GameData, s, function () { return 0.1; }).report.event, undefined, 'raport bez automatycznego zdarzenia');
 });
 
 group('rozbicie EP w raporcie', function () {
@@ -467,7 +467,7 @@ group('strategia rozrodu r/K — kompromis bez kosztu', function () {
 });
 
 group('zachowanie w turze — płatne ⚡, jednorazowe', function () {
-  var s = Engine.createInitialState(GameData, 'X'); active(s).reserves = 2; active(s).stats.defense = 0;
+  var s = Engine.createInitialState(GameData, 'X'); active(s).reserves = 1; active(s).stats.defense = 0;
   ok(!Engine.setBehavior(GameData, s, 'L0', 'ukrycie').ok, 'ukrywanie się wymaga ' + GameData.BEHAVIORS.ukrycie.cost + ' ⚡');
   active(s).reserves = 10;
   var base = dyn(s, active(s));
@@ -478,7 +478,7 @@ group('zachowanie w turze — płatne ⚡, jednorazowe', function () {
   var z = Engine.setBehavior(GameData, s, 'L0', 'zapasy').state, zd = dyn(z, active(z));
   ok(zd.birthRate < base.birthRate && zd.reservesAfter > base.reservesAfter, 'gromadzenie zapasów: mniej potomstwa, więcej ⚡');
   var after = Engine.simulateTurn(GameData, h, noMut).state;
-  eq(active(after).behavior, 'brak', 'po turze zachowanie wraca do zwykłego życia');
+  eq(active(after).behavior, 'ukrycie', 'zachowanie zostaje do zmiany przez gracza');
   ok(active(after).reserves < 10, 'zachowanie zużyło rezerwy');
 });
 

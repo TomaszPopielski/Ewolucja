@@ -171,7 +171,7 @@ adaptacja popłaca, a poziomy trudności są uporządkowane.
 - **Selektywne katastrofy / wymierania masowe** (ordowickie, dewońskie, permskie,
   K–Pg, zlodowacenia) i katastrofy regionalne — cechy takie jak niski metabolizm czy izolacja zmniejszają
   straty, a raport wyjaśnia, co pomogło przetrwać; oraz
-  **pozytywne zdarzenia losowe** (zakwit pokarmu, spokojny sezon).
+  karty decyzji także dla zdarzeń pozytywnych (zakwit pokarmu, łagodny sezon) — o ich skutku rozstrzyga gracz.
 - **Koewolucja** — presja drapieżników „dogania” dobrze bronione linie (wyścig zbrojeń).
 - **Prognoza „co-jeśli"** przy najechaniu na cechę + **rozbicie EP** w raporcie
   (skąd pochodzą punkty).
