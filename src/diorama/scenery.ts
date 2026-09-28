@@ -315,6 +315,88 @@ function shrub(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => num
   for (let q = 0; q < 5; q++) { ctx.beginPath(); ctx.arc(x + (r() - 0.5) * 16 * s, y - 3 * s - r() * 8 * s, 1.4 * s, 0, Math.PI * 2); ctx.fill(); }
 }
 
+/** Cień pod elementem — osadza roślinę czy muszlę na gruncie. */
+function groundShadow(ctx: Ctx, b: Brush, x: number, y: number, w: number) {
+  ctx.beginPath(); ctx.ellipse(x, y + 1.5, w, Math.max(1.6, w * 0.22), 0, 0, Math.PI * 2);
+  ctx.fillStyle = hexA(b.th.ink, 0.13 * b.alpha); ctx.fill();
+}
+
+/** Łodzikowiec: stożkowa muszla z mackami (paleozoik/mezozoik, woda). */
+function nautiloid(ctx: Ctx, b: Brush, x: number, y: number, s: number) {
+  ctx.save(); ctx.translate(x, y - 7 * s);
+  ctx.beginPath(); ctx.moveTo(-14 * s, 3 * s); ctx.quadraticCurveTo(-4 * s, -9 * s, 6 * s, -5 * s);
+  ctx.quadraticCurveTo(11 * s, 0, 6 * s, 6 * s); ctx.quadraticCurveTo(-4 * s, 8 * s, -14 * s, 3 * s); ctx.closePath();
+  wash(ctx, b, '#c9a060', 0.6); ink(ctx, b, 1);
+  ctx.beginPath();
+  for (let q = 1; q < 5; q++) { ctx.moveTo(-14 * s + q * 4.2 * s, 2 * s - q * 0.6 * s); ctx.quadraticCurveTo(-13 * s + q * 4.2 * s, -4 * s, -10 * s + q * 4.2 * s, -6 * s + q * 0.5 * s); }
+  ink(ctx, b, 0.55, 0.8);
+  ctx.beginPath();
+  for (let t = 0; t < 4; t++) { ctx.moveTo(8 * s, -1 * s + t * 2 * s); ctx.quadraticCurveTo(13 * s, t * 2.4 * s, 16 * s, 3 * s + t * 1.6 * s); }
+  ink(ctx, b, 0.8);
+  ctx.restore();
+}
+
+/** Ramienionóg: muszla o dwóch zastawkach na dnie (paleozoik). */
+function brachiopod(ctx: Ctx, b: Brush, x: number, y: number, s: number) {
+  ctx.beginPath(); ctx.moveTo(x - 6 * s, y); ctx.quadraticCurveTo(x - 7 * s, y - 9 * s, x, y - 10 * s);
+  ctx.quadraticCurveTo(x + 7 * s, y - 9 * s, x + 6 * s, y); ctx.closePath();
+  wash(ctx, b, '#b98f6a', 0.6); ink(ctx, b, 1);
+  ctx.beginPath(); for (let q = -2; q <= 2; q++) { ctx.moveTo(x + q * 1.9 * s, y - 0.5 * s); ctx.lineTo(x + q * 1.1 * s, y - 9 * s); } ink(ctx, b, 0.5, 0.75);
+}
+
+/** Jeżowiec: kolczasta kula (mezozoik/kenozoik, woda). */
+function urchin(ctx: Ctx, b: Brush, x: number, y: number, s: number) {
+  const cy = y - 5 * s;
+  ctx.beginPath(); for (let q = 0; q < 18; q++) { const a = Math.PI + (q / 17) * Math.PI; ctx.moveTo(x + Math.cos(a) * 5 * s, cy + Math.sin(a) * 5 * s); ctx.lineTo(x + Math.cos(a) * 10 * s, cy + Math.sin(a) * 10 * s); }
+  ink(ctx, b, 0.8, 0.9);
+  ctx.beginPath(); ctx.ellipse(x, cy, 5.5 * s, 4.5 * s, 0, Math.PI, 0); ctx.closePath(); wash(ctx, b, '#8469ad', 0.55); ink(ctx, b, 1);
+}
+
+/** Paproć drzewiasta: krótki pień i rozłożysta korona (paleozoik/mezozoik, ląd). */
+function treefern(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
+  const h = (30 + r() * 14) * s;
+  ctx.beginPath(); ctx.moveTo(x - 2.4 * s, y); ctx.quadraticCurveTo(x + 1 * s, y - h * 0.5, x - 0.5 * s, y - h); ctx.lineTo(x + 2 * s, y - h);
+  ctx.quadraticCurveTo(x + 3 * s, y - h * 0.5, x + 2.4 * s, y); ctx.closePath(); wash(ctx, b, C.bark, 0.6); ink(ctx, b, 1);
+  for (let f = 0; f < 9; f++) {
+    const ang = Math.PI + (f / 8) * Math.PI, len = (22 + r() * 8) * s;
+    const ex = x + Math.cos(ang) * len, ey = y - h + Math.sin(ang) * len * 0.55 + 9 * s * Math.abs(Math.cos(ang));
+    ctx.beginPath(); ctx.moveTo(x, y - h); ctx.quadraticCurveTo(x + Math.cos(ang) * len * 0.55, y - h + Math.sin(ang) * len * 0.8, ex, ey);
+    ctx.strokeStyle = hexA(C.fern, 0.95 * b.alpha); ctx.lineWidth = 2.6 * s * b.line; ctx.stroke(); ink(ctx, b, 0.6);
+  }
+}
+
+/** Drzewo iglaste kenozoiku: smukły stożek. */
+function conifer(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
+  const h = (58 + r() * 26) * s;
+  ctx.beginPath(); ctx.moveTo(x - 2 * s, y); ctx.lineTo(x - 1 * s, y - h * 0.2); ctx.lineTo(x + 1 * s, y - h * 0.2); ctx.lineTo(x + 2 * s, y); ctx.closePath();
+  wash(ctx, b, C.bark, 0.65); ink(ctx, b, 0.9);
+  for (let t = 0; t < 4; t++) {
+    const top = y - h * (0.32 + t * 0.19), bot = y - h * (0.12 + t * 0.19), w = (16 - t * 3.2) * s;
+    ctx.beginPath(); ctx.moveTo(x, top - h * 0.12); ctx.lineTo(x + w, bot); ctx.lineTo(x - w, bot); ctx.closePath();
+    wash(ctx, b, t % 2 ? '#4f7a5a' : '#5f8a5a', 0.7); ink(ctx, b, 0.8);
+  }
+}
+
+/** Kępa kwiatów kenozoiku: łodyżki z barwnymi główkami. */
+function wildflowers(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
+  const cols = ['#d59ab0', '#e3c25a', '#f3efe4', '#a48ad0'];
+  for (let q = 0; q < 6; q++) {
+    const fx = x + (q - 2.5) * 3.2 * s, h = (8 + r() * 8) * s;
+    ctx.beginPath(); ctx.moveTo(fx, y); ctx.quadraticCurveTo(fx + (r() - 0.5) * 4 * s, y - h * 0.5, fx + (r() - 0.5) * 3 * s, y - h);
+    ctx.strokeStyle = hexA(C.moss, 0.95 * b.alpha); ctx.lineWidth = 0.9 * b.line; ctx.stroke();
+    ctx.beginPath(); ctx.arc(fx, y - h, 2 * s, 0, Math.PI * 2); ctx.fillStyle = hexA(cols[q % cols.length], 0.95 * b.alpha); ctx.fill(); ink(ctx, b, 0.5, 0.7);
+  }
+}
+
+/** Trawa morska: pęk wąskich, falujących liści w płytkiej wodzie. */
+function seagrass(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
+  for (let f = 0; f < 5; f++) {
+    const h = (16 + r() * 14) * s, sway = (r() - 0.5) * 9 * s, fx = x + (f - 2) * 2.4 * s;
+    ctx.beginPath(); ctx.moveTo(fx, y); ctx.bezierCurveTo(fx + sway, y - h * 0.4, fx - sway, y - h * 0.75, fx + sway * 0.6, y - h);
+    ctx.strokeStyle = hexA('#5f9a6a', 0.9 * b.alpha); ctx.lineWidth = 1.6 * s * b.line; ctx.stroke();
+  }
+}
+
 function cloud(ctx: Ctx, b: Brush, x: number, y: number, s: number) {
   ctx.beginPath();
   ctx.moveTo(x - 22 * s, y);
@@ -365,6 +447,16 @@ export function paintBackground(a: PaintArgs): HTMLCanvasElement {
     g.addColorStop(1, mix(paper, sky, dark ? 0.12 : 0.1));
   }
   ctx.fillStyle = g; ctx.fillRect(0, 0, 4, lay.H);
+  // nastrój ery: delikatny odcień całej sceny
+  const ERA_TINT: Record<Era, string> = { paleozoik: '#4d8a8c', mezozoik: '#8a8a3f', kenozoik: '#b0823e' };
+  ctx.fillStyle = hexA(ERA_TINT[a.era], dark ? 0.1 : 0.08); ctx.fillRect(0, 0, 4, lay.H);
+  // poświata nad horyzontem (ląd i powietrze): ciepłe światło u dołu nieba
+  if (niche === 'lad' || niche === 'powietrze' || niche === 'przybrzeze') {
+    const hy = niche === 'przybrzeze' ? lay.surfaceY : lay.floorY;
+    const glow = ctx.createLinearGradient(0, Math.max(0, hy - lay.H * 0.45), 0, hy);
+    glow.addColorStop(0, 'rgba(243,217,160,0)'); glow.addColorStop(1, hexA('#f3d9a0', dark ? 0.1 : 0.32));
+    ctx.fillStyle = glow; ctx.fillRect(0, Math.max(0, hy - lay.H * 0.45), 4, Math.min(hy, lay.H * 0.45));
+  }
   return c;
 }
 
@@ -425,6 +517,12 @@ export function paintFar(a: PaintArgs): HTMLCanvasElement {
   if (niche === 'lad') {
     for (let q = 0; q < 3; q++) { const x = (q + r()) * (tileW / 3), y = 20 + r() * 26, cs = 0.8 + r() * 0.4; wrapped(tileW, x, 40, (xx) => cloud(ctx, { ...b, alpha: 0.5 }, xx, y, cs)); }
   }
+  // mgła u podstawy dalekiego planu — oddziela go od środkowego i buduje głębię
+  const mistTop = Math.max(0, base - 46);
+  const mist = ctx.createLinearGradient(0, mistTop, 0, base + 10);
+  const mistC = niche === 'woda' || niche === 'przybrzeze' ? mix(theme.paper, theme.niche.woda, 0.3) : theme.paper;
+  mist.addColorStop(0, hexA(mistC, 0)); mist.addColorStop(1, hexA(mistC, theme.dark ? 0.32 : 0.5));
+  ctx.fillStyle = mist; ctx.fillRect(0, mistTop, tileW, base + 10 - mistTop);
   return c;
 }
 
@@ -450,6 +548,12 @@ export function paintMid(a: PaintArgs): HTMLCanvasElement {
     ctx.closePath(); ctx.fillStyle = hexA('#ffffff', theme.dark ? 0.08 : 0.35); ctx.fill();
     ctx.beginPath(); for (let x = 0; x <= tileW; x += 4) (x ? ctx.lineTo(x, wy(x)) : ctx.moveTo(x, wy(x)));
     ctx.strokeStyle = hexA(theme.niche.woda, 0.9); ctx.lineWidth = 1.4; ctx.stroke();
+    if (niche === 'przybrzeze') {
+      // piana i odbicia światła na powierzchni
+      ctx.beginPath();
+      for (let x = 6; x < tileW; x += 14 + r() * 22) { const y = wy(x) + 3.5 + r() * 6; ctx.moveTo(x, y); ctx.lineTo(x + 5 + r() * 9, y); }
+      ctx.strokeStyle = hexA('#ffffff', theme.dark ? 0.25 : 0.7); ctx.lineWidth = 1; ctx.stroke();
+    }
   }
   const yAt = (x: number) => floor + 2 * Math.sin((x / tileW) * Math.PI * 2 * 7) + (niche === 'przybrzeze' ? 3 * Math.sin((x / tileW) * Math.PI * 2 * 2) : 0);
   // pas dna / gruntu
@@ -471,33 +575,40 @@ export function paintMid(a: PaintArgs): HTMLCanvasElement {
     const pick = r();
     wrapped(tileW, x, 70, (xx) => {
       const rr = rng(a.seed * 31 + q); // świeży generator dla każdej kopii → identyczny rysunek
+      groundShadow(ctx, b, xx, y, 9);
       if (niche === 'woda') {
         if (era === 'paleozoik') {
-          if (pick < 0.35) crinoid(ctx, b, xx, y, 1, rr); else if (pick < 0.55) sponge(ctx, b, xx, y, 1, rr);
-          else if (pick < 0.7) trilobite(ctx, b, xx, y, 1); else if (pick < 0.85) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
+          if (pick < 0.27) crinoid(ctx, b, xx, y, 1, rr); else if (pick < 0.42) sponge(ctx, b, xx, y, 1, rr);
+          else if (pick < 0.54) trilobite(ctx, b, xx, y, 1); else if (pick < 0.65) nautiloid(ctx, b, xx, y, 1);
+          else if (pick < 0.76) brachiopod(ctx, b, xx, y, 1); else if (pick < 0.9) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
         } else if (era === 'mezozoik') {
-          if (pick < 0.3) coral(ctx, b, xx, y, 1, rr); else if (pick < 0.5) ammonite(ctx, b, xx, y, 1);
-          else if (pick < 0.75) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
+          if (pick < 0.25) coral(ctx, b, xx, y, 1, rr); else if (pick < 0.4) ammonite(ctx, b, xx, y, 1);
+          else if (pick < 0.52) urchin(ctx, b, xx, y, 1); else if (pick < 0.62) nautiloid(ctx, b, xx, y, 0.9);
+          else if (pick < 0.82) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
         } else {
           if (pick < 0.3) kelp(ctx, b, xx, y, lay.surfaceY + 30 + rr() * 40, 1, rr); else if (pick < 0.5) coral(ctx, b, xx, y, 1, rr, '#d99a6a');
-          else if (pick < 0.65) seastar(ctx, b, xx, y, 1); else if (pick < 0.85) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
+          else if (pick < 0.6) seastar(ctx, b, xx, y, 1); else if (pick < 0.7) urchin(ctx, b, xx, y, 1);
+          else if (pick < 0.87) algae(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
         }
       } else if (niche === 'przybrzeze') {
         if (era === 'paleozoik' && pick < 0.45) stromatolite(ctx, b, xx, y, 1, rr);
         else if (pick < 0.3) coral(ctx, b, xx, y, 0.8, rr);
-        else if (pick < 0.6) algae(ctx, b, xx, y, 0.9, rr, C.fern);
-        else if (pick < 0.75 && era !== 'paleozoik') seastar(ctx, b, xx, y, 0.9);
+        else if (pick < 0.5) algae(ctx, b, xx, y, 0.9, rr, C.fern);
+        else if (pick < 0.68) seagrass(ctx, b, xx, y, 1, rr);
+        else if (pick < 0.78 && era === 'paleozoik') brachiopod(ctx, b, xx, y, 0.9);
+        else if (pick < 0.78 && era !== 'paleozoik') seastar(ctx, b, xx, y, 0.9);
         else rock(ctx, b, xx, y, 1.2, rr);
       } else {
         if (era === 'paleozoik') {
-          if (pick < 0.3) lepidodendron(ctx, b, xx, y, 0.9, rr); else if (pick < 0.6) horsetail(ctx, b, xx, y, 1, rr);
-          else if (pick < 0.85) fern(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
+          if (pick < 0.25) lepidodendron(ctx, b, xx, y, 0.9, rr); else if (pick < 0.45) horsetail(ctx, b, xx, y, 1, rr);
+          else if (pick < 0.65) treefern(ctx, b, xx, y, 0.9, rr); else if (pick < 0.87) fern(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
         } else if (era === 'mezozoik') {
-          if (pick < 0.3) araucaria(ctx, b, xx, y, 0.9, rr); else if (pick < 0.6) cycad(ctx, b, xx, y, 1, rr);
-          else if (pick < 0.85) fern(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
+          if (pick < 0.25) araucaria(ctx, b, xx, y, 0.9, rr); else if (pick < 0.5) cycad(ctx, b, xx, y, 1, rr);
+          else if (pick < 0.68) treefern(ctx, b, xx, y, 1, rr); else if (pick < 0.88) fern(ctx, b, xx, y, 1, rr); else rock(ctx, b, xx, y, 1, rr);
         } else {
-          if (pick < 0.3) broadleaf(ctx, b, xx, y, 1, rr); else if (pick < 0.55) shrub(ctx, b, xx, y, 1, rr);
-          else if (pick < 0.9) grass(ctx, b, xx, y, 1.3, rr); else rock(ctx, b, xx, y, 1, rr);
+          if (pick < 0.22) broadleaf(ctx, b, xx, y, 1, rr); else if (pick < 0.38) conifer(ctx, b, xx, y, 1, rr);
+          else if (pick < 0.52) shrub(ctx, b, xx, y, 1, rr); else if (pick < 0.68) wildflowers(ctx, b, xx, y, 1.2, rr);
+          else if (pick < 0.92) grass(ctx, b, xx, y, 1.3, rr); else rock(ctx, b, xx, y, 1, rr);
         }
       }
     });

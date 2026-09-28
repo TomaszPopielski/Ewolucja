@@ -203,3 +203,11 @@ grafiką ilustratora, bez zmian w logice gry:
 
 Obrazy dołączane do projektu (PNG/WebP) Vite wkleja do `dist/index.html`, więc
 gra nadal działa offline z jednego pliku; rozsądny budżet to łącznie kilka MB.
+
+## Etapy 7–11: ekran gry, świat, stworzenia, wydarzenia, dostępność
+
+- **Ekran gry** (`css/styles.css`, `js/ui.js`): diorama wyższa (300 px), karty cech dostępnych i zdobytych mają dużą odznakę z tonem kategorii, a zablokowane zwijają się do jednej linijki (pełny opis po najechaniu lub w `title`). Zakup odciska cechę „pieczątką”. Miarki mają podziałkę; spadek w chipach efektów jest przerywany (nie tylko kolor).
+- **Diorama** (`src/diorama/scenery.ts`): nowe elementy tła (łodzikowiec, ramienionóg, jeżowiec, paproć drzewiasta, drzewo iglaste, kwiaty, trawa morska), cienie pod roślinnością, mgła na dalekim planie, odcień ery i poświata nad horyzontem, piana na brzegu.
+- **Stworzenia** (`src/creature/`): szersza paleta barw z odcieniem niszy, barwa dodatkowa i wzór dziedziczny linii (pasy, plamy, siodło), większe skrzydła w barwie dodatkowej, uda i stopy zamiast patyczkowatych nóg.
+- **Wydarzenia**: zmiana ery pokazuje po raporcie planszę „Koniec ery / nowa era” na dioramie; po katastrofie w niszy linii krajobraz jest szary i odradza się przez trzy tury (`aftermath`).
+- **Dostępność**: `prefers-contrast: more` (grubsze ramki, pełne tło kart), zmiana ery pomijana przy `prefers-reduced-motion`.

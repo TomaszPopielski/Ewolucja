@@ -387,8 +387,14 @@ function drawLeg(ctx: Ctx, pose: LegPose, s: Style, color: string, thick: number
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.strokeStyle = fillC; ctx.lineWidth = w; ctx.setLineDash([]); ctx.stroke();
   };
-  seg(hip, knee, thick * 1.25); seg(knee, foot, thick * 0.8);
-  segFill(hip, knee, thick * 1.25); segFill(knee, foot, thick * 0.8);
+  seg(hip, knee, thick * 1.6); seg(knee, foot, thick * 0.85);
+  segFill(hip, knee, thick * 1.6); segFill(knee, foot, thick * 0.85);
+  // mięsień uda (zaokrąglenie przy biodrze) i podeszwa — łagodzą „patyczkowaty” wygląd
+  const thigh = lerpV(hip, knee, 0.3);
+  ctx.beginPath(); ctx.arc(thigh.x, thigh.y, thick * 1.0, 0, Math.PI * 2);
+  ctx.fillStyle = fillC; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(foot.x + 1.5, foot.y + 0.8, thick * 0.9, thick * 0.5, pose.toeDir, 0, Math.PI * 2);
+  ctx.fillStyle = fillC; ctx.fill();
   // staw
   ctx.beginPath(); ctx.arc(knee.x, knee.y, thick * 0.45, 0, Math.PI * 2);
   ctx.fillStyle = fillC; ctx.fill();
@@ -421,9 +427,9 @@ function drawWing(ctx: Ctx, body: Body, plan: Plan, s: Style, color: string, tim
   const beat = still ? 0.55 : Math.sin(time * plan.omega * 2);
   // Rzut skrzydła w widoku z boku: rozpiętość skraca się z kątem uniesienia.
   const beta = lerp(0.35, 0.3 + 0.95 * beat, flying);
-  const span = lerp(30, 105, flying);
-  const chord = lerp(38, 34, flying);
-  const sweep = lerp(10, 26, flying);
+  const span = lerp(30, 135, flying);
+  const chord = lerp(38, 46, flying);
+  const sweep = lerp(10, 30, flying);
   const lift = Math.sin(beta) * span;
   const off = far ? v(4, -3) : v(0, 0);
   const P = (u: number, w: number) => add(add(shoulder, off), v(-w * chord - u * sweep, -lift * u));
@@ -537,7 +543,7 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     });
   }
   feature(ctx, 'flight', o, st, (s) =>
-    drawWing(ctx, body, plan, s, color, time, !!o.still, pres.insulation > 0.5, true, false));
+    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, true, false));
 
   // --- 2. płetwy za ciałem
   const finK = 1 - 0.85 * pres.limbs;
@@ -598,6 +604,33 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x - 3, a2.y);
   }
   ctx.strokeStyle = hexA(theme.ink, 0.22); ctx.lineWidth = 0.6; ctx.setLineDash([]); ctx.stroke();
+
+  // wzór dziedziczny linii (pasy, plamy, siodło) w barwie dodatkowej
+  if (spec.pattern !== 'none' && !st.normal.ghost) {
+    const pr = rng(spec.seed ^ 0x9a);
+    const pc = hexA(spec.accentColor, Math.min(0.85, theme.washAlpha + 0.3));
+    ctx.fillStyle = pc; ctx.strokeStyle = pc; ctx.setLineDash([]);
+    if (spec.pattern === 'stripes') {
+      ctx.lineWidth = 2.2; ctx.beginPath();
+      for (let t = 0.14; t < 0.88; t += 0.07) {
+        const a = at(body, t);
+        const up = add(a.p, mul(a.n, a.w * 1.1)), dn = sub(a.p, mul(a.n, a.w * 0.2));
+        ctx.moveTo(up.x, up.y); ctx.lineTo(dn.x - 2, dn.y);
+      }
+      ctx.stroke();
+    } else if (spec.pattern === 'spots') {
+      for (let b = 0; b < 16; b++) {
+        const a = at(body, 0.12 + pr() * 0.76);
+        const c = add(a.p, mul(a.n, (pr() * 0.9 - 0.1) * a.w));
+        ctx.beginPath(); ctx.arc(c.x, c.y, 1.4 + pr() * 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+    } else {
+      const pts: V[] = [];
+      for (let t = 0.14; t <= 0.8; t += 0.03) { const a = at(body, t); pts.push(add(a.p, mul(a.n, a.w * 1.05))); }
+      for (let t = 0.8; t >= 0.14; t -= 0.03) { const a = at(body, t); pts.push(add(a.p, mul(a.n, a.w * (0.3 + 0.25 * Math.sin(t * 24))))); }
+      ctx.beginPath(); smoothPath(ctx, pts, true); ctx.fill();
+    }
+  }
 
   feature(ctx, 'camouflage', o, st, (s) => {
     const r = rng(spec.seed ^ 0xca);
@@ -790,7 +823,7 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     ctx.restore();
   });
   feature(ctx, 'flight', o, st, (s) =>
-    drawWing(ctx, body, plan, s, color, time, !!o.still, pres.insulation > 0.5, false, pres.grasping_hand > 0.5));
+    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, false, pres.grasping_hand > 0.5));
 }
 
 function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: SceneOptions, st: { normal: Style; ghost: Style }) {

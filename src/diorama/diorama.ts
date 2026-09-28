@@ -36,6 +36,8 @@ export interface DioramaData {
   predators: number;
   /** Katastrofa zapowiedziana na tę turę i czy dotyczy tej niszy. */
   catastrophe?: boolean;
+  /** Ślad po niedawnej katastrofie w tej niszy: 1 = świeży (szary, wyjałowiony krajobraz), 0 = odrodzony. */
+  aftermath?: number;
   /** Żywe linie w tej niszy (aktywna oznaczona). */
   lineages: DioramaLineage[];
 }
@@ -346,6 +348,7 @@ export class Diorama {
     this.tint.clear();
     let color = 0, alpha = 0;
     if (d.catastrophe) { color = 0x7a3a2a; alpha = 0.16; }
+    else if (d.aftermath && d.aftermath > 0) { color = 0x8a8072; alpha = 0.26 * Math.min(1, d.aftermath); }
     else if (d.climate === 'zimno') { color = 0x9fc0dc; alpha = 0.18; }
     else if (d.climate === 'cieplo') { color = 0xf0c070; alpha = 0.08; }
     if (alpha) this.tint.rect(0, 0, this.W, this.H).fill({ color, alpha });
