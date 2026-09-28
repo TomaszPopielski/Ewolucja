@@ -24,6 +24,8 @@ export interface DioramaLineage {
   id: string; name: string; traits: string[]; niche: string; population: number; active: boolean;
   /** Linia macierzysta — przy specjacji część stada rodzica „przechodzi” do nowej gałęzi. */
   parentId?: string | null;
+  /** Plan budowy do rysunku (kregowiec | stawonog | glowonog). */
+  bodyPlan?: string;
 }
 
 export interface DioramaData {
@@ -377,7 +379,11 @@ export class Diorama {
         ? (d.era === 'kenozoik' ? ['fins', 'limbs', 'jaws', 'eyes', 'endothermy', 'insulation', 'scales']
           : ['fins', 'limbs', 'jaws', 'eyes', 'scales', d.era === 'mezozoik' ? 'endothermy' : 'camouflage'])
         : ['fins', 'jaws', 'eyes', 'shell', 'fast_muscle', 'scales'];
-    const spec = buildSpec({ id: 'drapieżnik-' + d.niche + d.era, name: 'drapieżnik', traits, niche: d.niche });
+    // W paleozoiku dno morskie rządzą głowonogi, a ląd i powietrze — wielkie stawonogi.
+    const paleo = d.era === 'paleozoik';
+    const drawn = paleo ? traits.filter((t) => t !== 'endothermy' && t !== 'insulation') : traits;
+    const bodyPlan = paleo ? (d.niche === 'woda' || d.niche === 'przybrzeze' ? 'glowonog' : 'stawonog') : 'kregowiec';
+    const spec = buildSpec({ id: 'drapieżnik-' + d.niche + d.era, name: 'drapieżnik', traits: drawn, niche: d.niche, bodyPlan });
     spec.bodyColor = '#6b4a3e';
     spec.proportions = { length: 1.05, girth: 1.12, head: 1.15 };
     return spec;

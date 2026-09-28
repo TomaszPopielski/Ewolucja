@@ -12,6 +12,8 @@ export interface LineageLike {
   name: string;
   traits: string[];
   niche: string;
+  /** Plan budowy z silnika (`bodyPlan`); brak = kręgowiec (stare zapisy). */
+  bodyPlan?: string;
 }
 
 /** Widoczne części/znaki; klucze odpowiadają cechom z js/data.js. */
@@ -27,12 +29,15 @@ export const FEATURES = [
 export type Feature = (typeof FEATURES)[number];
 
 export type Pattern = 'none' | 'stripes' | 'spots' | 'saddle';
+/** Plan budowy: kręgowiec (ryba → czworonóg → ssak/ptak), stawonóg albo głowonóg. */
+export type BodyPlan = 'kregowiec' | 'stawonog' | 'glowonog';
 export type Niche = 'woda' | 'przybrzeze' | 'lad' | 'powietrze';
 
 export interface CreatureSpec {
   /** Cechy, które linia ma (obecność docelowa = 1). */
   owned: Set<Feature>;
   niche: Niche;
+  bodyPlan: BodyPlan;
   /** Ziarno losowości — stałe dla linii, różne dla gałęzi. */
   seed: number;
   /** Barwa ciała (ton laweryjny) w formacie #rrggbb. */
@@ -81,7 +86,9 @@ const NICHE_TINT: Record<string, [string, number]> = {
 };
 
 /** Rozmiar ciała wynikający z planu budowy (do podziałki). */
-function bodySizeCm(owned: Set<Feature>): number {
+function bodySizeCm(owned: Set<Feature>, plan: BodyPlan = 'kregowiec'): number {
+  if (plan === 'stawonog') return owned.has('flight') ? 8 : owned.has('limbs') ? 6 : owned.has('shell') ? 3 : 1;
+  if (plan === 'glowonog') return owned.has('limbs') || owned.has('big_brain') ? 60 : owned.has('fins') ? 30 : 8;
   if (owned.has('big_brain') || (owned.has('endothermy') && owned.has('insulation') && owned.has('limbs'))) return 90;
   if (owned.has('limbs')) return owned.has('endothermy') ? 60 : 40;
   if (owned.has('fins')) return owned.has('fast_muscle') ? 25 : 12;
@@ -119,7 +126,8 @@ export function buildSpec(lineage: LineageLike): CreatureSpec {
   const accentColor = mixHex(body, ACCENTS[Math.floor(r() * ACCENTS.length)], 0.7);
   const pr = r();
   const pattern: Pattern = pr < 0.3 ? 'none' : pr < 0.55 ? 'stripes' : pr < 0.8 ? 'spots' : 'saddle';
-  return { owned, niche, seed, bodyColor: body, accentColor, pattern, proportions, sizeCm: bodySizeCm(owned) };
+  const bodyPlan: BodyPlan = lineage.bodyPlan === 'stawonog' || lineage.bodyPlan === 'glowonog' ? lineage.bodyPlan : 'kregowiec';
+  return { owned, niche, bodyPlan, seed, bodyColor: body, accentColor, pattern, proportions, sizeCm: bodySizeCm(owned, bodyPlan) };
 }
 
 /** Czytelna etykieta podziałki (np. „3 cm”, „1 m”). */

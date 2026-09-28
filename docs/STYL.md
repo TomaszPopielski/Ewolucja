@@ -211,3 +211,28 @@ gra nadal działa offline z jednego pliku; rozsądny budżet to łącznie kilka 
 - **Stworzenia** (`src/creature/`): szersza paleta barw z odcieniem niszy, barwa dodatkowa i wzór dziedziczny linii (pasy, plamy, siodło), większe skrzydła w barwie dodatkowej, uda i stopy zamiast patyczkowatych nóg.
 - **Wydarzenia**: zmiana ery pokazuje po raporcie planszę „Koniec ery / nowa era” na dioramie; po katastrofie w niszy linii krajobraz jest szary i odradza się przez trzy tury (`aftermath`).
 - **Dostępność**: `prefers-contrast: more` (grubsze ramki, pełne tło kart), zmiana ery pomijana przy `prefers-reduced-motion`.
+
+## Plany budowy (etap 9)
+
+Linia ma stały **plan budowy** (`bodyPlan` w silniku, tylko do rysunku): `kregowiec`,
+`stawonog` albo `glowonog`. Root gry startujący bez płetw, kończyn, lotu i
+stałocieplności dostaje plan z kodu świata (50% / 25% / 25%), a gałęzie go
+dziedziczą. Scenariusz z zaawansowanym startem i świat bez ziarna są kręgowcami;
+stare zapisy bez pola też.
+
+| Cecha | Stawonóg (`arthropod.ts`) | Głowonóg (`cephalopod.ts`) |
+|---|---|---|
+| Płetwy | odnóża pływne pod odwłokiem | płetwy płaszcza |
+| Kończyny | długie odnóża kroczne (chód) | ramiona opuszczone na dno |
+| Lot | owadzie skrzydła | szybowanie na rozłożonych płetwach |
+| Pancerz | karapaks nad tułowiem | zwinięta muszla (jak łodzik) |
+| Szczęki | żuwaczki | dziób i macki łowne |
+| Ręka chwytna / narzędzia | szczypce z kamieniem | wprawne ramię z kamieniem |
+| Oko | oko złożone z fasetek | oko kamerowe z poziomą źrenicą |
+| Układ nerwowy | brzuszny łańcuch zwojów | pierścień zwojów w głowie |
+
+Wspólne elementy (echolokacja, kultura akustyczna, kamień, mózg, wzór linii):
+`src/creature/extras.ts`. Rozmiary rysunku planów (`planExtents`) i stopy
+(`footDrop`) są liczone osobno, więc wypiekanie klatek i miniatury działają
+jak dla kręgowca. Drapieżniki dioramy w paleozoiku to głowonogi (woda) i wielkie
+stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.

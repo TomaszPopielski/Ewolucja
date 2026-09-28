@@ -10,6 +10,8 @@
  * Wszystkie funkcje są czyste względem stanu gry: dostają opis (spec),
  * obecności cech i czas; ten sam kod posłuży dioramie i miniaturom.
  */
+import { drawArthropod, arthroFootDrop, arthroShape, arthroExtents } from './arthropod.ts';
+import { drawCephalopod, cephFootDrop, cephShape, cephExtents } from './cephalopod.ts';
 import { type CreatureSpec, type Feature, type Niche, FEATURES, rng, mixHex, scaleLabel } from './spec.ts';
 
 export interface Theme {
@@ -53,14 +55,14 @@ export interface SceneOptions {
 
 // ------------------------------------------------------------------ geometria
 
-interface V { x: number; y: number }
-const v = (x: number, y: number): V => ({ x, y });
-const add = (a: V, b: V): V => v(a.x + b.x, a.y + b.y);
-const sub = (a: V, b: V): V => v(a.x - b.x, a.y - b.y);
-const mul = (a: V, k: number): V => v(a.x * k, a.y * k);
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const polar = (ang: number, len: number): V => v(Math.cos(ang) * len, Math.sin(ang) * len);
+export interface V { x: number; y: number }
+export const v = (x: number, y: number): V => ({ x, y });
+export const add = (a: V, b: V): V => v(a.x + b.x, a.y + b.y);
+export const sub = (a: V, b: V): V => v(a.x - b.x, a.y - b.y);
+export const mul = (a: V, k: number): V => v(a.x * k, a.y * k);
+export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+export const polar = (ang: number, len: number): V => v(Math.cos(ang) * len, Math.sin(ang) * len);
 
 /** Punkty kontrolne profilu (pół-szerokości) w t = 0 (pysk) … 1 (koniec ogona). */
 const KNOTS = [0, 0.05, 0.12, 0.25, 0.45, 0.65, 0.85, 1];
@@ -178,20 +180,20 @@ function at(body: Body, t: number): { p: V; tan: V; n: V; w: number } {
 
 // ------------------------------------------------------------------ pędzle
 
-interface Style {
+export interface Style {
   stroke: string;
   soft: string;
   fill: (c: string, alpha?: number) => string;
   ghost: boolean;
 }
 
-function hexA(hex: string, a: number): string {
+export function hexA(hex: string, a: number): string {
   if (hex.startsWith('rgb')) return hex;
   const p = parseInt(hex.slice(1), 16);
   return 'rgba(' + ((p >> 16) & 255) + ',' + ((p >> 8) & 255) + ',' + (p & 255) + ',' + a.toFixed(3) + ')';
 }
 
-function styles(theme: Theme): { normal: Style; ghost: Style } {
+export function styles(theme: Theme): { normal: Style; ghost: Style } {
   return {
     normal: {
       stroke: theme.ink, soft: theme.inkSoft, ghost: false,
@@ -204,10 +206,10 @@ function styles(theme: Theme): { normal: Style; ghost: Style } {
   };
 }
 
-type Ctx = CanvasRenderingContext2D;
+export type Ctx = CanvasRenderingContext2D;
 
 /** Gładka ścieżka przez punkty (krzywe przez środki odcinków). */
-function smoothPath(ctx: Ctx, pts: V[], closed: boolean) {
+export function smoothPath(ctx: Ctx, pts: V[], closed: boolean) {
   const n = pts.length;
   if (n < 2) return;
   if (closed) {
@@ -242,7 +244,7 @@ function bodyOutline(body: Body): V[] {
  */
 let lineK = 1;
 
-function inkLine(ctx: Ctx, s: Style, width: number) {
+export function inkLine(ctx: Ctx, s: Style, width: number) {
   ctx.strokeStyle = s.stroke;
   ctx.lineWidth = width * lineK;
   ctx.lineCap = 'round';
@@ -254,7 +256,7 @@ function inkLine(ctx: Ctx, s: Style, width: number) {
  * Rysuje cechę z uwzględnieniem obecności (p) i podglądu (g): posiadana
  * część — tuszem, podglądana — fioletowym szkicem przerywaną linią.
  */
-function feature(ctx: Ctx, key: Feature, o: SceneOptions, st: { normal: Style; ghost: Style },
+export function feature(ctx: Ctx, key: Feature, o: SceneOptions, st: { normal: Style; ghost: Style },
   fn: (s: Style, amount: number) => void) {
   const p = o.pres[key], g = o.ghost[key];
   if (p > 0.01) {
@@ -297,7 +299,7 @@ function drawCaudalFin(ctx: Ctx, body: Body, s: Style, k: number, color: string)
   }
   inkLine(ctx, s, 0.5); ctx.strokeStyle = s.soft; ctx.stroke();
 }
-const lerpV = (a: V, b: V, t: number): V => v(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
+export const lerpV = (a: V, b: V, t: number): V => v(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
 
 function drawDorsalFin(ctx: Ctx, body: Body, s: Style, k: number, color: string) {
   const a = at(body, 0.34), b = at(body, 0.58), apex = at(body, 0.43);
@@ -424,11 +426,11 @@ function drawWing(ctx: Ctx, body: Body, plan: Plan, s: Style, color: string, tim
   const a = at(body, 0.3);
   const shoulder = add(a.p, mul(a.n, a.w * 0.35));
   const flying = plan.air;
-  const beat = still ? 0.55 : Math.sin(time * plan.omega * 2);
+  const beat = still ? 0.1 : Math.sin(time * plan.omega * 2);
   // Rzut skrzydła w widoku z boku: rozpiętość skraca się z kątem uniesienia.
   const beta = lerp(0.35, 0.3 + 0.95 * beat, flying);
-  const span = lerp(30, 135, flying);
-  const chord = lerp(38, 46, flying);
+  const span = lerp(30, 110, flying);
+  const chord = lerp(38, 44, flying);
   const sweep = lerp(10, 30, flying);
   const lift = Math.sin(beta) * span;
   const off = far ? v(4, -3) : v(0, 0);
@@ -490,6 +492,8 @@ export interface CreatureDrawOptions extends SceneOptions {
 
 /** Jak nisko sięgają stopy względem środka ciała (stała poza) — stawia zwierzę na gruncie. */
 export function footDrop(spec: CreatureSpec, pres: Presence): number {
+  if (spec.bodyPlan === 'stawonog') return arthroFootDrop(spec, pres);
+  if (spec.bodyPlan === 'glowonog') return cephFootDrop(spec, pres);
   const plan = planFor(spec, pres);
   const body = buildBody(spec, plan, 0, true);
   const rear = legPose(body, plan, 0.64, false, 0, 0, true);
@@ -501,6 +505,8 @@ export function footDrop(spec: CreatureSpec, pres: Presence): number {
 
 /** Okres pętli ruchu zwierzęcia [s] (patrz Plan.omega). */
 export function cycleSeconds(spec: CreatureSpec, pres: Presence): number {
+  if (spec.bodyPlan === 'stawonog') return (Math.PI * 2) / arthroShape(spec, pres).omega;
+  if (spec.bodyPlan === 'glowonog') return (Math.PI * 2) / cephShape(spec, pres).omega;
   return (Math.PI * 2) / planFor(spec, pres).omega;
 }
 
@@ -523,7 +529,16 @@ export function drawCreature(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Crea
   try { drawCreatureInner(ctx, spec, theme, o); } finally { lineK = prevK; }
 }
 
+/** Wymiary rysunku planów innych niż kręgowiec (null = kręgowiec, liczą go wywołujący). */
+export function planExtents(spec: CreatureSpec, pres: Presence) {
+  if (spec.bodyPlan === 'stawonog') return arthroExtents(spec, pres);
+  if (spec.bodyPlan === 'glowonog') return cephExtents(spec, pres);
+  return null;
+}
+
 function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: CreatureDrawOptions) {
+  if (spec.bodyPlan === 'stawonog') { drawArthropod(ctx, spec, theme, o); return; }
+  if (spec.bodyPlan === 'glowonog') { drawCephalopod(ctx, spec, theme, o); return; }
   const pres = o.pres;
   const plan = planFor(spec, pres);
   const time = o.time;
@@ -1042,8 +1057,10 @@ export function drawPortrait(ctx: Ctx, sc: PortraitScene) {
 
   const pres = o.pres;
   const L = 200 * spec.proportions.length;
-  const extentX = L + 40 + 20 * pres.fins;
-  const extentY = 62 + 30 * pres.limbs + 75 * planFor(spec, pres).raise + 110 * pres.flight * (spec.niche === 'powietrze' ? 1 : 0.2);
+  const ext = planExtents(spec, pres);
+  const extentX = ext ? ext.left + ext.right : L + 40 + 20 * pres.fins;
+  const extentY = ext ? (ext.top + ext.bottom) * 0.75
+    : 62 + 30 * pres.limbs + 75 * planFor(spec, pres).raise + 110 * pres.flight * (spec.niche === 'powietrze' ? 1 : 0.2);
   const s = Math.min((w * 0.74) / extentX, (h * 0.78) / extentY);
   const cx = w * 0.53;
   let cy: number;

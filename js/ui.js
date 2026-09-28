@@ -701,7 +701,7 @@
       era: era.id, niche: a.niche, climate: env ? env.climate : undefined,
       food: ne.food, predators: ne.predators, catastrophe: !!cat, aftermath: aftermathFor(a.niche),
       lineages: state.lineages.filter(function (l) { return l.alive && l.niche === a.niche; }).map(function (l) {
-        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id, parentId: l.parentId };
+        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id, parentId: l.parentId, bodyPlan: l.bodyPlan };
       })
     });
     var others = state.lineages.filter(function (l) { return l.alive && l.niche === a.niche && l.id !== a.id; }).length;

@@ -34,7 +34,17 @@ const CREATURES = [
   ['Łowca w stadzie', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain', 'pack_hunting'], 'lad'],
   ['Gatunek rozumny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain',
     'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care', 'many_eggs'], 'lad'],
-  ['Wodny z mózgiem', ['fins', 'eyes', 'ganglia', 'brain', 'jaws', 'camouflage'], 'woda']
+  ['Wodny z mózgiem', ['fins', 'eyes', 'ganglia', 'brain', 'jaws', 'camouflage'], 'woda'],
+  // Inne plany budowy: [podpis, cechy, nisza, plan].
+  ['Trylobit', ['shell', 'eyes'], 'woda', 'stawonog'],
+  ['Skorupiak', ['fins', 'jaws', 'shell', 'eyes', 'lateral_line'], 'przybrzeze', 'stawonog'],
+  ['Pająk lądowy', ['limbs', 'jaws', 'eyes', 'scales', 'camouflage'], 'lad', 'stawonog'],
+  ['Ważka', ['limbs', 'flight', 'jaws', 'eyes', 'scales'], 'powietrze', 'stawonog'],
+  ['Rozumny stawonóg', ['limbs', 'jaws', 'eyes', 'scales', 'ganglia', 'brain', 'grasping_hand', 'tool_use', 'social'], 'lad', 'stawonog'],
+  ['Łodzikowiec', ['shell', 'eyes'], 'woda', 'glowonog'],
+  ['Kałamarnica', ['fins', 'jaws', 'eyes', 'fast_muscle', 'lateral_line'], 'woda', 'glowonog'],
+  ['Ośmiornica', ['limbs', 'jaws', 'eyes', 'camouflage', 'ganglia', 'brain', 'grasping_hand', 'tool_use'], 'przybrzeze', 'glowonog'],
+  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog']
 ];
 
 mkdirSync(outDir, { recursive: true });
@@ -95,12 +105,12 @@ for (const scheme of ['light', 'dark']) {
       await page.evaluate((sets) => {
         document.body.innerHTML = '<main style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px"></main>';
         const m = document.querySelector('main');
-        sets.forEach(([name, traits, niche], i) => {
+        sets.forEach(([name, traits, niche, bodyPlan], i) => {
           const fig = document.createElement('figure'); fig.className = 'creature-figure'; fig.style.margin = '0';
           const host = document.createElement('div'); host.className = 'creature-portrait';
           const cap = document.createElement('figcaption'); cap.className = 'creature-caption'; cap.textContent = name;
           fig.append(host, cap); m.append(fig);
-          window.GameArt.portrait.update(host, { id: 'G' + i, name, traits, niche }, { climate: 'zimno' });
+          window.GameArt.portrait.update(host, { id: 'G' + i, name, traits, niche, bodyPlan }, { climate: 'zimno' });
         });
       }, CREATURES);
       await page.waitForTimeout(800);
