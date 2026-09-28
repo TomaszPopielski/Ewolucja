@@ -29,7 +29,7 @@
     scenarioCards: $('scenario-cards'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
     epAfford: $('ep-afford'), statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
-    statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'),
+    statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'), envRivals: $('env-rivals'), endEpilogue: $('end-epilogue'),
     endScoreTotal: $('end-score-total'), endScoreParts: $('end-score-parts'), endAch: $('end-ach'), btnPlaySame: $('btn-play-same'),
     modalOutlook: $('modal-outlook'), outlookReasons: $('outlook-reasons'), btnOutlookContinue: $('btn-outlook-continue'),
     btnOutlookUndo: $('btn-outlook-undo'), btnOutlookEnd: $('btn-outlook-end'),
@@ -82,7 +82,7 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 6 && s.status === 'playing') ? s : null;
+      return (s && s.version === 7 && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -446,6 +446,7 @@
     var capWarn = base.nicheLoad >= base.capacity * DATA.CAPACITY.warnAt;
     html += '<div class="forecast-row"><span>Pojemność niszy</span><span class="fc' + (capWarn ? ' neg' : '') + '">' +
       base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    if (base.rivalLoad) html += '<div class="forecast-row"><span>w tym konkurenci</span><span class="fc">' + base.rivalLoad + '</span></div>';
     if (base.crowdDeaths) {
       html += '<div class="forecast-row"><span>Straty z przegęszczenia</span><span class="fc neg">−' + base.crowdDeaths + '</span></div>';
     }
@@ -591,7 +592,10 @@
     var def = Engine.defaultOption(ev);
     el.choiceCard.hidden = false;
     el.choiceCard.innerHTML = '<div class="choice-head"><span class="choice-icon" aria-hidden="true">' + ico(ev.art, ev.icon) + '</span>' +
-      '<div><strong>' + escapeHtml(ev.name) + '</strong><div class="choice-target">Linia: ' + escapeHtml(l.name) + '</div></div></div>' +
+      '<div><strong>' + escapeHtml(ev.name) + '</strong><div class="choice-target">Linia: ' + escapeHtml(l.name) +
+      (pc.rivalName ? ' · Konkurent: ' + escapeHtml(pc.rivalName) : '') + '</div></div></div>' +
+      (pc.echoOf && pc.echoOf.name ? '<p class="choice-echo">' + ico('ui:hourglass', '🔔') + ' Skutek Twojej wcześniejszej decyzji: „' +
+        escapeHtml(pc.echoOf.option) + '” (' + escapeHtml(pc.echoOf.name) + ').</p>' : '') +
       '<p class="choice-desc">' + escapeHtml(ev.desc) + '</p><div class="choice-options"></div>' +
       '<p class="choice-default">Bez wyboru: „' + escapeHtml(def.label) + '”.</p>';
     var box = el.choiceCard.querySelector('.choice-options');
@@ -669,6 +673,19 @@
         (env.catastrophe.note ? ' <span class="env-cat-note">' + escapeHtml(env.catastrophe.note) + '</span>' : '');
     } else el.envCatastrophe.hidden = true;
     renderThreat(el.envThreat, Engine.upcomingThreat(DATA, state));
+    renderRivals();
+  }
+  // Konkurenci: inne gatunki tej ery w niszach gracza (rola drapieżnika podnosi presję w niszy).
+  function renderRivals() {
+    if (!el.envRivals) return;
+    var rs = (state.rivals || []).filter(function (r) { return r.alive; });
+    el.envRivals.hidden = !rs.length;
+    el.envRivals.innerHTML = !rs.length ? '' : '<strong>Konkurenci</strong>' + rs.map(function (r) {
+      var k = DATA.RIVALS.filter(function (x) { return x.id === r.kind; })[0] || {};
+      return '<div class="rival-row" title="' + escapeHtml(k.desc || '') + '">' + escapeHtml(r.icon) + ' ' + escapeHtml(r.name) +
+        ' — ' + escapeHtml(nicheLabel(r.niche).toLowerCase()) + ', ok. ' + r.pop + ' os.' +
+        (k.role === 'predator' ? ' <span class="rival-tag">drapieżnik</span>' : ' <span class="rival-tag">konkurent o pokarm</span>') + '</div>';
+    }).join('');
   }
   // Zapowiedź katastrofy w następnej turze — czas, by przenieść linię lub odłożyć zapasy.
   function threatHtml(th) {
@@ -881,6 +898,17 @@
   }
 
   // ===================== Raport tury =====================
+  function renderRivalReport(report) {
+    var rows = [];
+    (report.rivalReports || []).forEach(function (r) {
+      rows.push(escapeHtml(r.icon) + ' ' + escapeHtml(r.name) + ': ' + r.popBefore + ' → ' + r.popAfter + (r.note ? ' — ' + escapeHtml(r.note) : ''));
+    });
+    if (report.rivalSpawn) rows.push(escapeHtml(report.rivalSpawn.icon) + ' ' + escapeHtml(report.rivalSpawn.text));
+    if (!rows.length) return;
+    var box = document.createElement('div'); box.className = 'report-rivals';
+    box.innerHTML = '<strong>Konkurenci</strong>' + rows.map(function (t) { return '<div class="report-event">' + t + '</div>'; }).join('');
+    el.reportBody.appendChild(box);
+  }
   function showReport(report) {
     // Baner zmiany ery.
     if (report.eraChanged) {
@@ -904,6 +932,7 @@
     }
 
     el.reportBody.innerHTML = '';
+    renderRivalReport(report);
     var multi = report.lineReports.length > 1;
     report.lineReports.forEach(function (lr) {
       var block = document.createElement('div'); block.className = 'report-lineage';
@@ -926,6 +955,7 @@
       if (lr.crowdDeaths > 0) block.appendChild(line('Straty z przegęszczenia', '-' + lr.crowdDeaths, 'neg'));
       if (lr.capacity) block.appendChild(line('Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
         lr.nicheLoad >= lr.capacity * DATA.CAPACITY.warnAt ? 'neg' : 'plain'));
+      if (lr.rivalLoad) block.appendChild(line('w tym konkurenci', lr.rivalLoad, 'plain'));
       if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
       if (lr.reservesBefore != null) {
         block.appendChild(line(ENERGY + ' Rezerwy energii', num(lr.reservesBefore) + ' → ' + num(lr.reservesAfter),
@@ -1127,9 +1157,16 @@
         : state.endReason === 'nonviable'
         ? 'Na koniec gry żadna linia nie liczyła choćby ' + DATA.MIN_VIABLE_POP + ' osobników. Tak mała populacja jest skazana na wymarcie (słaby rozród, chów wsobny) — dbaj o bilans energii i liczebność, nie tylko o cechy.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
+    var ep = Engine.epilogue(DATA, state);
+    if (el.endEpilogue) {
+      el.endEpilogue.hidden = !ep;
+      el.endEpilogue.innerHTML = ep ? '<h2>' + escapeHtml(ep.title) + '</h2>' +
+        ep.paragraphs.map(function (t) { return '<p>' + escapeHtml(t) + '</p>'; }).join('') : '';
+    }
     el.endStats.innerHTML = '';
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
     endStat('Liczba linii rozwojowych', state.lineages.length);
+    if (state.rivalsDisplaced) endStat('Wyparci konkurenci', state.rivalsDisplaced);
     endStat('Szczytowa łączna populacja', state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0));
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);

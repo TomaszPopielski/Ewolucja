@@ -855,6 +855,71 @@ group('wynik i osiągnięcia', function () {
   ok(Engine.scoreGame(GameData, hard).total > sw.total, 'trudny poziom mnoży wynik');
 });
 
+group('rywale — konkurenci w niszach', function () {
+  var s = withSeed('RYWAL'), l = active(s);
+  l.population = 100;
+  s.rivals = [{ id: 'R1', kind: 'dinosaur', name: 'Dinozaury', icon: '🦖', niche: l.niche, alive: true, pop: 40, strength: 4, bornTurn: 0 }];
+  var fWith = Engine.forecast(GameData, s, l), s0 = JSON.parse(JSON.stringify(s)); s0.rivals = [];
+  var fWithout = Engine.forecast(GameData, s0, active(s0));
+  eq(fWith.rivalLoad, 40, 'prognoza zna populację konkurenta w niszy');
+  ok(fWith.nicheLoad === fWithout.nicheLoad + 40, 'konkurent zajmuje pojemność niszy');
+  ok(fWith.predationPressure > fWithout.predationPressure, 'rywal-drapieżnik zwiększa presję drapieżników');
+  var sc = JSON.parse(JSON.stringify(s)); sc.rivals[0].kind = 'ammonite';
+  ok(Engine.forecast(GameData, sc, active(sc)).predationPressure === fWithout.predationPressure, 'konkurent bez roli drapieżnika nie zmienia presji');
+  // Karta „Konkurent w niszy” pada tylko przy realnym rywalu w niszy linii.
+  var ev = Engine.choiceEvent(GameData, 'rival');
+  var ok1 = true; for (var i = 1; i <= 20; i++) { var t = withSeed('RYWAL' + i); t.rivals = []; if (Engine.simulateTurn(GameData, t, det).state.pendingChoice && Engine.simulateTurn(GameData, t, det).state.pendingChoice.eventId === 'rival') ok1 = false; }
+  ok(ev.needsRival && ok1, 'karta rywala nie pada bez rywala');
+  // Wypieranie: silna linia zapełniająca niszę wypiera słabego rywala; wynik wraca do raportu.
+  var d = withSeed('WYPARCIE'); active(d).population = 500;
+  d.rivals = [{ id: 'R1', kind: 'ammonite', name: 'Amonity', icon: '🐚', niche: active(d).niche, alive: true, pop: 12, strength: 1, bornTurn: 0 }];
+  var r = Engine.simulateTurn(GameData, d, det);
+  ok(r.report.rivalReports.length === 1 && r.report.rivalReports[0].popAfter <= 12, 'raport zawiera ruch rywala');
+  // Bez ziarna gry rywale mogą się pojawić, a z tym samym kodem świata dają tę samą historię.
+  function trace(seed) { var q = withSeed(seed), o = []; for (var k = 0; k < 8; k++) { q = Engine.simulateTurn(GameData, q).state; o.push((q.rivals || []).map(function (x) { return x.kind + x.pop; }).join(',')); } return o.join('|'); }
+  eq(trace('SWIAT7'), trace('SWIAT7'), 'ten sam kod świata — ta sama historia rywali');
+  var any = false; for (var z = 1; z <= 30 && !any; z++) { var u = withSeed('SP' + z); for (var k2 = 0; k2 < 10; k2++) u = Engine.simulateTurn(GameData, u).state; if ((u.rivals || []).length) any = true; }
+  ok(any, 'w typowej grze pojawiają się rywale');
+});
+
+group('echa decyzji — skutki po kilku turach', function () {
+  var s = withSeed('ECHO'), l = active(s); l.population = 100; l.variation = 20;
+  s.pendingChoice = { eventId: 'disease', lineageId: l.id, turn: 0 };
+  var res = Engine.resolveChoice(GameData, s, 'resist');
+  ok(res.ok && res.state.echoes.length === 1 && res.state.echoes[0].eventId === 'resist_echo', 'wybór z echem planuje kartę-następstwo');
+  var q = res.state, seen = null;
+  for (var i = 0; i < 6 && !seen; i++) { q = Engine.simulateTurn(GameData, q, det).state; if (q.pendingChoice && q.pendingChoice.eventId === 'resist_echo') seen = q.pendingChoice; if (q.pendingChoice && !seen) q.pendingChoice = null; }
+  ok(seen && seen.echoOf && seen.echoOf.option === 'Postaw na odporność', 'echo wraca jako karta z odniesieniem do wcześniejszej decyzji');
+  var again = Engine.resolveChoice(GameData, q, Engine.defaultOption(Engine.choiceEvent(GameData, 'resist_echo')).id);
+  ok(again.ok && again.state.echoes.length === 0, 'echo pada tylko raz');
+  ok(GameData.CHOICE_EVENTS.filter(function (e) { return e.chain; }).length >= 5, 'są karty-echa');
+  // Karty-echa nie losują się same.
+  var stray = 0; for (var k = 1; k <= 30; k++) { var t = withSeed('E' + k); for (var j = 0; j < 8; j++) { t = Engine.simulateTurn(GameData, t, det).state; if (t.pendingChoice && Engine.choiceEvent(GameData, t.pendingChoice.eventId).chain) stray++; t.pendingChoice = null; } }
+  eq(stray, 0, 'karty-echa nie wchodzą do losowej puli');
+  // Echo kolonii należy do kolonii, a martwa linia nie dostaje echa.
+  var isl = withSeed('WYSPA'); active(isl).population = 200; isl.pendingChoice = { eventId: 'island', lineageId: active(isl).id, turn: 0 };
+  var col = Engine.resolveChoice(GameData, isl, 'colonize').state;
+  ok(col.echoes[0].lineageId !== active(isl).id && col.lineages.some(function (x) { return x.id === col.echoes[0].lineageId; }), 'echo wyprawy dotyczy kolonii');
+  col.lineages.forEach(function (x) { if (x.id === col.echoes[0].lineageId) { x.alive = false; x.population = 0; } });
+  for (var m = 0; m < 5; m++) { col = Engine.simulateTurn(GameData, col, det).state; if (col.pendingChoice && col.pendingChoice.eventId === 'island_echo') ok(false, 'martwa kolonia dostała echo'); col.pendingChoice = null; }
+});
+
+group('epilog i zakończenia', function () {
+  var w = withSeed('EPI'); w.status = 'won'; w.winPath = 'tools';
+  var e = Engine.epilogue(GameData, w);
+  ok(e && e.kind === 'anthropocene' && /Antropocen/.test(e.title) && e.paragraphs.length >= 3, 'zwycięstwo kończy się epilogiem Antropocenu');
+  var sv = withSeed('EPI'); sv.status = 'survived';
+  var e2 = Engine.epilogue(GameData, sv);
+  ok(e2 && e2.kind === 'legacy' && e2.title, 'przetrwanie dostaje tytuł zależny od stylu gry');
+  var lost = withSeed('EPI'); lost.status = 'lost';
+  eq(Engine.epilogue(GameData, lost), null, 'wymarcie nie ma epilogu');
+  var ids = GameData.ENDINGS.legacy.map(function (x) { return x.when; });
+  ok(ids[ids.length - 1] === 'default', 'ostatni tytuł to domyślny (zawsze coś pasuje)');
+  var ach = withSeed('EPI'); ach.rivalsDisplaced = 2; ach.echoesSeen = 2;
+  var got = Engine.earnedAchievements(GameData, ach);
+  ok(got.indexOf('gause') !== -1 && got.indexOf('echo') !== -1, 'osiągnięcia za wypieranie rywali i echa decyzji');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

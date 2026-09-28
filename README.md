@@ -45,7 +45,7 @@ Vite i sam z pliku nie zadziała.
    K — mało, ale dobrze chronionego) i **zachowanie w turze** (gromadzenie
    zapasów, ukrywanie się, intensywne żerowanie). Najedź na przycisk, by
    zobaczyć skutek w prognozie. Co kilka tur pojawia się **karta decyzji**
-   (13 zdarzeń: wyspa, nowy drapieżnik, zakwit, epidemia, nieznany pokarm,
+   (13 zdarzeń i 5 kart-ech: wyspa, nowy drapieżnik, zakwit, epidemia, nieznany pokarm,
    konkurent, wulkan, pokrewna populacja, wyścig godowy, padlina, symbioza,
    chudy sezon, niezwykły mutant). Karta nie powtarza się w partii. Część
    opcji to **ryzyko**: wynik losuje się w turze, a szansa powodzenia (widoczna
@@ -98,6 +98,25 @@ cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
 turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
 się w żadnej wygranej partii.
 
+### Konkurenci, echa decyzji i epilog
+
+- **Konkurenci** — w nisze, w których żyjesz, wchodzą inne gatunki swojej ery
+  (skorpiony morskie, amonity, dinozaury, rekiny, kopytne…). Dzielą z Tobą
+  pojemność niszy, a **drapieżniki** (np. ryby pancerne, ichtiozaury) dodatkowo
+  podnoszą w niej presję. Konkurent rośnie do udziału zależnego od swojej siły,
+  ale słabnie, gdy zapełnisz niszę (wypieranie konkurencyjne — zasada Gausego),
+  a katastrofy uderzają też w niego. Lista jest w panelu środowiska, ruchy —
+  w raporcie tury. Karta „Konkurent w niszy” pada tylko przy realnym rywalu,
+  a udane wyparcie odbiera mu połowę populacji.
+- **Echa decyzji** — część wyborów na kartach ma następstwa: po 2–3 turach
+  wraca **karta-echo** dla tej samej linii (np. kolonia na wyspie zaczyna
+  się różnicować, drapieżniki doganiają Twoją obronę, choroba wraca do
+  populacji odpornej). Karta podaje, której decyzji jest skutkiem.
+- **Epilog** — zwycięstwo kończy się „Antropocenem”: co robi rozumny gatunek
+  ze światem (zależnie od przebiegu partii). Przetrwanie dostaje tytuł zależny
+  od stylu gry: *Władcy przestworzy*, *Wielka radiacja*, *Gatunek-legion*,
+  *Wąskie gardło i powrót* lub *Żywa skamielina*.
+
 ### Regrywalność: kod świata, kalendarz, cele er, wynik
 
 - **Kod świata** (np. `K7Q2MX`) — każda partia ma kod widoczny pod osią czasu.
@@ -147,6 +166,8 @@ Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
 mechanikę mutacji, warunki zwycięstwa/porażki, to, że gra jest
 przechodnia świadomą strategią, oraz regresje naprawionych błędów
 (zob. [`ULEPSZENIA.md`](./ULEPSZENIA.md)).
+
+Tabelę zwycięstw botów pokaże `node scripts/boty-balans.js [liczba_gier]`.
 
 Testy balansu (`test/bots.js`) rozgrywają po 100 gier z ustalonymi ziarnami
 losowości trzema „graczami”: stały plan „kup wszystko”, sama ścieżka ⭐ oraz

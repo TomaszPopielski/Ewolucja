@@ -110,7 +110,7 @@
     { id: 'island', name: 'Wynurza się wyspa', icon: '🏝️', art: 'choice:island', minPop: 60,
       desc: 'Nowy ląd lub rafa w zasięgu linii. Grupa osobników mogłaby się tam przedostać i żyć w izolacji.',
       options: [
-        { id: 'colonize', label: 'Wyślij kolonistów', effects: { found: 0.25 }, knowledge: 'founder',
+        { id: 'colonize', label: 'Wyślij kolonistów', effects: { found: 0.25 }, knowledge: 'founder', echo: { id: 'island_echo', after: 3 },
           desc: '¼ populacji zakłada nową linię (bez kosztu 🧬), ale z małą zmiennością — efekt założyciela.' },
         { id: 'ignore', label: 'Zostań na miejscu', default: true, desc: 'Nic się nie zmienia.' }
       ] },
@@ -124,7 +124,7 @@
               text: 'Łowca zrezygnował — w tej turze presja drapieżników ×0,5, a koewolucja cofnęła się o 1,5.' },
             lose: { effects: { popLoss: 0.12 }, text: 'Konfrontacja przegrana — zginęło 12% populacji.' } },
           desc: 'Ryzyko (szansa rośnie z obroną). Sukces: presja ×0,5 w tej turze i słabsza koewolucja. Porażka: ginie 12% populacji.' },
-        { id: 'arms', label: 'Wyścig zbrojeń', effects: { stats: { defense: 1 }, predatorLevel: 1.5 }, knowledge: 'coevolution',
+        { id: 'arms', label: 'Wyścig zbrojeń', effects: { stats: { defense: 1 }, predatorLevel: 1.5 }, knowledge: 'coevolution', echo: { id: 'arms_echo', after: 2 },
           desc: '+1 obrony na stałe, ale drapieżniki szybciej ewoluują (koewolucja +1,5).' },
         { id: 'endure', label: 'Stawić czoła', default: true, turnMod: { predBonus: 4 },
           desc: 'W tej turze presja drapieżników +4.' }
@@ -150,7 +150,7 @@
     { id: 'disease', name: 'Epidemia pasożytów', icon: '🦠', art: 'choice:disease',
       desc: 'W populacji szerzy się choroba.',
       options: [
-        { id: 'resist', label: 'Postaw na odporność', cost: { variation: 4 }, knowledge: 'variation',
+        { id: 'resist', label: 'Postaw na odporność', cost: { variation: 4 }, knowledge: 'variation', echo: { id: 'resist_echo', after: 3 },
           desc: 'Kosztuje 4 🧬 — w zmiennej populacji są osobniki odporne; choroba nie zabija.' },
         { id: 'disperse', label: 'Rozprosz populację', cost: { reserves: 2 },
           gamble: { chance: 0.5, stat: 'mobility', per: 0.04,
@@ -170,17 +170,17 @@
           desc: 'Ryzyko (szansa rośnie z odżywianiem). Sukces: odżywianie +1 na stałe. Porażka: ginie 15% populacji.' },
         { id: 'avoid', label: 'Trzymaj się sprawdzonego', default: true, desc: 'Nic się nie zmienia.' }
       ] },
-    { id: 'rival', name: 'Konkurent w niszy', icon: '⚔️', art: 'know:competition',
+    { id: 'rival', name: 'Konkurent w niszy', icon: '⚔️', art: 'know:competition', needsRival: true,
       desc: 'Inny gatunek zaczyna korzystać z tych samych zasobów co linia.',
       options: [
         { id: 'fight', label: 'Wypieraj konkurenta',
           gamble: { chance: 0.35, stat: 'defense', per: 0.05,
-            win: { turnMod: { foodBonus: 2 }, nextMod: { foodBonus: 2 }, knowledge: 'competition',
-              text: 'Konkurent wyparty — pokarm +2 w tej i w następnej turze.' },
+            win: { effects: { rivalHit: 0.5 }, turnMod: { foodBonus: 2 }, nextMod: { foodBonus: 2 }, knowledge: 'competition',
+              text: 'Konkurent wyparty — jego populacja spadła o połowę, a pokarm +2 w tej i w następnej turze.' },
             lose: { effects: { popLoss: 0.1 }, turnMod: { foodBonus: -2 }, knowledge: 'competition',
               text: 'Starcie przegrane — zginęło 10% populacji, a konkurent zabrał część pokarmu (−2).' } },
           desc: 'Ryzyko (szansa rośnie z obroną). Sukces: pokarm +2 przez dwie tury. Porażka: ginie 10% populacji i pokarm −2.' },
-        { id: 'shift', label: 'Zmień dietę', cost: { variation: 4 }, knowledge: 'displacement',
+        { id: 'shift', label: 'Zmień dietę', cost: { variation: 4 }, effects: { rivalHit: 0.3 }, knowledge: 'displacement', echo: { id: 'shift_echo', after: 2 },
           desc: 'Kosztuje 4 🧬 — linia przesuwa się na inny pokarm (przemieszczenie cech) i unika konkurencji.' },
         { id: 'share', label: 'Dziel się zasobami', default: true, turnMod: { foodBonus: -2 }, nextMod: { foodBonus: -1 },
           desc: 'Pokarm −2 w tej turze i −1 w następnej.' }
@@ -189,7 +189,7 @@
       desc: 'Nieopodal wybucha wulkan. Popioły zasypią okolicę, ale potem użyźnią glebę i wodę.',
       options: [
         { id: 'flee', label: 'Uciekaj z zasięgu', cost: { reserves: 3 }, desc: 'Kosztuje 3 ⚡ — linia bezpiecznie omija erupcję.' },
-        { id: 'stay', label: 'Przeczekaj na miejscu', default: true,
+        { id: 'stay', label: 'Przeczekaj na miejscu', default: true, echo: { id: 'ash_echo', after: 2 },
           gamble: { chance: 0.5,
             win: { nextMod: { foodBonus: 3 }, text: 'Popioły ominęły linię, a użyźniona okolica da w następnej turze +3 pokarmu.' },
             lose: { effects: { popLoss: 0.2 }, nextMod: { foodBonus: 3 },
@@ -263,8 +263,118 @@
             lose: { turnMod: { birthMult: 0.6 }, knowledge: 'mutation_bad', text: 'Mutacja okazała się szkodliwa — rozród ×0,6 w tej turze.' } },
           desc: 'Kosztuje 3 🧬. Ryzyko 50/50. Sukces: +12 EP. Porażka: rozród ×0,6 w tej turze.' },
         { id: 'ignore', label: 'Zostaw to doborowi', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    /* Echa decyzji: karty `chain` nie wchodzą do losowej puli. Wracają po `echo.after`
+       turach jako skutek wcześniejszego wyboru, dla tej samej linii (lub jej kolonii). */
+    { id: 'island_echo', chain: true, name: 'Wyspiarze się zmieniają', icon: '🏝️', art: 'choice:island',
+      desc: 'Izolowana kolonia żyje osobno od kilku pokoleń. Małe populacje na wyspach ewoluują po swojemu: drobnieją, tracą czujność, zdobywają nietypowe cechy.',
+      options: [
+        { id: 'isolate', label: 'Zostaw ich w izolacji', default: true, effects: { stats: { reproduction: 1 }, variation: 3 }, knowledge: 'founder',
+          desc: '+1 rozrodu na stałe i +3 🧬 — izolacja utrwala odrębne cechy (specjacja allopatryczna).' },
+        { id: 'contact', label: 'Nawiąż kontakt z lądem', effects: { variation: 6 }, knowledge: 'hybridization',
+          desc: '+6 🧬 — napływ nowych genów odświeża zmienność, ale kolonia nie wyodrębnia się.' }
+      ] },
+    { id: 'arms_echo', chain: true, name: 'Drapieżniki dogoniły obronę', icon: '🦈', art: 'know:predation',
+      desc: 'Twoja wcześniejsza rozbudowa obrony zaowocowała: drapieżniki wyewoluowały skuteczniejsze sposoby polowania. Jak odpowiesz?',
+      options: [
+        { id: 'escalate', label: 'Podkręć obronę jeszcze bardziej', effects: { stats: { defense: 1 }, predatorLevel: 1 }, knowledge: 'coevolution',
+          desc: '+1 obrony na stałe, ale koewolucja +1 (Hipoteza Czerwonej Królowej).' },
+        { id: 'evade', label: 'Zmień taktykę: unikaj', cost: { reserves: 3 }, effects: { predatorLevel: -1.5 },
+          desc: 'Kosztuje 3 ⚡ — linia zmienia porę i miejsce żerowania; presja drapieżników −1,5.' },
+        { id: 'stand', label: 'Nic nie zmieniaj', default: true, turnMod: { predBonus: 2 },
+          desc: 'W tej turze presja drapieżników +2.' }
+      ] },
+    { id: 'resist_echo', chain: true, name: 'Odporne pokolenie', icon: '🦠', art: 'choice:disease',
+      desc: 'Osobniki odporne na chorobę przeżyły i przekazały swoje geny. Choroba wróciła, ale w populacji jest teraz wiele odpornych linii.',
+      options: [
+        { id: 'select', label: 'Wesprzyj odpornych', default: true, effects: { variation: 4, stats: { defense: 1 } }, knowledge: 'variation',
+          desc: '+4 🧬 i +1 obrony — populacja utrwala odporność.' },
+        { id: 'mix', label: 'Zachowaj różnorodność', effects: { variation: 7 },
+          desc: '+7 🧬 — ryzykujesz tylko lekką chorobę, ale zachowujesz szeroką pulę genów.' }
+      ] },
+    { id: 'shift_echo', chain: true, name: 'Nowa dieta się przyjmuje', icon: '🍽️', art: 'know:displacement',
+      desc: 'Zmiana pokarmu przyniosła skutek: część linii wyspecjalizowała się w nowym źródle. Można to utrwalić lub wrócić do starej diety.',
+      options: [
+        { id: 'specialize', label: 'Wyspecjalizuj się', effects: { stats: { feeding: 1 } }, knowledge: 'displacement',
+          desc: '+1 odżywiania na stałe — sprawniej korzystasz z nowego pokarmu.' },
+        { id: 'generalist', label: 'Zostań wszystkożerny', default: true, effects: { reserves: 3, variation: 2 },
+          desc: '+3 ⚡ i +2 🧬 — elastyczna dieta daje zapas i zmienność.' }
+      ] },
+    { id: 'ash_echo', chain: true, name: 'Wulkaniczna gleba', icon: '🌋', art: 'ui:sprout',
+      desc: 'Popioły po erupcji rozłożyły się w żyzną glebę. Roślinność wraca bujniej niż przedtem.',
+      options: [
+        { id: 'bloom', label: 'Wykorzystaj obfitość', default: true, turnMod: { foodBonus: 3, birthMult: 1.3 }, nextMod: { foodBonus: -1 },
+          desc: 'Pokarm +3 i rozród ×1,3 w tej turze, w następnej pokarm −1.' },
+        { id: 'store', label: 'Odłóż zapasy', effects: { reserves: 5 }, desc: '+5 ⚡ od razu.' }
       ] }
   ];
+
+
+  /*
+   * Rywale (inne gatunki tej ery): zajmują nisze, w których żyje gracz, i dzielą z nim
+   * pojemność. Rosną do udziału `share` pojemności niszy (silniejszy rywal — większego),
+   * ale słabną, gdy gracz zapełnia niszę (wypieranie konkurencyjne). Katastrofy ich też
+   * uderzają. Rywal-drapieżnik (`role: 'predator'`) dodatkowo zwiększa presję drapieżników w niszy,
+   * a konkurent (bez roli) tylko zabiera pokarm. Nowy rywal pojawia się z szansą `spawnChance` na turę, jeśli jest ich mniej niż `max`.
+   */
+  var RIVAL = { predPerStrength: 0.2, predMax: 1.8, spawnChance: 0.22, max: 2, firstTurn: 3, startShare: 0.14, baseShare: 0.2, perStrength: 0.035, maxShare: 0.42, playerPressure: 0.7,
+    follow: 0.3, strengthGain: 0.35, strengthMax: 8, catMult: 0.85, extinctBelow: 5 };
+  var RIVALS = [
+    { id: 'eurypterid', role: 'predator', name: 'Skorpiony morskie', icon: '🦂', minEra: 0, maxEra: 0, niches: ['woda', 'przybrzeze'],
+      desc: 'Drapieżne eurypteryty — nawet dwumetrowe stawonogi płytkich mórz paleozoiku.' },
+    { id: 'placoderm', role: 'predator', name: 'Ryby pancerne', icon: '🐟', minEra: 0, maxEra: 0, niches: ['woda'],
+      desc: 'Pancerne ryby (plakodermy) z potężnymi szczękami, panujące w dewonie.' },
+    { id: 'arthropleura', name: 'Wielkie wije', icon: '🐛', minEra: 0, maxEra: 0, niches: ['lad'],
+      desc: 'Artropleury — metrowe stawonogi, które zasiedliły lądowe lasy karbonu.' },
+    { id: 'ammonite', name: 'Amonity', icon: '🐚', minEra: 1, maxEra: 1, niches: ['woda', 'przybrzeze'],
+      desc: 'Głowonogi ze spiralnymi muszlami, jedne z najliczniejszych zwierząt mezozoicznych mórz.' },
+    { id: 'ichthyosaur', role: 'predator', name: 'Ichtiozaury', icon: '🐬', minEra: 1, maxEra: 1, niches: ['woda'],
+      desc: 'Morskie gady o kształcie delfinów, szybkie łowce otwartej wody.' },
+    { id: 'dinosaur', role: 'predator', name: 'Dinozaury', icon: '🦖', minEra: 1, maxEra: 1, niches: ['lad'],
+      desc: 'Dominujące zwierzęta lądowe przez ponad 150 mln lat.' },
+    { id: 'pterosaur', role: 'predator', name: 'Pterozaury', icon: '🦅', minEra: 1, maxEra: 1, niches: ['powietrze', 'przybrzeze'],
+      desc: 'Latające gady, pierwsze kręgowce, które opanowały niebo.' },
+    { id: 'shark', role: 'predator', name: 'Wielkie rekiny', icon: '🦈', minEra: 2, maxEra: 2, niches: ['woda', 'przybrzeze'],
+      desc: 'Rekiny — jedne z najstarszych i najskuteczniejszych drapieżników mórz.' },
+    { id: 'terror_bird', role: 'predator', name: 'Ptaki drapieżne', icon: '🦤', minEra: 2, maxEra: 2, niches: ['lad'],
+      desc: 'Nielotne ptaki-łowcy kenozoiku, przez miliony lat szczyt łańcucha pokarmowego.' },
+    { id: 'bats', name: 'Nietoperze', icon: '🦇', minEra: 2, maxEra: 2, niches: ['powietrze'],
+      desc: 'Jedyne latające ssaki; zajmują nocną niszę w powietrzu.' },
+    { id: 'ungulates', name: 'Kopytne', icon: '🦌', minEra: 2, maxEra: 2, niches: ['lad'],
+      desc: 'Stada roślinożerców stepów i lasów kenozoiku.' }
+  ];
+
+  /*
+   * Zakończenia i epilog. Zwycięstwo kończy się „Antropocenem”: co robi rozumny gatunek
+   * ze światem. Przetrwanie dostaje tytuł zależny od stylu gry (`legacy`), by nie było
+   * jedną, szarą porażką.
+   */
+  var ENDINGS = {
+    anthropocene: {
+      title: 'Epilog: Antropocen',
+      intro: {
+        tools: 'Twój gatunek wykuwa narzędzia, oswaja ogień i przekazuje umiejętności następnym pokoleniom.',
+        sound: 'Twój gatunek porozumiewa się pieśniami i imionami, a wiedza wędruje z pokolenia na pokolenie przez naukę.'
+      },
+      // Skutki dla świata — dobierane z przebiegu partii.
+      impacts: [
+        { when: 'rivals', text: 'Po drodze wyparłeś konkurentów z ich nisz. Rozum rzadko jest łagodny dla sąsiadów.' },
+        { when: 'lost_lines', text: 'Wiele gałęzi Twojej rodziny wymarło. W historii życia to norma: większość gatunków, które kiedykolwiek żyły, już nie istnieje.' },
+        { when: 'radiation', text: 'Twoje potomstwo rozeszło się po wielu niszach, a dziś rozum zmienia je wszystkie.' },
+        { when: 'default', text: 'Czas geologiczny mierzy się milionami lat. Rozumny gatunek potrafi zmienić klimat i obieg pierwiastków w kilka stuleci.' }
+      ],
+      outro: 'Antropocen to proponowana nazwa epoki, w której działalność jednego gatunku zmienia całą planetę. ' +
+        'Tempo dzisiejszych wymierań jest wielokrotnie wyższe niż średnia w historii Ziemi. ' +
+        'Rozum daje moc — ale to, jak z niej korzystać, ewolucja Ci nie podpowie.'
+    },
+    legacy: [
+      { id: 'sky', when: 'sky', title: 'Władcy przestworzy', text: 'Twoja linia opanowała powietrze — niszę, do której prowadzi wiele bardzo kosztownych adaptacji.' },
+      { id: 'radiation', when: 'radiation', title: 'Wielka radiacja', text: 'Twój gatunek rozdzielił się na wiele linii w różnych niszach — tak działała radiacja adaptacyjna po wielkich wymieraniach.' },
+      { id: 'legion', when: 'legion', title: 'Gatunek-legion', text: 'Twoja populacja osiągnęła ogromną liczebność — sukces liczony w osobnikach, choć bez rozumu.' },
+      { id: 'phoenix', when: 'phoenix', title: 'Wąskie gardło i powrót', text: 'Populacja spadła niemal do zera, a mimo to gatunek przetrwał. Tak ocalały m.in. gepardy i żubry.' },
+      { id: 'quiet', when: 'default', title: 'Żywa skamielina', text: 'Twój gatunek trwa bez wielkich zmian — jak rekiny, krokodyle czy latimeria, żywe skamieliny, którym wystarczy dobrze dobrana nisza.' }
+    ]
+  };
 
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
   // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
@@ -597,6 +707,8 @@
 
   // Osiągnięcia (zapisywane między partiami w przeglądarce).
   var ACHIEVEMENTS = [
+    { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.' },
+    { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.' },
     { id: 'first_win', icon: '🏆', label: 'Iskra rozumu', desc: 'Wygraj partię.' },
     { id: 'tools_win', icon: '🪓', label: 'Kultura narzędziowa', desc: 'Wygraj drogą narzędzi.' },
     { id: 'sound_win', icon: '🐬', label: 'Pieśń oceanu', desc: 'Wygraj drogą kultury akustycznej.' },
@@ -746,7 +858,7 @@
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
-    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,

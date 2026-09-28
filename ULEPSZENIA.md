@@ -60,6 +60,14 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > | taktyka + specjacja do wolnych nisz („tactics”) | 97 | 65 | 26 | 0 |
 > | taktyka + klony w tej samej niszy („crowd”) | 93 | 49 | 17 | 0 |
 
+> **Etap „konkurenci, echa i epilog”** — inne gatunki zajmują nisze gracza
+> (pojemność + presja drapieżników, wypieranie), pięć kart-ech wraca po 2–3
+> turach jako skutek wcześniejszych wyborów, a koniec gry ma epilog (Antropocen
+> lub tytuł przetrwania). Skrypt `scripts/boty-balans.js` używa teraz botów
+> z `test/bots.js` (stary, naiwny pokazywał 0% zwycięstw). Balans (60 gier):
+> normalny — prognoza 37%, taktyka 62%; trudny — 10–17%; łatwy — 97–100%.
+> Zostaje: dieta i sieć troficzna (3.4), prekambr jako prolog (3.3).
+
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
 Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
