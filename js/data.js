@@ -66,6 +66,41 @@
   // ACCLIMATIZATION_FOOD pokarmu.
   var MIGRATION = { baseCost: 8, minCost: 2, acclimatizationFood: 0.75 };
 
+
+  /*
+   * Dieta i sieć troficzna. Każda linia ma dietę, a ta wyznacza, z czego żyje:
+   * - roślinożerca / filtrator — żyje z producentów (rośliny, glony, plankton); pojemność niszy
+   *   = pojemność z `CAPACITY` × `plants` (jak dużo roślin jest w danej niszy i erze);
+   * - mięsożerca (wymaga szczęk) — żyje ze zdobyczy: pojemność = `ambientPrey` × pojemność niszy
+   *   + `preyEdible` × biomasa roślinożerców w niszy (rywale i własne linie gracza). Mięso jest
+   *   kaloryczne (`meatBonus`), ale drapieżników — także rywali — może być tylko tyle, ile zdobyczy;
+   * - wszystkożerca (wymaga wszystkożerności) — pojemność to mieszanka obu źródeł: odporna na
+   *   załamanie jednego z nich, ale nigdy najlepsza.
+   * Własne linie gracza tworzą sieć: mięsożerna gałąź zjada roślinożerną (rośnie na niej, ale
+   * podnosi jej presję drapieżników do `pressureMax`). Zmiana diety kosztuje ⚡ i osłabia żerowanie
+   * w tej turze (`switchFood`).
+   */
+  var DIETS = {
+    roslinozerca: { label: 'Roślinożerca', icon: '🌿', art: 'trait:filter_feeding', requires: null,
+      desc: 'Żyje z producentów: roślin, glonów i planktonu. Najwięcej osobników, ale wyścig o rośliny z konkurentami.' },
+    miesozerca: { label: 'Mięsożerca', icon: '🥩', art: 'trait:jaws', requires: 'jaws',
+      desc: 'Żyje ze zdobyczy: kaloryczne żerowanie, ale mieści się mniej osobników — piramida troficzna. Zdobyczą są roślinożercy (rywale i Twoje własne linie).' },
+    wszystkozerca: { label: 'Wszystkożerca', icon: '🍖', art: 'trait:omnivory', requires: 'omnivory',
+      desc: 'Je i rośliny, i zwierzęta. Nie zależy od jednego źródła, ale w żadnym nie jest najlepszy.' }
+  };
+  var TROPHIC = {
+    // Ile roślin (producentów) daje nisza w danej erze względem bazowej pojemności.
+    plants: { woda: [1, 1, 1], przybrzeze: [1, 1, 1], lad: [1, 1, 1.05], powietrze: [0.8, 0.8, 0.8] },
+    // Pojemność drapieżników bez żadnych roślinożerców, jako ułamek pojemności niszy (fauna „w tle”).
+    ambientPrey: { woda: [0.55, 0.6, 0.6], przybrzeze: [0.55, 0.55, 0.55], lad: [0.4, 0.55, 0.6], powietrze: [0.6, 0.6, 0.6] },
+    preyEdible: 0.6,      // jaka część biomasy roślinożerców to zdobycz
+    meatBonus: 1.2,      // kaloryczność mięsa: mnożnik żerowania mięsożercy
+    predShield: { miesozerca: 1, wszystkozerca: 0.4 },  // wyższy poziom sieci = mniej wrogów (odejmowane od presji)
+    omniMix: 0.6,         // pojemność wszystkożercy: 0,6 lepszego źródła + 0,4 gorszego
+    pressurePer: 3, pressureMax: 2,   // presja własnego mięsożercy na roślinożerne linie gracza
+    switchCost: 4, switchFood: 0.75   // koszt ⚡ zmiany diety i żerowanie w turze zmiany
+  };
+
   // Strategia rozrodu linii (przełącznik; obowiązuje do zmiany). Bez kosztu —
   // sam kompromis. `reserveDrain` — ⚡ zużywane co turę.
   var STRATEGIES = {
@@ -452,10 +487,12 @@
     // --- Pokarm ---
     { id: 'filter_feeding', name: 'Filtrowanie pokarmu', icon: '💧', category: 'pokarm', cost: 10, requires: [],
       effects: { feeding: 2 }, tradeoff: 'Skuteczne tylko w wodzie, gdzie jest plankton.',
-      conditions: [{ niches: ['lad', 'powietrze'], effects: { feeding: -2 }, note: 'poza wodą brak planktonu' }],
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { feeding: -2 }, note: 'poza wodą brak planktonu' },
+        { diets: ['miesozerca'], effects: { feeding: -2 }, note: 'filtrowanie nie łowi zdobyczy' }],
       desc: 'Odcedzanie drobnych cząstek pokarmu z wody — tania strategia odżywiania.' },
     { id: 'jaws', name: 'Szczęki', icon: '🦷', category: 'pokarm', cost: 16, requires: [],
       effects: { feeding: 3, metabolism: 1 }, tradeoff: 'Więcej pokarmu, ale wyższy metabolizm.',
+      conditions: [{ diets: ['miesozerca'], effects: { feeding: 1 }, note: 'szczęki drapieżnika' }],
       desc: 'Ruchome szczęki otwierają dostęp do większej i twardszej zdobyczy.' },
     { id: 'omnivory', name: 'Wszystkożerność', icon: '🍖', category: 'pokarm', cost: 22, requires: ['jaws'],
       effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Elastyczna dieta kosztuje energię.',
@@ -533,6 +570,8 @@
       desc: 'Scentralizowany mózg umożliwia złożone zachowania.' },
     { id: 'pack_hunting', name: 'Polowanie w grupie', icon: '🐺', category: 'uklad_nerwowy', cost: 20, requires: ['brain'], minEra: 1,
       effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Skuteczne łowy wymagają koordynacji grupy.',
+      conditions: [{ diets: ['miesozerca'], effects: { feeding: 1 }, note: 'łowy w grupie' },
+        { diets: ['roslinozerca'], effects: { feeding: -1 }, note: 'roślinożerca nie ma czego wspólnie łowić' }],
       desc: 'Współdziałanie w grupie zwiększa skuteczność zdobywania pokarmu i obronę.' },
     { id: 'big_brain', name: 'Rozbudowany mózg', icon: '💡', category: 'uklad_nerwowy', cost: 30, requires: ['brain', 'endothermy'], path: 'intelligence',
       effects: { intelligence: 4, metabolism: 3 }, tradeoff: 'Bardzo energochłonny — potrzebuje stabilnej energii.',
@@ -707,6 +746,7 @@
 
   // Osiągnięcia (zapisywane między partiami w przeglądarce).
   var ACHIEVEMENTS = [
+    { id: 'web', icon: '🔺', label: 'Sieć troficzna', desc: 'Utrzymaj jednocześnie linię roślinożerną i mięsożerną przez trzy tury.' },
     { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.' },
     { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.' },
     { id: 'first_win', icon: '🏆', label: 'Iskra rozumu', desc: 'Wygraj partię.' },
@@ -809,6 +849,21 @@
       body: 'Każde środowisko wyżywi tylko określoną liczbę osobników — to jego pojemność (nośność). ' +
         'Mała populacja w bogatym środowisku rośnie szybko, ale im bliżej granicy, tym wolniej; nadmiar ginie z głodu i ' +
         'przegęszczenia. Wzrost przyjmuje kształt litery S (wzrost logistyczny).' },
+    trophic: { icon: '🔺', title: 'Piramida troficzna',
+      body: 'Producenci (rośliny, glony) są u podstawy; roślinożercy je zjadają, a mięsożercy zjadają roślinożerców. ' +
+        'Z każdym poziomem energii ubywa — zwykle zostaje ok. 10% — więc drapieżników jest wielokrotnie mniej niż ' +
+        'roślinożerców, a łańcuchy pokarmowe rzadko mają więcej niż kilka ogniw.',
+      fossil: 'W skamieniałych rafach i lasach biomasa drapieżników to zwykle ułamek biomasy roślinożerców.' },
+    trophic_cascade: { icon: '🌊', title: 'Kaskada troficzna',
+      body: 'Zmiana na jednym poziomie sieci pokarmowej przenosi się na inne. Więcej drapieżników — mniej roślinożerców, ' +
+        'ale więcej roślin. Odwrotnie: gdy zabraknie zdobyczy, głodują też drapieżniki. Sieć troficzna to układ ' +
+        'sprzężeń zwrotnych, nie prosty łańcuch.',
+      fossil: 'Po powrocie wilków do Yellowstone zmalało stado jeleni, zregenerowały się wierzby nad rzekami, a wraz z nimi bobry.' },
+    diet: { icon: '🍽️', title: 'Dieta i specjalizacja',
+      body: 'Specjalista (tylko rośliny lub tylko mięso) wykorzystuje swój pokarm najlepiej, ale zależy od jednego źródła. ' +
+        'Generalista (wszystkożerca) przetrwa spadek pokarmu, choć w dobrych czasach ustępuje specjalistom. ' +
+        'To jeden z klasycznych kompromisów doboru naturalnego.',
+      fossil: 'Pandy wielkie to potomkowie mięsożerców, którzy wyspecjalizowali się w bambusie — i są zależne od niego.' },
     competition: { icon: '⚔️', title: 'Konkurencja',
       body: 'Gatunki korzystające z tych samych zasobów konkurują ze sobą — dzielą tę samą pojemność środowiska. ' +
         'Dwa gatunki o identycznej niszy nie mogą długo współistnieć (zasada Gausego): jeden wypiera drugi albo ' +
@@ -857,7 +912,7 @@
   return {
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
-    MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
+    MIGRATION: MIGRATION, CAPACITY: CAPACITY, DIETS: DIETS, TROPHIC: TROPHIC, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
     CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,

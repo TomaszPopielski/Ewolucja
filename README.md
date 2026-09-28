@@ -98,6 +98,27 @@ cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
 turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
 się w żadnej wygranej partii.
 
+### Dieta i sieć troficzna
+
+Każda linia ma **dietę** (panel „Decyzje linii”), która decyduje, z czego żyje
+i ile osobników wyżywi jej nisza:
+
+| Dieta | Wymaga | Pojemność niszy | Plusy i minusy |
+|---|---|---|---|
+| **Roślinożerca** (start) | — | największa; dzieli rośliny z konkurentami | najwięcej osobników; łatwo o tłok |
+| **Mięsożerca** | Szczęki | mniejsza: fauna „w tle” + zdobycz | mięso kaloryczne (×1,2 żerowania), mniej wrogów; ale mieści się mniej osobników (piramida troficzna) |
+| **Wszystkożerca** | Wszystkożerność | pośrednia | odporna na załamanie jednego źródła, ale nie najlepsza w żadnym |
+
+Zdobyczą mięsożercy są **roślinożercy w niszy**: rywale-konkurenci i **Twoje
+własne linie**. Drapieżni rywale konkurują z nim o tę zdobycz. Powstaje sieć: po
+specjacji możesz utrzymać roślinożerną i mięsożerną gałąź — druga żywi się
+pierwszą i podnosi jej presję drapieżników (kaskada troficzna). Zmiana diety
+kosztuje 4 ⚡ i osłabia żerowanie w tej turze; podgląd skutku pojawia się w
+prognozie po najechaniu na przycisk. Niektóre cechy zależą od diety
+(filtrowanie nie łowi zdobyczy, polowanie w grupie pomaga tylko mięsożercom).
+W testach wymuszone mięsożerstwo wygrywa tyle co roślinożerstwo na normalnym
+i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
+
 ### Konkurenci, echa decyzji i epilog
 
 - **Konkurenci** — w nisze, w których żyjesz, wchodzą inne gatunki swojej ery

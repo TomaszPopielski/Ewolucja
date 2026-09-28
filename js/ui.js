@@ -46,7 +46,7 @@
     btnSettingsClose: $('btn-settings-close'), btnSettingsX: $('btn-settings-x'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     choiceCard: $('choice-card'), resourceMeters: $('resource-meters'),
-    strategyButtons: $('strategy-buttons'), behaviorButtons: $('behavior-buttons'),
+    strategyButtons: $('strategy-buttons'), dietButtons: $('diet-buttons'), behaviorButtons: $('behavior-buttons'),
     selectionToggle: $('selection-toggle'), selectionText: $('selection-text'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -444,8 +444,10 @@
     html += '<div class="forecast-row"><span>' + ENERGY + ' Rezerwy</span><span class="fc ' +
       (base.reservesAfter >= base.reserves ? 'pos' : 'neg') + '">' + num(base.reserves) + ' → ' + num(base.reservesAfter) + '</span></div>';
     var capWarn = base.nicheLoad >= base.capacity * DATA.CAPACITY.warnAt;
-    html += '<div class="forecast-row"><span>Pojemność niszy</span><span class="fc' + (capWarn ? ' neg' : '') + '">' +
-      base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    html += '<div class="forecast-row"><span>' + (base.diet === 'miesozerca' ? 'Zdobycz (drapieżniki / pojemność)' : 'Pojemność niszy') +
+      '</span><span class="fc' + (capWarn ? ' neg' : '') + '">' + base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    if (base.diet === 'miesozerca') html += '<div class="forecast-row"><span>Biomasa roślinożerców w niszy</span><span class="fc">' + base.preyBiomass + '</span></div>';
+    if (base.webPressure >= 0.1) html += '<div class="forecast-row"><span>Presja Twojej mięsożernej linii</span><span class="fc neg">+' + num(base.webPressure) + '</span></div>';
     if (base.rivalLoad) html += '<div class="forecast-row"><span>w tym konkurenci</span><span class="fc">' + base.rivalLoad + '</span></div>';
     if (base.crowdDeaths) {
       html += '<div class="forecast-row"><span>Straty z przegęszczenia</span><span class="fc neg">−' + base.crowdDeaths + '</span></div>';
@@ -539,6 +541,18 @@
       el.strategyButtons.appendChild(b);
     });
 
+    el.dietButtons.innerHTML = '';
+    Object.keys(DATA.DIETS).forEach(function (key) {
+      var dt = DATA.DIETS[key], can = Engine.canSetDiet(DATA, l, key), cur = key === Engine.dietOf(l);
+      var b = tacticButton(dt, cur, cur ? '' : DATA.TROPHIC.switchCost + ' ' + ENERGY, playing && can.ok);
+      b.title = dt.desc + (can.ok ? '' : ' — ' + can.error);
+      if (playing && can.ok && !cur) {
+        b.addEventListener('click', function () { onSetDiet(key); });
+        previewOn(b, { diet: key, label: dt.label });
+      }
+      el.dietButtons.appendChild(b);
+    });
+
     el.behaviorButtons.innerHTML = '';
     Object.keys(DATA.BEHAVIORS).forEach(function (key) {
       var bh = DATA.BEHAVIORS[key], can = Engine.canSetBehavior(DATA, l, key);
@@ -620,6 +634,10 @@
   function onSetStrategy(key) {
     if (turnBusy) return;
     if (applyAction(Engine.setStrategy(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
+  }
+  function onSetDiet(key) {
+    if (turnBusy) return;
+    if (applyAction(Engine.setDiet(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
   }
   function onSetBehavior(key) {
     if (turnBusy) return;
@@ -938,7 +956,8 @@
       var block = document.createElement('div'); block.className = 'report-lineage';
       if (multi) {
         var head = document.createElement('div'); head.className = 'report-lineage-head';
-        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(lr.name);
+        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(lr.name) +
+          (lr.diet ? ' <span class="rival-tag">' + escapeHtml(DATA.DIETS[lr.diet].label.toLowerCase()) + '</span>' : '');
         block.appendChild(head);
       }
       lr.events.forEach(function (txt) {
@@ -953,9 +972,10 @@
       if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos', 'ui:sprout'));
       if (lr.diseaseDeaths > 0) block.appendChild(line('Straty z choroby', '-' + lr.diseaseDeaths, 'neg'));
       if (lr.crowdDeaths > 0) block.appendChild(line('Straty z przegęszczenia', '-' + lr.crowdDeaths, 'neg'));
-      if (lr.capacity) block.appendChild(line('Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
+      if (lr.capacity) block.appendChild(line(lr.diet === 'miesozerca' ? 'Zdobycz (drapieżniki / pojemność)' : 'Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
         lr.nicheLoad >= lr.capacity * DATA.CAPACITY.warnAt ? 'neg' : 'plain'));
       if (lr.rivalLoad) block.appendChild(line('w tym konkurenci', lr.rivalLoad, 'plain'));
+      if (lr.diet === 'miesozerca') block.appendChild(line('Biomasa roślinożerców (zdobycz)', lr.preyBiomass, 'plain'));
       if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
       if (lr.reservesBefore != null) {
         block.appendChild(line(ENERGY + ' Rezerwy energii', num(lr.reservesBefore) + ' → ' + num(lr.reservesAfter),
@@ -1274,7 +1294,7 @@
       'Odkryte pojęcia w Kodeksie: ' + state.unlockedKnowledge.length, '', 'Linie rozwojowe:'];
     state.lineages.forEach(function (l) {
       L.push('  • ' + l.name + ' — ' + (l.alive ? 'żywa' : 'wymarła') +
-        ', nisza: ' + DATA.NICHES[l.niche].label +
+        ', nisza: ' + DATA.NICHES[l.niche].label + ', dieta: ' + DATA.DIETS[Engine.dietOf(l)].label.toLowerCase() +
         ', inteligencja: ' + l.stats.intelligence +
         ', strategia: ' + (DATA.STRATEGIES[l.strategy] || DATA.STRATEGIES.zrownowazona).label +
         ', rezerwy: ' + num(l.reserves || 0) + ' ⚡, zmienność: ' + (l.variation || 0) + ' 🧬' +

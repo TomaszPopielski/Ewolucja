@@ -66,7 +66,12 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > lub tytuł przetrwania). Skrypt `scripts/boty-balans.js` używa teraz botów
 > z `test/bots.js` (stary, naiwny pokazywał 0% zwycięstw). Balans (60 gier):
 > normalny — prognoza 37%, taktyka 62%; trudny — 10–17%; łatwy — 97–100%.
-> Zostaje: dieta i sieć troficzna (3.4), prekambr jako prolog (3.3).
+> **Etap „dieta i sieć troficzna”** (3.4) — trzy diety z własną pojemnością niszy
+> (roślinożerca / mięsożerca / wszystkożerca), zdobycz mięsożercy zależy od
+> roślinożerców (rywali i własnych linii), kaskada troficzna między liniami gracza,
+> cechy zależne od diety. Wymuszony wybór diety w botach (normalny, 60 gier):
+> roślinożerca 62%, mięsożerca 62%, wszystkożerca 52%; trudny: 17% / 5% / 18%.
+> Zostaje: prekambr jako prolog (3.3).
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
