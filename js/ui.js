@@ -60,6 +60,9 @@
     speciateName: $('speciate-name'), speciateHint: $('speciate-hint'), btnSpeciateCancel: $('btn-speciate-cancel'),
     modalConfirm: $('modal-confirm'), confirmMessage: $('confirm-message'),
     btnConfirmYes: $('btn-confirm-yes'), btnConfirmNo: $('btn-confirm-no'),
+    screenPrologue: $('screen-prologue'), prologueToggle: $('prologue-toggle'), prologueStep: $('prologue-step'),
+    prologueWhen: $('prologue-when'), prologueDesc: $('prologue-desc'), prologueTitle: $('prologue-title'),
+    prologueOptions: $('prologue-options'), prologuePath: $('prologue-path'), btnPrologueSkip: $('btn-prologue-skip'),
     endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
     endStats: $('end-stats'), btnPlayAgain: $('btn-play-again'), btnOpenCodexEnd: $('btn-open-codex-end'),
     btnSummary: $('btn-summary'),
@@ -99,6 +102,7 @@
     el.screenStart.hidden = name !== 'start';
     el.screenGame.hidden = name !== 'game';
     el.screenEnd.hidden = name !== 'end';
+    if (el.screenPrologue) el.screenPrologue.hidden = name !== 'prologue';
   }
 
   function newGame(speciesName, opts) {
@@ -111,6 +115,50 @@
     showScreen('game');
     renderAll();
     maybeStartTutorial();
+  }
+
+  // ===================== Prolog (prekambr) =====================
+  var prologueRun = null;
+  function beginPrologue(name, opts) {
+    prologueRun = { name: name, opts: opts, step: 0, picks: [] };
+    showScreen('prologue');
+    renderPrologue();
+    if (el.prologueTitle) el.prologueTitle.focus && el.prologueTitle.setAttribute('tabindex', '-1');
+    window.scrollTo(0, 0);
+  }
+  function renderPrologue() {
+    var run = prologueRun, stages = DATA.PROLOGUE, st = stages[run.step];
+    el.prologueStep.textContent = 'Prolog · prekambr · krok ' + (run.step + 1) + ' z ' + stages.length;
+    el.prologueTitle.innerHTML = escapeHtml(st.title);
+    el.prologueWhen.innerHTML = ico('ui:hourglass', st.icon) + ' ' + escapeHtml(st.when);
+    el.prologueDesc.textContent = st.desc;
+    el.prologueOptions.innerHTML = '';
+    st.options.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice-option prologue-option';
+      b.innerHTML = '<strong><span aria-hidden="true">' + o.icon + '</span> ' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+        '<span class="prologue-trade">' + escapeHtml(o.tradeoff) + '</span>';
+      b.addEventListener('click', function () { pickPrologue(o.id); });
+      el.prologueOptions.appendChild(b);
+    });
+    var picked = run.picks.map(function (id) {
+      var lab = ''; stages.forEach(function (s) { s.options.forEach(function (x) { if (x.id === id) lab = x.label; }); });
+      return lab;
+    });
+    el.prologuePath.textContent = picked.length ? 'Dotąd: ' + picked.join(' → ') : '';
+  }
+  function pickPrologue(id) {
+    var run = prologueRun; if (!run) return;
+    run.picks.push(id); run.step += 1;
+    if (run.step >= DATA.PROLOGUE.length) finishPrologue(); else renderPrologue();
+  }
+  function finishPrologue() {
+    var run = prologueRun; prologueRun = null;
+    newGame(run.name, Object.assign({}, run.opts, { prologue: run.picks }));
+  }
+  function skipPrologue() {
+    var run = prologueRun; prologueRun = null;
+    if (run) newGame(run.name, run.opts);
   }
 
   function scenarioOpts(sc) {
@@ -132,7 +180,10 @@
         '<span class="scenario-diff">' + diff.label + ' · cel: int. ' + (sc.goal != null ? sc.goal : diff.goal) + ' + kultura</span>' +
         '<span class="scenario-intro">' + sc.intro + '</span>';
       card.addEventListener('click', function () {
-        newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
+        var name = (el.speciesInput.value || '').trim() || 'Prazwierzę', opts = scenarioOpts(sc);
+        // Prolog tylko dla scenariuszy od początku (paleozoik) i gdy gracz go nie wyłączył.
+        if (el.prologueToggle && el.prologueToggle.checked && !sc.startEra && DATA.PROLOGUE && DATA.PROLOGUE.length) beginPrologue(name, opts);
+        else newGame(name, opts);
       });
       el.scenarioCards.appendChild(card);
     });
@@ -1184,6 +1235,7 @@
         ep.paragraphs.map(function (t) { return '<p>' + escapeHtml(t) + '</p>'; }).join('') : '';
     }
     el.endStats.innerHTML = '';
+    if ((state.prologue || []).length) endStat('Prolog (prekambr)', escapeHtml(Engine.prologueLabels(DATA, state).join(' → ')));
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
     endStat('Liczba linii rozwojowych', state.lineages.length);
     if (state.rivalsDisplaced) endStat('Wyparci konkurenci', state.rivalsDisplaced);
@@ -1285,6 +1337,7 @@
       'Scenariusz: ' + (sc ? sc.name : state.scenario) + ' (trudność: ' + (diff ? diff.label : state.difficulty) + ')',
       'Wynik: ' + statusPl,
       'Kod świata: ' + (state.seed || '—'),
+      'Prolog (prekambr): ' + ((state.prologue || []).length ? Engine.prologueLabels(DATA, state).join(' → ') : 'pominięty'),
       'Punkty: ' + Engine.scoreGame(DATA, state).total,
       'Cele er: ' + (state.eraGoals || []).map(function (g) { var d = Engine.goalDef(DATA, g.id); return (d ? d.label : g.id) + ' (' + (g.status === 'done' ? 'spełniony' : g.status === 'failed' ? 'nie' : 'otwarty') + ')'; }).join('; '),
       'Osiągnięcia: ' + (Engine.earnedAchievements(DATA, state).map(function (id) { var a = DATA.ACHIEVEMENTS.filter(function (x) { return x.id === id; })[0]; return a ? a.label : id; }).join(', ') || 'brak'),
@@ -1456,6 +1509,7 @@
       if (!state) return;
       var sc = DATA.SCENARIOS.filter(function (x) { return x.id === state.scenario; })[0] || DATA.SCENARIOS[0];
       var o = scenarioOpts(sc); o.seed = state.seed; o.difficulty = state.difficulty;
+      if ((state.prologue || []).length) o.prologue = state.prologue.slice();   // ten sam prolog — porównujesz tylko strategię
       newGame(Engine.getLineage(state, 'L0').name, o);
     });
     el.btnUndo.addEventListener('click', onUndo);
@@ -1485,8 +1539,9 @@
     el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
     el.btnTutorialNext.addEventListener('click', tutorialNext);
     el.btnTutorialSkip.addEventListener('click', endTutorial);
+    if (el.btnPrologueSkip) el.btnPrologueSkip.addEventListener('click', skipPrologue);
 
-    function doRestart() { clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
+    function doRestart() { prologueRun = null; clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
     el.btnRestart.addEventListener('click', function () {
       if (state && state.status === 'playing') openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
       else doRestart();

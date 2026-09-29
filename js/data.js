@@ -411,6 +411,55 @@
     ]
   };
 
+
+  /*
+   * Prolog: prekambr (4,5 mld – 541 mln lat temu), zanim ruszy właściwa gra. Trzy wybory
+   * zamiast tur — każdy to zwrot w historii życia z drobnymi, wyważonymi skutkami na start
+   * (`effects`: stats, reserves, variation, ep) i kartą wiedzy (`knowledge`). Nie da się
+   * wybrać źle: każda opcja to kompromis, a łączny bilans jest zbliżony.
+   */
+  var PROLOGUE = [
+    { id: 'energy', when: 'ok. 3,8 mld lat temu', icon: '🌋', title: 'Skąd czerpać energię?',
+      desc: 'Ocean jest pełen związków chemicznych, a nad nim świeci Słońce. Pierwsze komórki muszą znaleźć sposób, by z tego żyć.',
+      options: [
+        { id: 'chemo', icon: '♨️', label: 'Chemosynteza przy kominach', knowledge: 'chemosynthesis',
+          desc: 'Energia z związków siarki i żelaza przy kominach hydrotermalnych.',
+          effects: { stats: { metabolism: -1, mobility: -1 }, variation: 2, reserves: 2 }, tradeoff: 'Oszczędny metabolizm (−1), +2 🧬 i +2 ⚡, ale przywiązanie do kominów (mobilność −1).' },
+        { id: 'photo', icon: '☀️', label: 'Fotosynteza (sinice)', knowledge: 'photosynthesis',
+          desc: 'Energia ze światła słonecznego; ubocznie powstaje tlen.',
+          effects: { stats: { feeding: 1, mobility: -1 }, reserves: 2 }, tradeoff: '+1 odżywiania i +2 ⚡, ale przyrośnięte maty słabo się ruszają (mobilność −1).' },
+        { id: 'phago', icon: '🦠', label: 'Fagocytoza — żywienie cudzymi komórkami', knowledge: 'phagocytosis',
+          desc: 'Komórka otacza i trawi inne komórki — pierwsze drapieżnictwo.',
+          effects: { stats: { feeding: 1, metabolism: 1 } }, tradeoff: '+1 odżywiania, ale +1 metabolizmu.' }
+      ] },
+    { id: 'cells', when: '2 mld – 600 mln lat temu', icon: '🧫', title: 'Jak połączyć siły?',
+      desc: 'Pojedyncza komórka jest prosta i szybka, ale ma swoje granice. Życie zaczyna eksperymentować ze współpracą.',
+      options: [
+        { id: 'endosymbiosis', icon: '🔋', label: 'Endosymbioza — mitochondria', knowledge: 'endosymbiosis',
+          desc: 'Komórka „przygarnia” bakterię, która staje się elektrownią komórki.',
+          effects: { stats: { feeding: 1, mobility: -1 }, reserves: 3 }, tradeoff: '+1 odżywiania i +3 ⚡, ale większa, złożona komórka jest mniej ruchliwa (mobilność −1).' },
+        { id: 'colony', icon: '🫧', label: 'Kolonie i wielokomórkowość', knowledge: 'multicellularity',
+          desc: 'Komórki zostają razem, dzielą się pracą i chronią się nawzajem.',
+          effects: { stats: { defense: 1, mobility: -1 }, variation: 4 }, tradeoff: '+1 obrony i +4 🧬, ale ciężka kolonia jest mniej ruchliwa (mobilność −1).' },
+        { id: 'solitary', icon: '⚡', label: 'Szybko dzielące się pojedyncze komórki', knowledge: 'binary_fission',
+          desc: 'Prostota i tempo: podział co kilkanaście minut daje ogromną liczebność.',
+          effects: { stats: { reproduction: 1, defense: -1 }, ep: -8 }, tradeoff: '+1 rozrodu, ale −1 obrony i −8 EP na start — pojedyncza komórka jest bezbronna i bez zaplecza.' }
+      ] },
+    { id: 'oxygen', when: '600 – 541 mln lat temu', icon: '🫧', title: 'Tlen i pierwsze zwierzęta',
+      desc: 'Sinice przez miliony lat zatruwały ocean i atmosferę tlenem. Dla jednych to katastrofa, dla innych — szansa. Pojawiają się miękkie zwierzęta fauny ediakarskiej.',
+      options: [
+        { id: 'aerobic', icon: '🫁', label: 'Oddychanie tlenowe', knowledge: 'great_oxidation',
+          desc: 'Tlen pozwala wydobyć z pokarmu wielokrotnie więcej energii.',
+          effects: { stats: { feeding: 1, metabolism: 1 }, reserves: 2 }, tradeoff: '+1 odżywiania i +2 ⚡, ale +1 metabolizmu — ciało zużywa więcej energii.' },
+        { id: 'anaerobic', icon: '🕳️', label: 'Odporność na niedotlenienie', knowledge: 'anoxia',
+          desc: 'Linia trzyma się miejsc ubogich w tlen, gdzie brakuje konkurentów.',
+          effects: { stats: { defense: 1, metabolism: -1, feeding: -1 } }, tradeoff: '+1 obrony, ale −1 metabolizmu i −1 odżywiania — mało energii, za to spokojne siedlisko.' },
+        { id: 'soft', icon: '🪼', label: 'Miękkie ciało ediakaru', knowledge: 'ediacaran',
+          desc: 'Płaskie, miękkie zwierzęta bez szkieletu, jak Dickinsonia.',
+          effects: { stats: { mobility: 1, defense: -1 } }, tradeoff: '+1 mobilności, ale −1 obrony (brak pancerza).' }
+      ] }
+  ];
+
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
   // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
   // najlepszej linii.
@@ -864,6 +913,42 @@
         'Generalista (wszystkożerca) przetrwa spadek pokarmu, choć w dobrych czasach ustępuje specjalistom. ' +
         'To jeden z klasycznych kompromisów doboru naturalnego.',
       fossil: 'Pandy wielkie to potomkowie mięsożerców, którzy wyspecjalizowali się w bambusie — i są zależne od niego.' },
+    chemosynthesis: { icon: '♨️', title: 'Chemosynteza',
+      body: 'Niektóre bakterie czerpią energię nie ze światła, lecz z reakcji chemicznych, np. utleniania siarkowodoru. ' +
+        'Żyją przy kominach hydrotermalnych, gdzie ciemność i gorąco nie są przeszkodą — być może właśnie tam życie się zaczęło.',
+      fossil: 'Wokół dzisiejszych kominów na dnie oceanu żyją kolonie rurkoczółenek, które karmią się dzięki chemosyntetycznym bakteriom.' },
+    photosynthesis: { icon: '☀️', title: 'Fotosynteza',
+      body: 'Sinice nauczyły się zamieniać światło, wodę i dwutlenek węgla w cukry, wydzielając tlen. ' +
+        'To najważniejszy wynalazek w historii życia: bez niego nie byłoby ani tlenowej atmosfery, ani zwierząt.',
+      fossil: 'Stromatolity — warstwowane skały budowane przez maty sinic — liczą nawet 3,5 mld lat.' },
+    phagocytosis: { icon: '🦠', title: 'Fagocytoza',
+      body: 'Komórka może „połknąć” inną i ją strawić. Dzięki temu powstało pierwsze drapieżnictwo, a wraz z nim wyścig zbrojeń: ' +
+        'ofiary zaczęły rosnąć i opancerzać się. To także droga do endosymbiozy — nie każda połknięta komórka zostaje strawiona.',
+      fossil: 'Ameby i wiele wolno żyjących pierwotniaków do dziś żywią się fagocytozą.' },
+    endosymbiosis: { icon: '🔋', title: 'Endosymbioza',
+      body: 'Mitochondria i chloroplasty to potomkowie dawnych bakterii, które zamieszkały w większej komórce i zostały w niej na stałe. ' +
+        'Mają własne DNA i dzielą się niezależnie. To jeden z największych przykładów współpracy w ewolucji.',
+      fossil: 'Ślady eukariotów pochodzą sprzed ok. 1,8–2 mld lat; czerwone glony sprzed 1,2 mld lat to najstarsze znane organizmy płciowe.' },
+    multicellularity: { icon: '🫧', title: 'Wielokomórkowość',
+      body: 'Wielokomórkowość wyewoluowała wielokrotnie i niezależnie: u zwierząt, roślin, grzybów i glonów. ' +
+        'Komórki dzielą się pracą — jedne żywią, inne bronią, jeszcze inne się rozmnażają — kosztem tego, że część z nich zamiera na rzecz całości.',
+      fossil: 'Kolonie Volvox pokazują dziś pośredni etap między pojedynczą komórką a organizmem.' },
+    binary_fission: { icon: '⚡', title: 'Podział komórki',
+      body: 'Bakterie dzielą się na dwie identyczne komórki nawet co kilkanaście minut. Ogromna liczebność i tempo zmian ' +
+        'pozwalają im błyskawicznie przystosowywać się — dlatego to bakterie, a nie zwierzęta, są najliczniejszą i najstarszą formą życia.',
+      fossil: 'Komórki podobne do bakterii zapisały się w skałach sprzed ponad 3,4 mld lat.' },
+    great_oxidation: { icon: '🫁', title: 'Wielkie utlenienie',
+      body: 'Ok. 2,4 mld lat temu tlen z fotosyntezy zaczął gromadzić się w atmosferze — dla wielu beztlenowców to była katastrofa, ' +
+        'ale oddychanie tlenowe daje kilkanaście razy więcej energii z tej samej porcji pokarmu. Bez tego złożone zwierzęta nie miałyby jak żyć.',
+      fossil: 'Pasmowe formacje żelaziste (BIF) zapisują moment, gdy tlen zaczął rdzewić żelazo w oceanach.' },
+    anoxia: { icon: '🕳️', title: 'Życie bez tlenu',
+      body: 'Wiele organizmów przeżyło Wielkie utlenienie, zamieszkując miejsca ubogie w tlen: osady, głębiny, wnętrza innych organizmów. ' +
+        'Dziś beztlenowce żyją w błocie, jelitach zwierząt i na dnie oceanu. Niedotlenienie wraca w historii Ziemi przy kolejnych wymieraniach.',
+      fossil: 'Bakterie redukujące siarczany to jedni z najstarszych mieszkańców osadów.' },
+    ediacaran: { icon: '🪼', title: 'Fauna ediakarska',
+      body: 'Tuż przed kambrem żyły dziwne, miękkie organizmy bez szkieletów: płaskie „liście”, „materace” i dyski. ' +
+        'Nie wiadomo do końca, czy były przodkami dzisiejszych zwierząt, czy osobną gałęzią, która wymarła.',
+      fossil: 'Dickinsonia z Ediakary w Australii Południowej ma ok. 558 mln lat — to jedne z najstarszych zwierząt.' },
     competition: { icon: '⚔️', title: 'Konkurencja',
       body: 'Gatunki korzystające z tych samych zasobów konkurują ze sobą — dzielą tę samą pojemność środowiska. ' +
         'Dwa gatunki o identycznej niszy nie mogą długo współistnieć (zasada Gausego): jeden wypiera drugi albo ' +
@@ -913,7 +998,7 @@
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     MIGRATION: MIGRATION, CAPACITY: CAPACITY, DIETS: DIETS, TROPHIC: TROPHIC, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
-    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, PROLOGUE: PROLOGUE, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,

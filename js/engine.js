@@ -98,6 +98,32 @@
   /*
    * opts: { difficulty, startEra, startEp, goal, startTraits, startNiche, scenarioId }
    */
+  /* Prolog: dla każdego etapu bierze wybraną opcję (nieznane id pomija) i nakłada jej skutki
+     na linię startową. Zwraca { picked, knowledge, ep }. */
+  function applyPrologue(data, root, ids) {
+    var out = { picked: [], knowledge: [], ep: 0 };
+    (data.PROLOGUE || []).forEach(function (stage, i) {
+      var opt = stage.options.filter(function (o) { return (ids || [])[i] === o.id; })[0];
+      if (!opt) return;
+      var fx = opt.effects || {};
+      if (fx.stats) applyEffects(root, fx.stats);
+      if (fx.reserves) root.reserves = clamp((root.reserves || 0) + fx.reserves, 0, reservesCap(data, root));
+      if (fx.variation) root.variation = clamp((root.variation || 0) + fx.variation, 0, data.VARIATION.cap);
+      if (fx.ep) out.ep += fx.ep;
+      if (opt.knowledge && out.knowledge.indexOf(opt.knowledge) === -1) out.knowledge.push(opt.knowledge);
+      out.picked.push(opt.id);
+    });
+    return out;
+  }
+  // Nazwy wybranych opcji prologu (do ekranu końcowego i eksportu).
+  function prologueLabels(data, state) {
+    return (state.prologue || []).map(function (id) {
+      var o = null;
+      data.PROLOGUE.forEach(function (st) { st.options.forEach(function (x) { if (x.id === id) o = x; }); });
+      return o ? o.label : id;
+    });
+  }
+
   function createInitialState(data, speciesName, opts) {
     opts = opts || {};
     var diffKey = opts.difficulty || 'normalny';
@@ -124,6 +150,10 @@
       if (!nreq || root.traits.indexOf(nreq) !== -1) root.niche = opts.startNiche;
     }
 
+    // Prolog (prekambr): wybrane opcje zmieniają linię i zasoby na starcie.
+    var prologue = applyPrologue(data, root, opts.prologue);
+    if (prologue.ep) ep += prologue.ep;
+
     var seed = normalizeSeed(opts.seed);
     var st = {
       version: 8,
@@ -143,7 +173,8 @@
       lineages: [root],
       activeLineageId: 'L0',
       nextLineageNum: 1,
-      unlockedKnowledge: root.niche === 'lad' ? ['intro', 'land'] : ['intro'],
+      prologue: prologue.picked,   // id wybranych opcji prologu (po jednej na etap)
+      unlockedKnowledge: (root.niche === 'lad' ? ['intro', 'land'] : ['intro']).concat(prologue.knowledge),
       pendingChoice: null,       // karta decyzji czekająca na wybór gracza
       pendingGamble: null,       // ryzykowna opcja karty — wynik losowany w turze
       choiceHistory: [],         // karty, które już padły (bez powtórek w partii)
@@ -1441,7 +1472,7 @@
     randomSeed: randomSeed, normalizeSeed: normalizeSeed,
     winPathOf: winPathOf, cultureNicheBlocked: cultureNicheBlocked, goalDef: goalDef,
     victoryOutlook: victoryOutlook, concede: concede,
-    epilogue: epilogue, rivalsIn: rivalsIn, gameStats: gameStats, earnedAchievements: earnedAchievements, scoreGame: scoreGame,
+    prologueLabels: prologueLabels, epilogue: epilogue, rivalsIn: rivalsIn, gameStats: gameStats, earnedAchievements: earnedAchievements, scoreGame: scoreGame,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
     goalBlockedByPopulation: goalBlockedByPopulation, hasViableLineage: hasViableLineage,

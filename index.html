@@ -46,11 +46,26 @@
           <label for="world-seed">Kod świata <span class="label-opt">(opcjonalnie)</span>:</label>
           <input id="world-seed" name="world-seed" type="text" maxlength="12" autocomplete="off"
                  placeholder="np. K7Q2MX — puste = nowy, losowy świat" aria-describedby="world-seed-hint" />
+          <label class="prologue-toggle"><input type="checkbox" id="prologue-toggle" checked />
+            <span><strong>Zacznij od prologu — prekambr</strong> (3 wybory, ok. minuty): jak życie zdobyło energię, złożoność i tlen. Twoje wybory dają drobne kompromisy na start. Dotyczy scenariuszy od paleozoiku.</span></label>
           <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go całej klasie, by porównać wyniki.</p>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
         <p class="edu-note" data-i18n="start.eduNote"></p>
+      </div>
+    </section>
+
+    <!-- Prolog: prekambr -->
+    <section id="screen-prologue" class="screen screen-prologue" hidden aria-labelledby="prologue-title">
+      <div class="card prologue-card">
+        <p class="prologue-step" id="prologue-step"></p>
+        <h1 id="prologue-title">Prolog</h1>
+        <p class="prologue-when" id="prologue-when"></p>
+        <p class="prologue-desc" id="prologue-desc"></p>
+        <div class="prologue-options" id="prologue-options"></div>
+        <div class="prologue-path" id="prologue-path" aria-live="polite"></div>
+        <button id="btn-prologue-skip" class="btn btn-ghost" type="button">Pomiń prolog — zacznij od kambru</button>
       </div>
     </section>
 

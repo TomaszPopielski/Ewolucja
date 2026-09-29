@@ -71,7 +71,12 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > roślinożerców (rywali i własnych linii), kaskada troficzna między liniami gracza,
 > cechy zależne od diety. Wymuszony wybór diety w botach (normalny, 60 gier):
 > roślinożerca 62%, mięsożerca 62%, wszystkożerca 52%; trudny: 17% / 5% / 18%.
-> Zostaje: prekambr jako prolog (3.3).
+> **Etap „prolog”** (3.3, część) — opcjonalny prekambr: trzy wybory z kompromisami,
+> skutki na start, 9 nowych kart wiedzy. Wszystkie 27 zestawów dają średnio 69%
+> zwycięstw bota (bez prologu 68%; najsłabszy 48%, najsilniejszy 85%). To prolog
+> narracyjno-decyzyjny, a nie osobna era do rozegrania — pełna era wymagałaby
+> przesunięcia indeksów er (cechy, scenariusze, rywale, testy). Zostaje: Antropocen
+> jako grywalny epilog.
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.

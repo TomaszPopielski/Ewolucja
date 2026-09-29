@@ -895,3 +895,15 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .end-epilogue[hidden] { display: none; }
 .end-epilogue h2 { font-family: var(--serif); font-size: 1.1rem; margin: 0 0 6px; }
 .end-epilogue p { font-family: var(--serif); line-height: 1.55; margin: 6px 0; }
+
+/* --- Prolog: prekambr --- */
+.prologue-toggle { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 4px; font-size: .88rem; cursor: pointer; }
+.prologue-toggle input { margin-top: 3px; }
+.prologue-card { max-width: 720px; margin: 0 auto; }
+.prologue-step { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 4px; }
+.prologue-when { font-size: .9rem; color: var(--ink-soft); margin: 2px 0 10px; }
+.prologue-desc { font-family: var(--serif); font-size: 1.05rem; line-height: 1.55; margin: 0 0 14px; }
+.prologue-options { display: grid; gap: 8px; }
+.prologue-option strong { font-size: 1rem; }
+.prologue-trade { color: var(--ink-soft); font-style: italic; font-size: .82rem; }
+.prologue-path { min-height: 1.4em; margin: 12px 0 8px; font-size: .85rem; color: var(--ink-soft); }

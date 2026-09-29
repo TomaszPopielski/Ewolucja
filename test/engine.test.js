@@ -980,6 +980,37 @@ group('dieta i sieć troficzna', function () {
   ok(Engine.earnedAchievements(GameData, ach).indexOf('web') !== -1, 'osiągnięcie „Sieć troficzna” po 3 turach z obiema dietami');
 });
 
+group('prolog — prekambr', function () {
+  var P = GameData.PROLOGUE;
+  eq(P.length, 3, 'prolog ma trzy etapy');
+  ok(P.every(function (st) { return st.options.length === 3 && st.options.every(function (o) { return o.label && o.desc && o.tradeoff && o.knowledge && GameData.KNOWLEDGE[o.knowledge]; }); }),
+    'każda opcja ma opis, kompromis i istniejącą kartę wiedzy');
+  var base = withSeed('PROL'), pick = ['photo', 'endosymbiosis', 'anaerobic'];
+  var s = withSeed('PROL', { prologue: pick }), b = active(base), l = active(s);
+  eq(l.stats.feeding, b.stats.feeding + 1 + 1 - 1, 'skutki stat: fotosynteza +1, endosymbioza +1, niedotlenienie −1 odżywiania');
+  eq(l.stats.mobility, b.stats.mobility - 1 - 1, 'koszty stat: fotosynteza −1 i endosymbioza −1 mobilności');
+  eq(l.reserves, b.reserves + 2 + 3, 'rezerwy: +2 (fotosynteza) +3 (endosymbioza)');
+  eq(s.ep, base.ep, 'EP na start bez zmian dla tego zestawu');
+  eq(withSeed('PROL', { prologue: ['chemo', 'solitary'] }).ep, base.ep - 8, 'komórki pojedyncze kosztują 8 EP na start');
+  eq(s.prologue.join(','), pick.join(','), 'wybory zapisane w stanie');
+  ok(['photosynthesis', 'endosymbiosis', 'anoxia'].every(function (k) { return s.unlockedKnowledge.indexOf(k) !== -1; }), 'wybory odkrywają karty wiedzy');
+  eq(Engine.prologueLabels(GameData, s).length, 3, 'nazwy wyborów do ekranu końcowego');
+  // Bez prologu i z nieznanymi id gra startuje jak dotąd.
+  eq(base.prologue.length, 0, 'bez prologu nic się nie zmienia');
+  var bad = withSeed('PROL', { prologue: ['nie_ma', 'x', 'y'] });
+  ok(bad.prologue.length === 0 && active(bad).stats.feeding === b.stats.feeding && bad.ep === base.ep, 'nieznane id są pomijane');
+  var part = withSeed('PROL', { prologue: ['chemo'] });
+  ok(part.prologue.length === 1 && active(part).stats.metabolism === b.stats.metabolism - 1, 'częściowy prolog też działa');
+  eq(JSON.stringify(Engine.simulateTurn(GameData, s, det).state.prologue), JSON.stringify(pick), 'prolog przetrwał turę (w stanie)');
+  // Balans: żaden z 27 zestawów nie jest ślepą uliczką (start nie zagładza linii).
+  var dead = 0;
+  P[0].options.forEach(function (a) { P[1].options.forEach(function (c) { P[2].options.forEach(function (d) {
+    var t = withSeed('PB', { prologue: [a.id, c.id, d.id] }); var f = Engine.forecast(GameData, t, active(t));
+    if (f.projectedPop < active(t).population * 0.6) dead++;
+  }); }); });
+  eq(dead, 0, 'żaden zestaw prologu nie zaczyna od zapaści populacji');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

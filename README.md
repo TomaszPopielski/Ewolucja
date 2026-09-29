@@ -98,6 +98,19 @@ cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
 turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
 się w żadnej wygranej partii.
 
+### Prolog: prekambr
+
+Przed paleozoikiem możesz zagrać **prolog** (przełącznik na ekranie startowym,
+domyślnie włączony dla scenariuszy od początku): trzy wybory z historii życia
+zamiast tur — **skąd czerpać energię** (chemosynteza, fotosynteza, fagocytoza),
+**jak połączyć siły** (endosymbioza, wielokomórkowość, pojedyncze komórki)
+i **tlen** (oddychanie tlenowe, odporność na niedotlenienie, miękkie ciało
+ediakaru). Każda opcja to kompromis (np. +1 odżywiania, ale −1 mobilności) i daje
+drobną zmianę statystyk, rezerw lub zmienności na start oraz kartę wiedzy do
+Kodeksu. Prolog można pominąć, a „Ten sam świat jeszcze raz” powtarza też
+Twoje wybory. W testach żaden z 27 zestawów nie jest ślepą uliczką, a średni
+wynik bota jest zbliżony do gry bez prologu (69% vs 68%, normalny).
+
 ### Dieta i sieć troficzna
 
 Każda linia ma **dietę** (panel „Decyzje linii”), która decyduje, z czego żyje
