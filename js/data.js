@@ -460,6 +460,85 @@
       ] }
   ];
 
+
+  /*
+   * Epilog: Antropocen (grywalny, po zwycięstwie). Rozumny gatunek podejmuje cztery decyzje
+   * o tym, jak korzystać ze swojej mocy. Każda zmienia `tech` (rozwój cywilizacji) i `bio`
+   * (kondycja biosfery); żadna opcja nie jest darmowa. Biosfera startuje z wartości zależnej
+   * od przebiegu partii (`start`): wypierani konkurenci, wymarłe linie i mała różnorodność
+   * ją obniżają. Na końcu werdykt z `verdicts` (pierwszy pasujący) i punkty do wyniku.
+   */
+  var ANTHROPOCENE = {
+    start: { base: 80, perDisplaced: 8, maxDisplaced: 3, perLostLine: 4, maxLostLines: 4, perExtraNiche: 3, min: 30, max: 95 },
+    score: { perTech: 4, perBio: 1 },
+    stages: [
+      { id: 'energy', icon: '🔥', title: 'Skąd brać energię?',
+        desc: 'Ogień, potem pary, silniki i prąd: rozum daje dostęp do energii, jakiej nie miał żaden inny gatunek. Skąd ją brać?',
+        options: [
+          { id: 'coal', icon: '🪨', label: 'Węgiel i ropa naftowa', tech: 5, bio: -12,
+            desc: 'Paliwa z pradawnych lasów karbonu: tanie i bogate w energię.',
+            tradeoff: 'Rozwój +5, biosfera −12: uwalniasz węgiel, który natura zamknęła przed setkami milionów lat.' },
+          { id: 'wood', icon: '🪵', label: 'Drewno, torf i biomasa', tech: 3, bio: -8,
+            desc: 'Prosto i lokalnie, ale las odrasta wolniej, niż go palisz.',
+            tradeoff: 'Rozwój +3, biosfera −8.' },
+          { id: 'renew', icon: '🌬️', label: 'Słońce, wiatr i woda', tech: 2, bio: -2,
+            desc: 'Czysta energia, ale trudniej ją zmagazynować.',
+            tradeoff: 'Rozwój +2, biosfera −2.' }
+        ] },
+      { id: 'food', icon: '🌾', title: 'Jak żywić rosnącą populację?',
+        desc: 'Rozum pozwolił oswoić rośliny i zwierzęta. Populacja rośnie, a z nią potrzeby.',
+        options: [
+          { id: 'clear', icon: '🪓', label: 'Karczować i zakładać pola', tech: 3, bio: -10,
+            desc: 'Więcej pól dzięki wycince lasów i osuszaniu bagien.',
+            tradeoff: 'Rozwój +3, biosfera −10: giną siedliska dzikich gatunków.' },
+          { id: 'chem', icon: '🧪', label: 'Intensywne rolnictwo z chemią', tech: 4, bio: -8,
+            desc: 'Nawozy i środki ochrony roślin dają wysokie plony z mniejszego obszaru.',
+            tradeoff: 'Rozwój +4, biosfera −8: spływy zatruwają rzeki i morza.' },
+          { id: 'rotate', icon: '🌱', label: 'Zróżnicowane uprawy i płodozmian', tech: 2, bio: -2,
+            desc: 'Rotacje, żywopłoty i mniejsze pola zachowują glebę i owady zapylające.',
+            tradeoff: 'Rozwój +2, biosfera −2.' }
+        ] },
+      { id: 'cities', icon: '🏙️', title: 'Jak rosną miasta?',
+        desc: 'Handel i rzemiosło gromadzą ludzi w osadach. Osady stają się miastami.',
+        options: [
+          { id: 'sprawl', icon: '🏗️', label: 'Miasta bez ograniczeń', tech: 5, bio: -10,
+            desc: 'Miasta rozlewają się w każdą stronę i pochłaniają otoczenie.',
+            tradeoff: 'Rozwój +5, biosfera −10.' },
+          { id: 'compact', icon: '🌳', label: 'Zwarte miasta z terenami zielonymi', tech: 3, bio: -3,
+            desc: 'Gęsta zabudowa, parki i korytarze dla dzikiej przyrody.',
+            tradeoff: 'Rozwój +3, biosfera −3.' },
+          { id: 'villages', icon: '🛖', label: 'Rozproszone osady', tech: 1, bio: -1,
+            desc: 'Małe osady lokalnie zaopatrują się w zasoby.',
+            tradeoff: 'Rozwój +1, biosfera −1: mało wymiany wiedzy i handlu.' }
+        ] },
+      { id: 'extinction', icon: '🦋', title: 'Co z gatunkami, które giną?',
+        desc: 'Zmiany krajobrazu i klimatu sprawiają, że gatunki znikają wielokrotnie szybciej niż zwykle. Czy zrobisz coś w tej sprawie?',
+        options: [
+          { id: 'ignore', icon: '🙈', label: 'Nie przeszkadzać rozwojowi', tech: 2, bio: -6,
+            desc: 'Oszczędzasz zasoby na własne cele.',
+            tradeoff: 'Rozwój +2, biosfera −6.' },
+          { id: 'reserves', icon: '🛡️', label: 'Rezerwaty i przywracanie gatunków', tech: 0, bio: 8,
+            desc: 'Chronisz siedliska i wypuszczasz zagrożone gatunki na wolność.',
+            tradeoff: 'Rozwój +0, biosfera +8: kosztuje ziemię i wysiłek.' },
+          { id: 'genebank', icon: '🧬', label: 'Banki genów i inżynieria ekosystemów', tech: 3, bio: 3,
+            desc: 'Przechowujesz materiał genetyczny i wspierasz ekosystemy wiedzą.',
+            tradeoff: 'Rozwój +3, biosfera +3: skuteczne tylko tam, gdzie rozumiesz ekosystem.' }
+        ] }
+    ],
+    verdicts: [
+      { id: 'sustainable', min: { tech: 9, bio: 60 }, icon: '🌍', title: 'Zrównoważona cywilizacja',
+        text: 'Twój gatunek rozwinął technikę i nie zniszczył biosfery. To najtrudniejsza droga: potrzeba wiedzy i rezygnacji z części korzyści.' },
+      { id: 'debt', min: { tech: 9 }, icon: '🏭', title: 'Cywilizacja na kredyt',
+        text: 'Technika kwitnie, ale biosfera się kurczy. Rozwój na koszt ekosystemów działa tak długo, jak długo starcza kapitału natury — a ten się kończy.' },
+      { id: 'guardians', min: { bio: 60 }, icon: '🌿', title: 'Cisi opiekunowie',
+        text: 'Twój gatunek żyje w zgodzie z otoczeniem, ale za cenę rozwoju: niewiele techniki i niewielki wpływ na świat.' },
+      { id: 'collapse', min: {}, icon: '🥀', title: 'Upadek ekosystemów',
+        text: 'Ani rozwoju, ani zdrowej biosfery. Cywilizacja stoi na kruchym gruncie, a coraz uboższa natura nie jest w stanie jej wesprzeć.' }
+    ],
+    // Zakończenie mówi, co sam epilog pokazuje; ta pełna nazwa trafia do ekranu końcowego.
+    outro: 'Antropocen to wciąż otwarty rozdział. Wybory rozumnego gatunku to jedyne miejsce w historii życia, w którym „ewolucja ma cel” — bo cel wybiera ten, kto rozumie konsekwencje.'
+  };
+
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
   // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
   // najlepszej linii.
@@ -795,6 +874,7 @@
 
   // Osiągnięcia (zapisywane między partiami w przeglądarce).
   var ACHIEVEMENTS = [
+    { id: 'steward', icon: '🌍', label: 'Zrównoważona cywilizacja', desc: 'Zakończ epilog „Antropocen” zrównoważoną cywilizacją: rozwój bez zniszczenia biosfery.' },
     { id: 'web', icon: '🔺', label: 'Sieć troficzna', desc: 'Utrzymaj jednocześnie linię roślinożerną i mięsożerną przez trzy tury.' },
     { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.' },
     { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.' },
@@ -998,7 +1078,7 @@
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     MIGRATION: MIGRATION, CAPACITY: CAPACITY, DIETS: DIETS, TROPHIC: TROPHIC, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
-    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, PROLOGUE: PROLOGUE, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, PROLOGUE: PROLOGUE, ANTHROPOCENE: ANTHROPOCENE, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,

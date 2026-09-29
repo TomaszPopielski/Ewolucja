@@ -907,3 +907,9 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .prologue-option strong { font-size: 1rem; }
 .prologue-trade { color: var(--ink-soft); font-style: italic; font-size: .82rem; }
 .prologue-path { min-height: 1.4em; margin: 12px 0 8px; font-size: .85rem; color: var(--ink-soft); }
+
+.end-anthro h2 { margin-top: 0; }
+.end-anthro .resource-meters { margin: 8px 0; }
+.anthro-picks { font-size: .85rem; color: var(--ink-soft); }
+.anthro-note { font-style: italic; }
+#anthro-meters { margin: 6px 0 12px; }

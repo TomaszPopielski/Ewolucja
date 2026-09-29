@@ -75,8 +75,11 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > skutki na start, 9 nowych kart wiedzy. Wszystkie 27 zestawów dają średnio 69%
 > zwycięstw bota (bez prologu 68%; najsłabszy 48%, najsilniejszy 85%). To prolog
 > narracyjno-decyzyjny, a nie osobna era do rozegrania — pełna era wymagałaby
-> przesunięcia indeksów er (cechy, scenariusze, rywale, testy). Zostaje: Antropocen
-> jako grywalny epilog.
+> przesunięcia indeksów er (cechy, scenariusze, rywale, testy). **Etap „Antropocen”** —
+> grywalny epilog po zwycięstwie: cztery decyzje (81 ścieżek, 3 osiągalne werdykty
+> zależne od decyzji plus „upadek” przy zrujnowanej biosferze na starcie), punkty w wyniku,
+> osiągnięcie „Zrównoważona cywilizacja”. Lista z 3.3 jest tym samym domknięta (prolog
+> narracyjny, epilog grywalny).
 
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.

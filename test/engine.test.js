@@ -1011,6 +1011,42 @@ group('prolog — prekambr', function () {
   eq(dead, 0, 'żaden zestaw prologu nie zaczyna od zapaści populacji');
 });
 
+group('epilog grywalny — Antropocen', function () {
+  var A = GameData.ANTHROPOCENE;
+  var pre = withSeed('ANTR'); ok(!Engine.startAnthropocene(GameData, pre).ok, 'epilog tylko po zwycięstwie');
+  var won = withSeed('ANTR'); won.status = 'won'; won.winPath = 'tools';
+  var st = Engine.startAnthropocene(GameData, won);
+  ok(st.ok && st.state.anthropocene.round === 0 && st.state.anthropocene.bio === 80, 'start epilogu: biosfera 80 przy czystej grze');
+  ok(!Engine.startAnthropocene(GameData, st.state).ok, 'epilog rozgrywa się raz');
+  // Skutki przebiegu partii: wyparci rywale, wymarłe linie i różnorodność zmieniają biosferę na starcie.
+  var rough = JSON.parse(JSON.stringify(won)); rough.rivalsDisplaced = 5;
+  rough.lineages.push({ id: 'L9', alive: false, population: 0 }, { id: 'L8', alive: false, population: 0 });
+  eq(Engine.startAnthropocene(GameData, rough).state.anthropocene.bio, 80 - 8 * 3 - 4 * 2, 'wyparcia i wymarcia obniżają biosferę (z limitami)');
+  var rich = JSON.parse(JSON.stringify(won)); active(rich).niche = 'lad';
+  rich.lineages.push({ id: 'L7', alive: true, population: 50, niche: 'woda' }, { id: 'L6', alive: true, population: 50, niche: 'powietrze' });
+  eq(Engine.startAnthropocene(GameData, rich).state.anthropocene.bio, 80 + 3 * 2, 'różnorodność nisz podnosi biosferę');
+  function play(picks) { var t = Engine.startAnthropocene(GameData, won).state; picks.forEach(function (p) { t = Engine.chooseAnthropocene(GameData, t, p).state; }); return t; }
+  ok(!Engine.chooseAnthropocene(GameData, st.state, 'nie_ma').ok, 'nieznana opcja jest odrzucana');
+  var mid = play(['coal']); ok(mid.anthropocene.round === 1 && !mid.anthropocene.done && mid.anthropocene.tech === 5 && mid.anthropocene.bio === 68, 'wybór zmienia rozwój i biosferę');
+  eq(play(['coal', 'chem', 'sprawl', 'ignore']).anthropocene.verdict, 'debt', 'rabunkowy rozwój = cywilizacja na kredyt');
+  eq(play(['renew', 'rotate', 'compact', 'genebank']).anthropocene.verdict, 'sustainable', 'rozsądne wybory = zrównoważona cywilizacja');
+  eq(play(['renew', 'rotate', 'villages', 'reserves']).anthropocene.verdict, 'guardians', 'ostrożność bez rozwoju = cisi opiekunowie');
+  var lowStart = withSeed('ANTR'); lowStart.status = 'won'; lowStart.rivalsDisplaced = 9; lowStart.lineages.push({ id: 'L9', alive: false }, { id: 'L8', alive: false }, { id: 'L7', alive: false }, { id: 'L6', alive: false });
+  var lt = Engine.startAnthropocene(GameData, lowStart).state; ['wood', 'clear', 'villages', 'reserves'].forEach(function (p) { lt = Engine.chooseAnthropocene(GameData, lt, p).state; });
+  eq(lt.anthropocene.verdict, 'collapse', 'zrujnowana biosfera i mało rozwoju = upadek ekosystemów');
+  ok(!Engine.chooseAnthropocene(GameData, play(['coal', 'chem', 'sprawl', 'ignore']), 'coal').ok, 'po zakończeniu epilogu nie ma kolejnych wyborów');
+  // Wszystkie 81 ścieżek kończy się werdyktem, a biosfera zostaje w granicach 0–100.
+  var bad = 0, tot = 0;
+  function walk(i, t) { if (i === A.stages.length) { tot++; if (!t.anthropocene.verdict || t.anthropocene.bio < 0 || t.anthropocene.bio > 100) bad++; return; } A.stages[i].options.forEach(function (o) { walk(i + 1, Engine.chooseAnthropocene(GameData, t, o.id).state); }); }
+  walk(0, st.state); eq(tot, 81, '81 ścieżek epilogu'); eq(bad, 0, 'każda ścieżka ma werdykt i biosferę 0–100');
+  // Punkty, osiągnięcie i eksport.
+  var good = play(['renew', 'rotate', 'compact', 'genebank']), greedy = play(['coal', 'chem', 'sprawl', 'ignore']);
+  ok(Engine.anthropocenePoints(GameData, good.anthropocene) > Engine.anthropocenePoints(GameData, greedy.anthropocene), 'zrównoważona ścieżka daje więcej punktów niż rabunkowa');
+  ok(Engine.scoreGame(GameData, good).total > Engine.scoreGame(GameData, won).total, 'epilog podnosi wynik punktowy');
+  ok(Engine.earnedAchievements(GameData, good).indexOf('steward') !== -1 && Engine.earnedAchievements(GameData, greedy).indexOf('steward') === -1, 'osiągnięcie tylko za zrównoważoną cywilizację');
+  eq(Engine.anthropocenePoints(GameData, mid.anthropocene), 0, 'niedokończony epilog nie daje punktów');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

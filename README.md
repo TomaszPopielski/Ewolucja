@@ -98,6 +98,19 @@ cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
 turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
 się w żadnej wygranej partii.
 
+### Epilog do rozegrania: Antropocen
+
+Po zwycięstwie ekran końcowy oferuje **epilog**: cztery decyzje rozumnego
+gatunku — **energia** (węgiel i ropa / drewno / słońce i wiatr), **żywność**
+(karczowanie / chemia / płodozmian), **miasta** (bez ograniczeń / zwarte / rozproszone)
+i **ochrona przyrody** (ignorowanie / rezerwaty / banki genów). Każda zmienia
+**rozwój** i **biosferę**; żadna opcja nie jest darmowa. Biosfera startuje z wartości
+zależnej od Twojej gry (wyparci konkurenci i wymarłe linie ją obniżają, wiele
+zajętych nisz podnosi). Werdykt: *Zrównoważona cywilizacja*, *Cywilizacja na kredyt*,
+*Cisi opiekunowie* lub *Upadek ekosystemów*; punkty trafiają do wyniku, a za
+zrównoważoną cywilizację jest osiągnięcie. Epilog nie zmienia tego, że partia
+jest wygrana — to opcjonalna lekcja o konsekwencjach rozumu.
+
 ### Prolog: prekambr
 
 Przed paleozoikiem możesz zagrać **prolog** (przełącznik na ekranie startowym,

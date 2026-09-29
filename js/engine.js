@@ -1422,6 +1422,7 @@
     add('abundance', st.maxPop >= 600);
     add('gause', st.rivalsDisplaced >= 2);
     add('web', st.webTurns >= 3);
+    add('steward', !!(state.anthropocene && state.anthropocene.verdict === 'sustainable'));
     add('echo', st.echoes >= 2);
     add('codex', (state.unlockedKnowledge || []).length >= 25);
     return out;
@@ -1436,10 +1437,50 @@
     part('Cele er', S.perGoal * st.goalsDone);
     part('Nisze zajęte jednocześnie', S.perNiche * st.maxNiches);
     part('Tury zapasu', S.perTurnLeft * st.turnsLeft);
+    part('Epilog: Antropocen', anthropocenePoints(data, state.anthropocene));
     part('Osiągnięcia', S.perAchievement * earnedAchievements(data, state).length);
     var sum = parts.reduce(function (a, p) { return a + p.points; }, 0);
     var mult = (S.diffMult && S.diffMult[state.difficulty]) || 1;
     return { parts: parts, subtotal: sum, mult: mult, total: Math.round(sum * mult) };
+  }
+
+  // ---------- Epilog grywalny: Antropocen ----------
+  // Kondycja biosfery na starcie epilogu wynika z przebiegu partii.
+  function anthropoceneStartBio(data, state) {
+    var A = data.ANTHROPOCENE.start, st = gameStats(data, state);
+    var lostLines = state.lineages.filter(function (l) { return !l.alive; }).length;
+    var niches = Object.keys(nicheLoad(state)).length;
+    var bio = A.base - A.perDisplaced * Math.min(A.maxDisplaced, state.rivalsDisplaced || 0) -
+      A.perLostLine * Math.min(A.maxLostLines, lostLines) + A.perExtraNiche * Math.max(0, niches - 1);
+    void st;
+    return clamp(bio, A.min, A.max);
+  }
+  function anthropoceneVerdict(data, a) {
+    var v = data.ANTHROPOCENE.verdicts.filter(function (x) {
+      return (x.min.tech == null || a.tech >= x.min.tech) && (x.min.bio == null || a.bio >= x.min.bio);
+    })[0];
+    return v.id;
+  }
+  function startAnthropocene(data, state) {
+    if (state.status !== 'won') return { ok: false, state: state, error: 'Epilog jest dostępny po zwycięstwie.' };
+    if (state.anthropocene) return { ok: false, state: state, error: 'Epilog już rozegrany.' };
+    var n = clone(state);
+    n.anthropocene = { round: 0, tech: 0, bio: anthropoceneStartBio(data, state), startBio: anthropoceneStartBio(data, state), picks: [], done: false, verdict: null };
+    return { ok: true, state: n, error: null };
+  }
+  function chooseAnthropocene(data, state, optionId) {
+    var a = state.anthropocene, A = data.ANTHROPOCENE;
+    if (!a || a.done) return { ok: false, state: state, error: 'Brak trwającego epilogu.' };
+    var stage = A.stages[a.round], opt = stage.options.filter(function (o) { return o.id === optionId; })[0];
+    if (!opt) return { ok: false, state: state, error: 'Nieznana opcja.' };
+    var n = clone(state), b = n.anthropocene;
+    b.tech += opt.tech; b.bio = clamp(b.bio + opt.bio, 0, 100);
+    b.picks.push(opt.id); b.round += 1;
+    if (b.round >= A.stages.length) { b.done = true; b.verdict = anthropoceneVerdict(data, b); }
+    return { ok: true, state: n, error: null };
+  }
+  function anthropocenePoints(data, a) {
+    return a && a.done ? Math.round(a.tech * data.ANTHROPOCENE.score.perTech + a.bio * data.ANTHROPOCENE.score.perBio) : 0;
   }
 
   /* Epilog zakończenia: przy zwycięstwie „Antropocen” (skutki rozumu dla świata, dobrane
@@ -1472,7 +1513,8 @@
     randomSeed: randomSeed, normalizeSeed: normalizeSeed,
     winPathOf: winPathOf, cultureNicheBlocked: cultureNicheBlocked, goalDef: goalDef,
     victoryOutlook: victoryOutlook, concede: concede,
-    prologueLabels: prologueLabels, epilogue: epilogue, rivalsIn: rivalsIn, gameStats: gameStats, earnedAchievements: earnedAchievements, scoreGame: scoreGame,
+    prologueLabels: prologueLabels, startAnthropocene: startAnthropocene, chooseAnthropocene: chooseAnthropocene,
+    anthropoceneVerdict: anthropoceneVerdict, anthropocenePoints: anthropocenePoints, epilogue: epilogue, rivalsIn: rivalsIn, gameStats: gameStats, earnedAchievements: earnedAchievements, scoreGame: scoreGame,
     elapsedTurns: elapsedTurns, playedEras: playedEras, catastropheSeverity: catastropheSeverity,
     catastropheImpact: catastropheImpact, effectiveStats: effectiveStats, hasWon: hasWon,
     goalBlockedByPopulation: goalBlockedByPopulation, hasViableLineage: hasViableLineage,

@@ -63,6 +63,8 @@
     screenPrologue: $('screen-prologue'), prologueToggle: $('prologue-toggle'), prologueStep: $('prologue-step'),
     prologueWhen: $('prologue-when'), prologueDesc: $('prologue-desc'), prologueTitle: $('prologue-title'),
     prologueOptions: $('prologue-options'), prologuePath: $('prologue-path'), btnPrologueSkip: $('btn-prologue-skip'),
+    screenAnthro: $('screen-anthropocene'), anthroStep: $('anthro-step'), anthroTitle: $('anthro-title'), anthroMeters: $('anthro-meters'),
+    anthroDesc: $('anthro-desc'), anthroOptions: $('anthro-options'), endAnthro: $('end-anthro'),
     endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
     endStats: $('end-stats'), btnPlayAgain: $('btn-play-again'), btnOpenCodexEnd: $('btn-open-codex-end'),
     btnSummary: $('btn-summary'),
@@ -103,6 +105,7 @@
     el.screenGame.hidden = name !== 'game';
     el.screenEnd.hidden = name !== 'end';
     if (el.screenPrologue) el.screenPrologue.hidden = name !== 'prologue';
+    if (el.screenAnthro) el.screenAnthro.hidden = name !== 'anthropocene';
   }
 
   function newGame(speciesName, opts) {
@@ -115,6 +118,62 @@
     showScreen('game');
     renderAll();
     maybeStartTutorial();
+  }
+
+  // ===================== Epilog grywalny: Antropocen =====================
+  function verdictOf(a) { return a && a.verdict ? DATA.ANTHROPOCENE.verdicts.filter(function (v) { return v.id === a.verdict; })[0] : null; }
+  function anthroMeters(a) {
+    return meter('energy', '🌍 Biosfera', 'Kondycja biosfery', a.bio, 100, 'Im wyższa, tym zdrowsze ekosystemy. Zaczyna się od wartości zależnej od przebiegu Twojej gry.') +
+      meter('gene', '⚙️ Rozwój', 'Rozwój cywilizacji', a.tech, 17, 'Technika, energia i wiedza rozumnego gatunku.');
+  }
+  function renderEndAnthro() {
+    if (!el.endAnthro) return;
+    var a = state.anthropocene;
+    if (state.status !== 'won') { el.endAnthro.hidden = true; el.endAnthro.innerHTML = ''; return; }
+    el.endAnthro.hidden = false;
+    if (!a || !a.done) {
+      el.endAnthro.innerHTML = '<h2>Epilog do rozegrania: Antropocen</h2>' +
+        '<p>Twój gatunek jest rozumny. Cztery decyzje — energia, żywność, miasta i ochrona przyrody — zdecydują, czy jego rozwój zniszczy biosferę. ' +
+        'Twoja gra już ją ukształtowała: startuje z wartością ' + (a ? a.startBio : Engine.startAnthropocene(DATA, state).state.anthropocene.bio) + ' / 100.</p>' +
+        '<button id="btn-anthro-play" class="btn btn-primary" type="button">' + (a ? 'Wróć do epilogu' : 'Zagraj epilog') + '</button>';
+      var pb = el.endAnthro.querySelector('#btn-anthro-play');
+      pb.addEventListener('click', playAnthropocene);
+      return;
+    }
+    var v = verdictOf(a), picks = a.picks.map(function (id, i) {
+      var o = DATA.ANTHROPOCENE.stages[i].options.filter(function (x) { return x.id === id; })[0];
+      return o ? o.label : id;
+    });
+    el.endAnthro.innerHTML = '<h2>' + escapeHtml(v.icon) + ' ' + escapeHtml(v.title) + '</h2><p>' + escapeHtml(v.text) + '</p>' +
+      '<p class="anthro-picks">Wybory: ' + escapeHtml(picks.join(' → ')) + '</p>' +
+      '<div class="resource-meters">' + anthroMeters(a) + '</div>' +
+      '<p class="anthro-note">' + escapeHtml(DATA.ANTHROPOCENE.outro) + '</p>';
+  }
+  function playAnthropocene() {
+    if (!state.anthropocene) { var r = Engine.startAnthropocene(DATA, state); if (!r.ok) { flash(r.error); return; } state = r.state; }
+    showScreen('anthropocene'); renderAnthropocene(); window.scrollTo(0, 0);
+  }
+  function renderAnthropocene() {
+    var a = state.anthropocene, stages = DATA.ANTHROPOCENE.stages, st = stages[a.round];
+    el.anthroStep.textContent = 'Epilog · Antropocen · decyzja ' + (a.round + 1) + ' z ' + stages.length;
+    el.anthroTitle.innerHTML = escapeHtml(st.icon) + ' ' + escapeHtml(st.title);
+    el.anthroMeters.innerHTML = anthroMeters(a);
+    el.anthroDesc.textContent = st.desc;
+    el.anthroOptions.innerHTML = '';
+    st.options.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice-option prologue-option';
+      b.innerHTML = '<strong><span aria-hidden="true">' + o.icon + '</span> ' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+        '<span class="prologue-trade">' + escapeHtml(o.tradeoff) + '</span>';
+      b.addEventListener('click', function () { chooseAnthropocene(o.id); });
+      el.anthroOptions.appendChild(b);
+    });
+  }
+  function chooseAnthropocene(id) {
+    var r = Engine.chooseAnthropocene(DATA, state, id);
+    if (!r.ok) { flash(r.error); return; }
+    state = r.state;
+    if (state.anthropocene.done) showEnd(); else renderAnthropocene();
   }
 
   // ===================== Prolog (prekambr) =====================
@@ -1228,6 +1287,7 @@
         : state.endReason === 'nonviable'
         ? 'Na koniec gry żadna linia nie liczyła choćby ' + DATA.MIN_VIABLE_POP + ' osobników. Tak mała populacja jest skazana na wymarcie (słaby rozród, chów wsobny) — dbaj o bilans energii i liczebność, nie tylko o cechy.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
+    renderEndAnthro();
     var ep = Engine.epilogue(DATA, state);
     if (el.endEpilogue) {
       el.endEpilogue.hidden = !ep;
@@ -1337,6 +1397,7 @@
       'Scenariusz: ' + (sc ? sc.name : state.scenario) + ' (trudność: ' + (diff ? diff.label : state.difficulty) + ')',
       'Wynik: ' + statusPl,
       'Kod świata: ' + (state.seed || '—'),
+      'Epilog Antropocen: ' + (state.anthropocene && state.anthropocene.done ? verdictOf(state.anthropocene).title + ' (rozwój ' + state.anthropocene.tech + ', biosfera ' + state.anthropocene.bio + ')' : 'nierozegrany'),
       'Prolog (prekambr): ' + ((state.prologue || []).length ? Engine.prologueLabels(DATA, state).join(' → ') : 'pominięty'),
       'Punkty: ' + Engine.scoreGame(DATA, state).total,
       'Cele er: ' + (state.eraGoals || []).map(function (g) { var d = Engine.goalDef(DATA, g.id); return (d ? d.label : g.id) + ' (' + (g.status === 'done' ? 'spełniony' : g.status === 'failed' ? 'nie' : 'otwarty') + ')'; }).join('; '),
