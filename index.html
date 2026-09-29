@@ -124,10 +124,11 @@
               <span class="tactic-label" id="behavior-label" data-i18n="tactics.behavior">Zachowanie w tej turze</span>
               <div id="behavior-buttons" class="tactic-buttons" role="group" aria-labelledby="behavior-label"></div>
             </div>
-            <label class="tactic-toggle">
-              <input type="checkbox" id="selection-toggle" />
-              <span id="selection-text"></span>
-            </label>
+            <div class="tactic-group tactic-selection">
+              <label class="tactic-label" for="selection-select" data-i18n="tactics.selection">Ukierunkowany dobór</label>
+              <select id="selection-select" class="selection-select"></select>
+              <span id="selection-text" class="selection-text"></span>
+            </div>
           </section>
 
           <div class="forecast-box" id="forecast-box">

@@ -21,8 +21,8 @@ function play(diff, strat, seed){
     // buy
     let bought=true;
     while(bought){ bought=false;
-      if(st.random){ const av=D.TRAITS.filter(t=>E.traitStatus(s,t)==='available'); if(av.length && rng()<0.8){const r=E.buyTrait(D,s,av[Math.floor(rng()*av.length)].id); if(r.ok){s=r.state;bought=true;}} }
-      else for(const id of st.order){ const t=D.TRAITS.find(x=>x.id===id); if(E.traitStatus(s,t)==='available'){ const r=E.buyTrait(D,s,id); if(r.ok){s=r.state;bought=true;break;} } }
+      if(st.random){ const av=D.TRAITS.filter(t=>E.traitStatus(s,t,D)==='available'); if(av.length && rng()<0.8){const r=E.buyTrait(D,s,av[Math.floor(rng()*av.length)].id); if(r.ok){s=r.state;bought=true;}} }
+      else for(const id of st.order){ const t=D.TRAITS.find(x=>x.id===id); if(E.traitStatus(s,t,D)==='available'){ const r=E.buyTrait(D,s,id); if(r.ok){s=r.state;bought=true;break;} } }
     }
     if(st.spec){ const c=E.canSpeciate(D,s); if(c.ok){ const act=s.activeLineageId; const r=E.speciate(D,s); if(r.ok){ s=E.setActiveLineage(r.state,act);} } }
     if(st.land){ const l=E.getActiveLineage(s); if(l.niche!=='lad' && E.canMigrate(D,s,l,'lad').ok) s=E.migrateLineage(D,s,l.id,'lad').state; }

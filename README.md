@@ -44,10 +44,15 @@ Vite i sam z pliku nie zadziała.
    (patrz niżej): wybierz **strategię rozrodu** (r — dużo potomstwa,
    K — mało, ale dobrze chronionego) i **zachowanie w turze** (gromadzenie
    zapasów, ukrywanie się, intensywne żerowanie). Najedź na przycisk, by
-   zobaczyć skutek w prognozie. Co kilka tur pojawia się **karta decyzji**
-   (13 zdarzeń: wyspa, nowy drapieżnik, zakwit, epidemia, nieznany pokarm,
-   konkurent, wulkan, pokrewna populacja, wyścig godowy, padlina, symbioza,
-   chudy sezon, niezwykły mutant). Karta nie powtarza się w partii. Część
+   zobaczyć skutek w prognozie (prognoza podaje przedział — warunki tury mogą się
+   jeszcze nieco odchylić). Możesz też włączyć **ukierunkowany dobór** na wybraną
+   cechę: kosztuje 🧬 i część potomstwa (koszt doboru), a daje szansę na +1 do tej
+   cechy co turę. W większości tur pojawia się **karta decyzji**
+   (14 zdarzeń: wyspa, nowy drapieżnik, zakwit, łagodny sezon, epidemia,
+   nieznany pokarm, konkurent, wulkan, pokrewna populacja, wyścig godowy,
+   padlina, symbioza, chudy sezon, niezwykły mutant). Karta nie powtarza się
+   w partii, a opcja domyślna (brak decyzji) zwykle kosztuje. Tam, gdzie
+   sukces daje trwałą cechę, porażka też bywa trwała. Część
    opcji to **ryzyko**: wynik losuje się w turze, a szansa powodzenia (widoczna
    na przycisku) zależy od cech linii. Wybierz odpowiedź przed turą, inaczej
    zadziała opcja domyślna. Gdy karta czeka, sygnalizuje to przyklejony pasek
@@ -58,10 +63,12 @@ Vite i sam z pliku nie zadziała.
    w późniejszej erze). Warunki każdej tury są losowane wokół historycznych —
    sprawdzaj panel środowiska i prognozę przed decyzją.
    **Cel:** doprowadzić linię do progu inteligencji **i kultury** (możliwe
-   dopiero w kenozoiku) w linii liczącej **co najmniej 50 osobników**.
-   Są dwie drogi: **narzędzia** (ręka chwytna; linia na lądzie lub brzegu)
-   albo **kultura akustyczna** (echolokacja; linia w wodzie lub na brzegu,
-   jak u delfinów).
+   dopiero w kenozoiku) w żywotnym gatunku: linia rozumna liczy **co najmniej
+   25 osobników**, a cały gatunek (wszystkie linie) **co najmniej 60**.
+   Są dwie drogi: **narzędzia** (ręka chwytna; linia na lądzie) albo **kultura
+   akustyczna** (echolokacja; linia w otwartej wodzie, jak u delfinów).
+   Przybrzeże to etap przejściowy. Filtrowanie i szczęki wykluczają się — to
+   wybór sposobu życia na całą partię.
    Uwaga — sama liczna populacja nie wystarczy; trzeba świadomie rozwijać
    **układ nerwowy** (zwoje → mózg → rozbudowany mózg). Mózg jest jednak
    kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
@@ -74,8 +81,17 @@ Każda nisza wyżywi w danej turze tylko określoną liczbę osobników — to j
 z przegęszczenia. Linie w tej samej niszy **konkurują** o tę samą pojemność.
 Dlatego gdy nisza się zapełnia, opłaca się **specjacja**: 40% populacji
 zakłada nową gałąź, którą warto wysłać do **wolnej niszy** — ma tam własne
-zasoby i przez 2 tury mniejszą presję drapieżników. Wymierania uderzają
-w nisze z różną siłą, więc linie w kilku niszach rozkładają ryzyko.
+zasoby i przez 2 tury mniejszą presję drapieżników. Rozgałęzianie się opłaca:
+
+- **szeroki zasięg** — gatunek obecny w 2/3/4 niszach traci w każdej katastrofie
+  tylko 55/42/33% tego, co gatunek jednoniszowy;
+- **katastrofy regionalne** (dwie na erę) uderzają w niszę, w której żyje
+  najwięcej osobników;
+- **ewolucja równoległa** — cecha, którą ma już linia pokrewna, jest o 40% tańsza;
+- **zwycięstwo liczy cały klad**, a każda dodatkowa nisza daje +8 EP na turę;
+- **koewolucja działa w każdej niszy osobno** — pancerna linia w wodzie nie
+  podnosi presji drapieżników na lądzie.
+
 EP za liczebność i wzrost liczone są z łącznej populacji wszystkich linii.
 
 ### Trzy waluty
@@ -106,12 +122,13 @@ się w żadnej wygranej partii.
   albo kliknij „Ten sam świat jeszcze raz” na końcu gry. Puste pole = nowy świat.
 - **Przesuwane wymierania** — wymieranie ordowickie i dewońskie trafiają w jedną
   z dwóch tur swojego okresu (na osi czasu oznaczone „?”), a w każdej erze
-  pojawia się **katastrofa regionalna** w losowej turze, wymierzona w niszę,
-  w której żyje najwięcej osobników. Każdą katastrofę gra **zapowiada turę
-  wcześniej** — jest czas przenieść linię albo odłożyć zapasy.
+  pojawiają się **dwie katastrofy regionalne** w losowych turach, wymierzone
+  w niszę, w której żyje najwięcej osobników. Każdą katastrofę gra **zapowiada
+  do 2 tur wcześniej** i podaje przewidywaną siłę w każdej niszy (przedział —
+  dokładną siłę zna się dopiero w turze katastrofy).
 - **Cele ery** — w każdej erze dwa losowe cele poboczne (np. „Wyjdź na ląd”,
   „Przetrwać kataklizm”, „Radiacja”) nagradzane punktami ewolucji.
-- **Radiacja się opłaca** — każda zajęta nisza ponad pierwszą daje +4 EP na turę.
+- **Radiacja się opłaca** — każda zajęta nisza ponad pierwszą daje +8 EP na turę.
 - **Wynik punktowy i osiągnięcia** — na końcu gry wynik (status, inteligencja,
   populacja, cele er, nisze, tury zapasu, osiągnięcia × mnożnik trudności),
   rekord scenariusza i 13 osiągnięć zapisywanych w przeglądarce.
@@ -148,15 +165,19 @@ mechanikę mutacji, warunki zwycięstwa/porażki, to, że gra jest
 przechodnia świadomą strategią, oraz regresje naprawionych błędów
 (zob. [`ULEPSZENIA.md`](./ULEPSZENIA.md)).
 
-Testy balansu (`test/bots.js`) rozgrywają po 100 gier z ustalonymi ziarnami
-losowości trzema „graczami”: stały plan „kup wszystko”, sama ścieżka ⭐ oraz
-gracz korzystający z prognozy. Pilnują, że żaden stały plan nie wygrywa zawsze,
-adaptacja popłaca, a poziomy trudności są uporządkowane.
+Testy balansu (`test/bots.js`) rozgrywają partie z ustalonymi ziarnami
+losowości botami: stałe plany („kup wszystko”, sama ścieżka ⭐), gracz czytający
+prognozę, gracz taktyczny (jedna linia) i gracz prowadzący **klad** (gałęzie
+w wolnych niszach, każda ewoluuje). Połowa botów obiera drogę lądową, połowa
+wodną. Testy pilnują krzywej trudności, rozkładu tur zwycięstwa, grywalności
+obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
+[`docs/OCENA-MECHANIK.md`](./docs/OCENA-MECHANIK.md).
 
 ## Funkcje
 
-- **Scenariusze i poziomy trudności** — trzy scenariusze (pełna ewolucja, podbój
-  lądu, epoki lodowcowe) różniące się trudnością, punktem startu i celem.
+- **Scenariusze i poziomy trudności** — trzy scenariusze z własnymi regułami:
+  pełna ewolucja; podbój lądu (start na przybrzeżu, rozum tylko na lądzie, ląd
+  wyżywi o 25% więcej); epoki lodowcowe (sprint przez kenozoik, tylko narzędzia).
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
   geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
 - **26 cech** (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka

@@ -1,5 +1,9 @@
 # Ewolucja — ocena mechanik gry (29.09.2026)
 
+> **Aktualizacja: wdrożono rekomendacje.** Opis niżej (od „Werdykt”) dotyczy
+> stanu **sprzed** zmian. Stan po zmianach i pomiary — sekcja
+> [7. Stan po wdrożeniu](#7-stan-po-wdrożeniu).
+
 **Oceniany stan:** commit `9db216f` (po scaleniu PR #7: trwałe zachowania linii,
 zdarzenia pozytywne jako karty decyzji). Testy: 232 testy silnika i 37 testów
 ryciny, wszystkie zaliczone.
@@ -332,3 +336,60 @@ odchylenie warunków ujawniane dopiero w turze.
 karty, strategię, zachowania i dobór (150 partii na wariant). Seed-variance:
 60 światów × 6 strumieni gracza. Trafność prognozy: 100 partii, porównanie
 `Engine.forecast` z wynikiem `simulateTurn` dla każdej linii ≥ 30 osobników.</sub>
+
+---
+
+## 7. Stan po wdrożeniu
+
+Pomiary: 300 partii na wiersz (ziarna 1–300), boty z `test/bots.js`. Bot
+„klad” prowadzi gałęzie w wolnych niszach, „jedna linia” to `tactics1`. Połowa
+partii to gracz „lądowy”, połowa „wodny” (`pref: 'mix'`).
+
+### 7.1. Co zmieniono
+
+| Problem (sekcja) | Zmiana |
+|---|---|
+| 2.3 darmowa strategia r | Bez 1 ⚡ strategia r wraca do zrównoważonej; prognoza i raport to mówią. |
+| 2.1 sufit inteligencji | Echolokacja +1 inteligencji, opieka nad potomstwem na ścieżce ⭐ (i straty ×0,8). Obie drogi: 16 bez opieki, 17 z opieką. Progi: 15 / 16 / 17. |
+| 2.2 krzywa trudności | Trudność przez środowisko (katastrofy ×0,9 / ×1,15 / ×1,3, drapieżniki, koewolucja) i EP startowe (34 / 28 / 26). |
+| 2.2 „Podbój lądu” | Start na przybrzeżu z płetwami, zwycięstwo tylko narzędziami na lądzie, ląd wyżywi o 25% więcej, cel „Wyjdź na ląd” w paleozoiku. |
+| 2.2 „Epoki lodowcowe” | Start z dodatnim bilansem (szczęki, wszystkożerność, jajo lądowe), tylko narzędzia, 70 EP. |
+| 2.4 rozgałęzianie | Zwycięstwo liczy cały klad (linia ≥ 25, gatunek ≥ 60); szeroki zasięg łagodzi katastrofy (×0,55 / 0,42 / 0,33 dla 2–4 nisz); 2 katastrofy regionalne na erę w najliczniejszą niszę; ewolucja równoległa (−40% ceny cechy linii pokrewnej); +8 EP za każdą dodatkową niszę; specjacja tańsza (6 🧬 + 3 za linię). |
+| 2.5 nisze | Narzędzia tylko na lądzie, kultura akustyczna tylko w otwartej wodzie; przybrzeże: pokarm ×1,1, drapieżniki ×1,3, pojemność 20 na punkt pokarmu; lot tańszy (22 EP, metabolizm +1), powietrze: pokarm ×0,8, +3 EP. |
+| 2.6 dominacja odżywiania | Filtrowanie (+3, woda) i szczęki wykluczają się — dwa sposoby życia; pancerz, szybkie mięśnie i rozbudowany mózg: metabolizm −1; jajo lądowe 16 EP. |
+| 3.1 martwy dobór | Dobór na wybraną statystykę (szansa 50%, inteligencja 30% i tylko z mózgiem) za 1 🧬 na turę i rozród ×0,8 (koszt doboru Haldane’a). |
+| 3.2 karty z opcją dominującą | Porażki w kartach ze stałą nagrodą też są trwałe (pokarm: metabolizm +1, symbioza: rozród −1, wyścig zbrojeń: metabolizm +1); wyspa to ryzyko; ostrzejsze opcje domyślne; karty w 55% tur. |
+| 3.3 prognoza jak kalkulator | Ukryte odchylenie warunków ±1 (pokarm, drapieżniki) — prognoza podaje przedział; katastrofy zapowiadane do 2 tur wcześniej z przedziałem siły w każdej niszy (siła tury losowana ×0,8–1,2). |
+| 4.1 kopiowanie rezerw | Podział linii dzieli też ⚡ proporcjonalnie do osobników. |
+| 4.2 darmowy „kataklizm” | Cel liczy tylko katastrofę, która dosięgła gatunku. |
+| 4.3 globalna koewolucja | Poziom drapieżników osobno w każdej niszy; karty zmieniają go w niszy linii. |
+| 4.4 siła w niszach | Zapowiedź podaje przewidywane straty w każdej niszy. |
+
+### 7.2. Metryki: cel i wynik
+
+| Kryterium | Przed | Cel | Po zmianach |
+|---|---|---|---|
+| Wygrane (klad): łatwy / normalny / trudny | 100 / 67 / 22% | ~85 / 60 / 35% | **86 / 65 / 32%** |
+| Ślepy plan („kup ⭐”, „kup wszystko”) | 0% | 0–10% | **0%** |
+| Zysk z rozgałęziania (klad vs jedna linia) | +3 p.p. | ≥ +15 p.p. | **+6 / +9 / +10 p.p.** ⚠️ |
+| Wpływ mechaniki po wyłączeniu (normalny / trudny) | karty −5/+2, r/K −16/−7, zachowania −2/−4, dobór 0/+1 | każda ≥ 5 p.p. | **karty −8/−6, r/K −9/−9, zachowania −23/−11, dobór −3/−17** ⚠️ |
+| Najlepszy vs najgorszy wybór w kartach | ~2 p.p. | — | **+9 / +7 p.p.** |
+| Cechy kupowane w < 5% lub > 95% partii | 7 | 0–2 | **3** (zwoje 100% — korzeń obu dróg; lot 2%, szybkie mięśnie 4%) ⚠️ |
+| Linie na lądzie lub w powietrzu na koniec gry | 5% | ≥ 30% | **32%** |
+| Karty z opcją wybieraną w > 90% przypadków | 6 | 0 | **0** (najwyżej 85%) |
+| Tura zwycięstwa (normalny) | prawie zawsze 19–20 | 15–20 | **15: 55, 16: 59, 17: 32, 18: 19, 19: 13, 20: 18** |
+| Drogi do rozumu (normalny) | narzędzia ≈ 2× dźwięk | obie grywalne | **narzędzia 119, dźwięk 77** |
+| „Epoki lodowcowe”: rozwaga vs ślepy plan | 0% vs 67% | rozwaga ≥ hazard | **72% vs 40%** |
+
+### 7.3. Czego nie osiągnięto
+
+- **Rozgałęzianie** daje +6–10 p.p., nie +15. Bot kladowy jest prosty
+  (gałęzie kupują cechy tylko wtedy, gdy poprawiają prognozę), więc to raczej
+  dolna granica, ale nie mam na to dowodu.
+- **Dobór na normalnym** ma mały wpływ (−3 p.p.). Na trudnym jest kluczowy
+  (−17 p.p.), bo tam brakuje punktu inteligencji.
+- **Lot** kupuje się rzadko (2%). Powietrze się opłaca (EP, mało drapieżników),
+  ale bot rzadko ma wolne EP na gałąź z kończynami w mezozoiku. Gracz, który
+  planuje radiację, może z tego korzystać częściej.
+- **Kalibracja opiera się na botach.** Potrzebne są testy z uczniami: czy
+  rozumieją przedział prognozy, wykluczenia cech i koszt doboru.
