@@ -12,6 +12,8 @@ export type QualityLevel = 'auto' | 'low' | 'medium' | 'high';
 export interface GraphicsSettings {
   quality: QualityLevel;
   turnAnimation: 'show' | 'skip';
+  /** Paleta znaczeniowa: standardowa albo bezpieczna dla osób z zaburzeniami widzenia barw. */
+  palette: 'standard' | 'cb';
 }
 
 /** Parametry dioramy wynikające z poziomu jakości. */
@@ -33,7 +35,7 @@ export interface QualityParams {
 }
 
 const KEY = 'ewolucja.graphics';
-const DEFAULTS: GraphicsSettings = { quality: 'auto', turnAnimation: 'show' };
+const DEFAULTS: GraphicsSettings = { quality: 'auto', turnAnimation: 'show', palette: 'standard' };
 type Listener = (s: GraphicsSettings) => void;
 const listeners: Listener[] = [];
 
@@ -45,9 +47,15 @@ export function getSettings(): GraphicsSettings {
   return { ...DEFAULTS };
 }
 
+/** Ustawia paletę na <html> (zmienne CSS w css/styles.css reagują na data-palette). */
+export function applyPalette(s: GraphicsSettings = getSettings()) {
+  document.documentElement.dataset.palette = s.palette === 'cb' ? 'cb' : 'standard';
+}
+
 export function setSettings(patch: Partial<GraphicsSettings>): GraphicsSettings {
   const next = { ...getSettings(), ...patch };
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (e) { /* zapis niedostępny */ }
+  applyPalette(next);
   listeners.forEach((fn) => fn(next));
   return next;
 }

@@ -71,7 +71,9 @@ const PROFILE = {
   fish: [0, 12, 17, 22, 21, 14, 5.5, 3],
   tetra: [0, 10, 10.5, 7, 17, 15, 5.5, 1.2],
   mammal: [0, 11, 12, 8, 19, 17, 5, 1.2],
-  bird: [0, 7.5, 8, 6.5, 14, 12, 5, 3]
+  bird: [0, 7.5, 8, 6.5, 14, 12, 5, 3],
+  /** Gad: cienka szyja, ciężki tułów i gruby ogon. */
+  saur: [0, 6.5, 6, 5, 17, 16, 10, 2.8]
 };
 
 function profileAt(p: number[], t: number): number {
@@ -113,7 +115,8 @@ function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean)
   const L = 200 * spec.proportions.length;
   const girth = spec.proportions.girth;
   const headK = spec.proportions.head * (1 + 0.22 * br + 0.35 * bb);
-  const tailCompress = 1 - 0.45 * en * l;
+  const saur = spec.form === 'saur' ? l * (1 - fl) : 0;
+  const tailCompress = (1 - 0.45 * en * l) * (1 + 0.32 * saur);
 
   // Falowanie: robak całym ciałem, ryba ogonem, na lądzie ledwie ogon.
   const wormA = (t: number) => 9 * Math.pow(t, 1.2);
@@ -131,6 +134,7 @@ function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean)
     w = lerp(w, profileAt(PROFILE.tetra, t), l);
     w = lerp(w, profileAt(PROFILE.mammal, t), en * l);
     w = lerp(w, profileAt(PROFILE.bird, t), fl);
+    w = lerp(w, profileAt(PROFILE.saur, t), saur * (1 - 0.4 * en));
     if (t <= 0.14) w *= lerp(1, headK, clamp01(1 - (t - 0.1) / 0.04));
     w *= girth * Math.sqrt(Math.min(1, t / 0.055));
     W.push(w);
@@ -140,7 +144,9 @@ function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean)
     A = lerp(A, landA(t), plan.land);
     A = lerp(A, 0.4 * t, plan.air);
     const y = still ? 0 : A * Math.sin(k * t * Math.PI * 2 - time * speed);
-    P.push(v(x, y));
+    // długa szyja gada unosi głowę ponad grzbiet (łagodny łuk)
+    const neck = saur > 0 && t < 0.3 ? saur * 24 * Math.pow(1 - t / 0.3, 2) : 0;
+    P.push(v(x, y - neck));
   }
   // Postawa wyprostowana: przód ciała obraca się wokół bioder (t ≈ 0,64),
   // łagodnie, żeby nie było załamania.
@@ -1060,7 +1066,7 @@ export function drawPortrait(ctx: Ctx, sc: PortraitScene) {
   const ext = planExtents(spec, pres);
   const extentX = ext ? ext.left + ext.right : L + 40 + 20 * pres.fins;
   const extentY = ext ? (ext.top + ext.bottom) * 0.75
-    : 62 + 30 * pres.limbs + 75 * planFor(spec, pres).raise + 110 * pres.flight * (spec.niche === 'powietrze' ? 1 : 0.2);
+    : 62 + 30 * pres.limbs + (spec.form === 'saur' ? 26 * pres.limbs : 0) + 75 * planFor(spec, pres).raise + 110 * pres.flight * (spec.niche === 'powietrze' ? 1 : 0.2);
   const s = Math.min((w * 0.74) / extentX, (h * 0.78) / extentY);
   const cx = w * 0.53;
   let cy: number;

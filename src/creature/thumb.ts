@@ -16,7 +16,7 @@ export interface ThumbOptions {
 
 export function creatureThumb(lineage: LineageLike, opts: ThumbOptions): string {
   const theme: Theme = readTheme();
-  const key = [lineage.id, lineage.name, lineage.bodyPlan || '', lineage.traits.join(','), lineage.niche, opts.width, opts.height, theme.dark].join('|');
+  const key = [lineage.id, lineage.name, lineage.bodyPlan || '', lineage.traits.join(','), lineage.niche, opts.width, opts.height, theme.dark, theme.ep].join('|');
   const hit = cache.get(key);
   if (hit) return hit;
 
@@ -27,7 +27,7 @@ export function creatureThumb(lineage: LineageLike, opts: ThumbOptions): string 
   const ext = planExtents(spec, pres);
   const L = 200 * spec.proportions.length;
   const left = ext ? ext.left : L / 2 + 40, right = ext ? ext.right : L / 2 + 16;
-  const top = ext ? ext.top : 50 + 70 * plan.air + 16 * pres.flight + 80 * plan.raise;
+  const top = ext ? ext.top : 50 + 70 * plan.air + 16 * pres.flight + 80 * plan.raise + (spec.form === 'saur' ? 26 * pres.limbs : 0);
   const bottom = ext ? ext.bottom : 40 + 30 * pres.limbs + 30 * plan.air;
   const s = Math.min(opts.width / (left + right), opts.height / (top + bottom));
   const res = Math.min(2, window.devicePixelRatio || 1) * 1.5;

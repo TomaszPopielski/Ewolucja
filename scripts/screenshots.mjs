@@ -9,6 +9,7 @@ import { chromium } from 'playwright-core';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { CREATURES } from './specimens.mjs';
 
 const outDir = resolve(process.argv[2] || 'screenshots');
 const page_url = pathToFileURL(resolve('dist/index.html')).href;
@@ -20,33 +21,7 @@ const VIEWPORTS = {
   mobile: { width: 390, height: 844, isMobile: true, deviceScaleFactor: 2 }
 };
 
-// Okazy do galerii: [podpis, cechy, nisza].
-const CREATURES = [
-  ['Prazwierzę', [], 'woda'],
-  ['Filtrator', ['filter_feeding', 'eyes', 'lateral_line'], 'woda'],
-  ['Ryba pancerna', ['fins', 'shell', 'jaws', 'eyes'], 'woda'],
-  ['Szybka ryba', ['fins', 'fast_muscle', 'jaws', 'scales', 'eyes', 'lateral_line', 'many_eggs'], 'przybrzeze'],
-  ['Pierwszy czworonóg', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'ganglia'], 'przybrzeze'],
-  ['Czworonóg lądowy', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'amniotic_egg', 'camouflage'], 'lad'],
-  ['Stałocieplny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain'], 'lad'],
-  ['Ptak', ['fins', 'limbs', 'flight', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'many_eggs', 'parental_care'], 'powietrze'],
-  ['Pterozaur', ['fins', 'limbs', 'flight', 'jaws', 'eyes', 'scales', 'endothermy'], 'powietrze'],
-  ['Łowca w stadzie', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain', 'pack_hunting'], 'lad'],
-  ['Gatunek rozumny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain',
-    'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care', 'many_eggs'], 'lad'],
-  ['Wodny z mózgiem', ['fins', 'eyes', 'ganglia', 'brain', 'jaws', 'camouflage'], 'woda'],
-  // Inne plany budowy: [podpis, cechy, nisza, plan].
-  ['Trylobit', ['shell', 'eyes'], 'woda', 'stawonog'],
-  ['Skorupiak', ['fins', 'jaws', 'shell', 'eyes', 'lateral_line'], 'przybrzeze', 'stawonog'],
-  ['Pająk lądowy', ['limbs', 'jaws', 'eyes', 'scales', 'camouflage'], 'lad', 'stawonog'],
-  ['Ważka', ['limbs', 'flight', 'jaws', 'eyes', 'scales'], 'powietrze', 'stawonog'],
-  ['Rozumny stawonóg', ['limbs', 'jaws', 'eyes', 'scales', 'ganglia', 'brain', 'grasping_hand', 'tool_use', 'social'], 'lad', 'stawonog'],
-  ['Łodzikowiec', ['shell', 'eyes'], 'woda', 'glowonog'],
-  ['Kałamarnica', ['fins', 'jaws', 'eyes', 'fast_muscle', 'lateral_line'], 'woda', 'glowonog'],
-  ['Ośmiornica', ['limbs', 'jaws', 'eyes', 'camouflage', 'ganglia', 'brain', 'grasping_hand', 'tool_use'], 'przybrzeze', 'glowonog'],
-  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog']
-];
-
+// Okazy do galerii: scripts/specimens.mjs.
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ executablePath, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];

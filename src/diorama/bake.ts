@@ -39,7 +39,7 @@ export function bakeCreature(spec: CreatureSpec, theme: Theme, unitPx: number, r
   const ext = planExtents(spec, pres);
   const L = ext ? ext.L : 200 * spec.proportions.length;
   const left = ext ? ext.left : L / 2 + 58, right = ext ? ext.right : L / 2 + 22;
-  const top = ext ? ext.top : 62 + 105 * plan.air + 20 * pres.flight + 85 * plan.raise + 6 * pres.shell;
+  const top = ext ? ext.top : 62 + 105 * plan.air + 20 * pres.flight + 85 * plan.raise + 6 * pres.shell + (spec.form === 'saur' ? 26 * pres.limbs : 0);
   const bottom = ext ? ext.bottom : 48 + 32 * pres.limbs + 70 * plan.air;
   const W = (left + right) * unitPx, H = (top + bottom) * unitPx;
   const cycle = cycleSeconds(spec, pres);

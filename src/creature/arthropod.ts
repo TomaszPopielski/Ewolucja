@@ -19,7 +19,7 @@ export interface ArthroShape { L: number; k: number; ventral: number; ground: nu
 /** Wymiary i rytm zwierzęcia; `limbs` pozwala policzyć też wariant „co-jeśli”. */
 export function arthroShape(spec: CreatureSpec, pres: Presence, limbs = pres.limbs): ArthroShape {
   const L = 170 * spec.proportions.length;
-  const k = (spec.proportions.girth * (1 + 0.12 * pres.shell)) ;
+  const k = spec.proportions.girth * 1.15 * (1 + 0.12 * pres.shell);
   const ventral = 0.42 * 20 * k;
   return { L, k, ventral, ground: ventral + lerp(10, 26, limbs), omega: lerp(3, 2.6, limbs) };
 }
@@ -53,7 +53,7 @@ export function drawArthropod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sce
   const NLEG = 5;
   const legSet = (s: typeof st.normal, limbs: number, far: boolean) => {
     const shp = arthroShape(spec, pres, limbs);
-    const thick = lerp(1.7, 3.1, limbs) * spec.proportions.girth;
+    const thick = lerp(2.2, 3.7, limbs) * spec.proportions.girth;
     ctx.save();
     if (far) ctx.globalAlpha *= 0.5;
     for (let j = 0; j < NLEG; j++) {
@@ -220,6 +220,14 @@ export function drawArthropod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sce
   ctx.restore();
   ctx.beginPath(); smoothPath(ctx, outline, true);
   inkLine(ctx, st.normal, 1.5); ctx.stroke();
+
+  // płytki grzbietowe: łuki nad każdym segmentem
+  ctx.beginPath();
+  [0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].forEach((t) => {
+    const a = at(t - 0.045, 1.0), b = at(t + 0.045, 1.0), c = at(t, 1.16);
+    ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
+  });
+  inkLine(ctx, st.normal, 0.9); ctx.stroke();
 
   // telson (kolec odwłoka)
   const tl = at(1, 0.2);

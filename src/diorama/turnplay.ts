@@ -18,6 +18,8 @@ export interface TurnPlay {
   births: number; predationDeaths: number; starvationDeaths: number; catDeaths: number;
   mutation?: { beneficial: boolean; text: string } | null;
   catastrophe?: { name: string; kind: CatastropheKind } | null;
+  /** Wielkie wymieranie: plansza po uderzeniu katastrofy (teksty z UI). */
+  extinction?: { kicker: string; title: string; sub: string } | null;
   /** Napisy (i18n po stronie UI). */
   labels: {
     feed: string; feedSub: string;
@@ -55,11 +57,15 @@ export class TurnDirector {
   private meteor: { x0: number; y0: number; x1: number; y1: number; u: number } | null = null;
   private tempPreds: Agent[] = [];
   private banner: HTMLElement;
+  private card: HTMLElement | null = null;
   private skipBtn: HTMLButtonElement;
   private onKey: (e: KeyboardEvent) => void;
   private remaining: Agent[];
 
   constructor(private st: StageAccess, private play: TurnPlay, private onDone: () => void) {
+    // Paleta bezpieczna dla daltonistów: niebieski = zysk, cynober = strata.
+    const cb = document.documentElement.dataset.palette === 'cb';
+    COLORS.good = cb ? 0x0072b2 : 0x3d6b4e; COLORS.bad = cb ? 0xd55e00 : 0xa13a28;
     this.remaining = this.mine();
     this.buildPhases();
     this.banner = document.createElement('div');
@@ -252,6 +258,26 @@ export class TurnDirector {
       });
     }
 
+    if (p.catastrophe && p.extinction) {
+      const ex = p.extinction;
+      // Cisza po katastrofie: scena szarzeje, a na środku pojawia się plansza z bilansem.
+      this.phases.push({
+        title: '', sub: '', tone: 'bad', dur: 3,
+        start: () => {
+          this.st.setFeeding(false);
+          this.haze.color = 0x2a2622; this.haze.target = 0.58; this.frost = 0; this.glow = 0;
+          const c = document.createElement('div');
+          c.className = 'extinction-card'; c.setAttribute('role', 'status');
+          const k = document.createElement('span'); k.className = 'extinction-kicker'; k.textContent = ex.kicker;
+          const t = document.createElement('strong'); t.textContent = ex.title;
+          const sb = document.createElement('span'); sb.className = 'extinction-sub'; sb.textContent = ex.sub;
+          c.append(k, t, sb);
+          this.st.host.append(c); this.card = c;
+        },
+        update: () => {}
+      });
+    }
+
     this.phases.push({ title: '', sub: '', tone: 'neutral', dur: 0.5, start: () => this.st.setFeeding(false), update: () => {} });
   }
 
@@ -373,6 +399,7 @@ export class TurnDirector {
     this.floaters.forEach((f) => f.t.destroy()); this.floaters = [];
     document.removeEventListener('keydown', this.onKey);
     this.banner.remove(); this.skipBtn.remove();
+    if (this.card) { this.card.remove(); this.card = null; }
     this.st.host.classList.remove('turn-playing');
     this.onDone();
   }

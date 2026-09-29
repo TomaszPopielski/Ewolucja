@@ -236,3 +236,12 @@ Wspólne elementy (echolokacja, kultura akustyczna, kamień, mózg, wzór linii)
 (`footDrop`) są liczone osobno, więc wypiekanie klatek i miniatury działają
 jak dla kręgowca. Drapieżniki dioramy w paleozoiku to głowonogi (woda) i wielkie
 stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
+
+## Sylwetki, wielkie wymierania, dostępność, test wizualny (etapy 10–11)
+
+- **Gadzia sylwetka** (`spec.form`): kręgowiec z kończynami ma z ziarna linii standardową albo „gadzią” sylwetkę (długa szyja unosząca głowę, ciężki, dłuższy ogon). Przejście jest płynne, bo działa przez ten sam współczynnik co kończyny.
+- **Wielkie wymieranie** (`turnplay.ts`): gdy katastrofa zabiera co najmniej 35% populacji linii, po uderzeniu scena szarzeje i pojawia się plansza z nazwą, odsetkiem strat i liczbą ocalałych. Przez kolejne trzy tury krajobraz jest szary i się odradza (`aftermath`). Przy „ograniczaniu ruchu” animacji tury nie ma, więc planszy też.
+- **Paleta dla zaburzeń widzenia barw**: Ustawienia grafiki → „Paleta barw”. Zamiast zieleń/czerwień: niebieski = zysk, cynober = strata (zmienne CSS przy `data-palette="cb"`); znaczenie niesie też znak +/− i kształt ramki.
+- **Telefon**: przycisk „Przeżyj turę” jest przyklejony do dołu ekranu.
+- **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
+- **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.

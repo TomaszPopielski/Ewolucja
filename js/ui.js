@@ -891,7 +891,16 @@
       var nm = report.catastrophe.name;
       cat = { name: nm, kind: /lodow|ordowick/i.test(nm) ? 'ice' : (/permsk/i.test(nm) ? 'volcano' : 'meteor') };
     }
+    var ext = null;
+    if (cat && lr.popBefore > 0 && lr.catDeaths / lr.popBefore >= 0.35) {
+      var pct = Math.round(100 * lr.catDeaths / lr.popBefore);
+      ext = {
+        kicker: 'Wielkie wymieranie', title: cat.name,
+        sub: lr.popAfter <= 0 ? 'Linia nie przetrwała.' : 'Zginęło ' + pct + '% populacji. Przetrwało ' + lr.popAfter + ' osobników — świat będzie się odradzał.'
+      };
+    }
     return {
+      extinction: ext,
       lineageId: a.id, popBefore: lr.popBefore, popAfter: lr.popAfter,
       births: lr.births, predationDeaths: lr.predationDeaths, starvationDeaths: lr.starvationDeaths, catDeaths: lr.catDeaths,
       mutation: mut, catastrophe: cat,

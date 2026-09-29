@@ -28,6 +28,8 @@ export const FEATURES = [
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
+/** Sylwetka kręgowca lądowego: standardowa albo „gadzia” (długa szyja i ciężki ogon). */
+export type Form = 'standard' | 'saur';
 export type Pattern = 'none' | 'stripes' | 'spots' | 'saddle';
 /** Plan budowy: kręgowiec (ryba → czworonóg → ssak/ptak), stawonóg albo głowonóg. */
 export type BodyPlan = 'kregowiec' | 'stawonog' | 'glowonog';
@@ -46,6 +48,8 @@ export interface CreatureSpec {
   accentColor: string;
   /** Wzór na ciele: stały dla linii, różny między gałęziami. */
   pattern: Pattern;
+  /** Sylwetka kręgowca z kończynami (dziedziczna, z ziarna linii). */
+  form: Form;
   /** Mnożniki proporcji (różnice między gałęziami, ±10%). */
   proportions: { length: number; girth: number; head: number };
   /** Rozmiar ciała do podziałki na rysunku, w centymetrach. */
@@ -127,7 +131,8 @@ export function buildSpec(lineage: LineageLike): CreatureSpec {
   const pr = r();
   const pattern: Pattern = pr < 0.3 ? 'none' : pr < 0.55 ? 'stripes' : pr < 0.8 ? 'spots' : 'saddle';
   const bodyPlan: BodyPlan = lineage.bodyPlan === 'stawonog' || lineage.bodyPlan === 'glowonog' ? lineage.bodyPlan : 'kregowiec';
-  return { owned, niche, bodyPlan, seed, bodyColor: body, accentColor, pattern, proportions, sizeCm: bodySizeCm(owned, bodyPlan) };
+  const form: Form = r() < 0.5 ? 'saur' : 'standard';
+  return { owned, niche, bodyPlan, seed, bodyColor: body, accentColor, pattern, form, proportions, sizeCm: bodySizeCm(owned, bodyPlan) };
 }
 
 /** Czytelna etykieta podziałki (np. „3 cm”, „1 m”). */
