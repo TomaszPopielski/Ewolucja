@@ -855,6 +855,23 @@ group('wynik i osiągnięcia', function () {
   ok(Engine.scoreGame(GameData, hard).total > sw.total, 'trudny poziom mnoży wynik');
 });
 
+group('Plan budowy (wygląd): z kodu świata, dziedziczony, tylko dla startu bez zaawansowanych cech', function () {
+  var plans = {};
+  for (var i = 0; i < 40; i++) plans[withSeed('PLAN' + i).lineages[0].bodyPlan] = 1;
+  ok(plans.kregowiec && plans.stawonog && plans.glowonog, 'wszystkie trzy plany zdarzają się w różnych światach: ' + Object.keys(plans).join(', '));
+  eq(withSeed('PLAN7').lineages[0].bodyPlan, withSeed('PLAN7').lineages[0].bodyPlan, 'ten sam kod świata → ten sam plan');
+  eq(Engine.createInitialState(GameData, 'X').lineages[0].bodyPlan, 'kregowiec', 'świat bez ziarna → kręgowiec');
+  var ice = withSeed('PLAN3', { startTraits: ['fins', 'limbs', 'endothermy'] });
+  eq(ice.lineages[0].bodyPlan, 'kregowiec', 'start z płetwami/kończynami/stałocieplnością → kręgowiec');
+  var seedNon = null;
+  for (var k = 0; k < 40 && !seedNon; k++) if (withSeed('PLAN' + k).lineages[0].bodyPlan !== 'kregowiec') seedNon = 'PLAN' + k;
+  var s = withSeed(seedNon), root = s.lineages[0];
+  root.variation = 99;
+  var r = Engine.speciate(GameData, s, 'Gałąź');
+  ok(r.ok, 'specjacja się udała');
+  eq(r.state.lineages[1].bodyPlan, root.bodyPlan, 'gałąź dziedziczy plan budowy po rodzicu');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

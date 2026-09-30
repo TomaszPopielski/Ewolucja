@@ -7,6 +7,7 @@
  * zużywa procesora, gdy portret jest niewidoczny.
  */
 import { buildSpec, isFeature, FEATURES, type CreatureSpec, type LineageLike, type Feature } from './spec.ts';
+import { onSettingsChange } from '../art/settings.ts';
 import { drawPortrait, emptyPresence, type Presence, type Theme } from './draw.ts';
 
 export interface PortraitUpdate {
@@ -76,6 +77,7 @@ export class Portrait {
     if (!ctx) throw new Error('Canvas 2D niedostępny');
     this.ctx = ctx;
     this.theme = readTheme();
+    onSettingsChange(() => { this.theme = readTheme(); this.kick(); });
     const mqMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.reduced = mqMotion.matches;
     mqMotion.addEventListener?.('change', (e) => { this.reduced = e.matches; this.kick(); });

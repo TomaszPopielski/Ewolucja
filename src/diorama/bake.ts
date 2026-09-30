@@ -7,7 +7,7 @@
  */
 import { Texture, CanvasSource } from 'pixi.js';
 import { type CreatureSpec } from '../creature/spec.ts';
-import { drawCreature, emptyPresence, cycleSeconds, footDrop, planFor, type Presence, type Theme } from '../creature/draw.ts';
+import { drawCreature, emptyPresence, cycleSeconds, footDrop, planFor, planExtents, type Presence, type Theme } from '../creature/draw.ts';
 
 export interface Baked {
   frames: Texture[];
@@ -36,10 +36,11 @@ export function presenceOf(spec: CreatureSpec): Presence {
 export function bakeCreature(spec: CreatureSpec, theme: Theme, unitPx: number, res: number, nFrames = 12): Baked {
   const pres = presenceOf(spec);
   const plan = planFor(spec, pres);
-  const L = 200 * spec.proportions.length;
-  const left = L / 2 + 58, right = L / 2 + 22;
-  const top = 62 + 105 * plan.air + 20 * pres.flight + 85 * plan.raise + 6 * pres.shell;
-  const bottom = 48 + 32 * pres.limbs + 70 * plan.air;
+  const ext = planExtents(spec, pres);
+  const L = ext ? ext.L : 200 * spec.proportions.length;
+  const left = ext ? ext.left : L / 2 + 58, right = ext ? ext.right : L / 2 + 22;
+  const top = ext ? ext.top : 62 + 105 * plan.air + 20 * pres.flight + 85 * plan.raise + 6 * pres.shell + (spec.form === 'saur' ? 26 * pres.limbs : 0);
+  const bottom = ext ? ext.bottom : 48 + 32 * pres.limbs + 70 * plan.air;
   const W = (left + right) * unitPx, H = (top + bottom) * unitPx;
   const cycle = cycleSeconds(spec, pres);
   // Na małych osobnikach tusz musi być grubszy, a ton pełniejszy (na kolorowym tle).

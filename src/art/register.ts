@@ -8,7 +8,7 @@ import { icon, hasIcon, iconKeys } from './icons.ts';
 import { Portrait, readTheme, type PortraitUpdate } from '../creature/portrait.ts';
 import type { Diorama, DioramaData } from '../diorama/diorama.ts';
 import type { TurnPlay } from '../diorama/turnplay.ts';
-import { getSettings, setSettings, onSettingsChange, qualityParams, type GraphicsSettings } from './settings.ts';
+import { getSettings, setSettings, onSettingsChange, applyPalette, qualityParams, type GraphicsSettings } from './settings.ts';
 import type { LineageLike } from '../creature/spec.ts';
 import { creatureThumb } from '../creature/thumb.ts';
 
@@ -97,6 +97,7 @@ function rebuildDioramas() {
     createDiorama(host, slot);
   });
 }
+applyPalette();
 onSettingsChange(rebuildDioramas);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', rebuildDioramas);
 

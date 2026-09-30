@@ -24,6 +24,8 @@ export interface DioramaLineage {
   id: string; name: string; traits: string[]; niche: string; population: number; active: boolean;
   /** Linia macierzysta — przy specjacji część stada rodzica „przechodzi” do nowej gałęzi. */
   parentId?: string | null;
+  /** Plan budowy do rysunku (kregowiec | stawonog | glowonog). */
+  bodyPlan?: string;
 }
 
 export interface DioramaData {
@@ -36,6 +38,8 @@ export interface DioramaData {
   predators: number;
   /** Katastrofa zapowiedziana na tę turę i czy dotyczy tej niszy. */
   catastrophe?: boolean;
+  /** Ślad po niedawnej katastrofie w tej niszy: 1 = świeży (szary, wyjałowiony krajobraz), 0 = odrodzony. */
+  aftermath?: number;
   /** Żywe linie w tej niszy (aktywna oznaczona). */
   lineages: DioramaLineage[];
 }
@@ -346,6 +350,7 @@ export class Diorama {
     this.tint.clear();
     let color = 0, alpha = 0;
     if (d.catastrophe) { color = 0x7a3a2a; alpha = 0.16; }
+    else if (d.aftermath && d.aftermath > 0) { color = 0x8a8072; alpha = 0.26 * Math.min(1, d.aftermath); }
     else if (d.climate === 'zimno') { color = 0x9fc0dc; alpha = 0.18; }
     else if (d.climate === 'cieplo') { color = 0xf0c070; alpha = 0.08; }
     if (alpha) this.tint.rect(0, 0, this.W, this.H).fill({ color, alpha });
@@ -374,7 +379,11 @@ export class Diorama {
         ? (d.era === 'kenozoik' ? ['fins', 'limbs', 'jaws', 'eyes', 'endothermy', 'insulation', 'scales']
           : ['fins', 'limbs', 'jaws', 'eyes', 'scales', d.era === 'mezozoik' ? 'endothermy' : 'camouflage'])
         : ['fins', 'jaws', 'eyes', 'shell', 'fast_muscle', 'scales'];
-    const spec = buildSpec({ id: 'drapieżnik-' + d.niche + d.era, name: 'drapieżnik', traits, niche: d.niche });
+    // W paleozoiku dno morskie rządzą głowonogi, a ląd i powietrze — wielkie stawonogi.
+    const paleo = d.era === 'paleozoik';
+    const drawn = paleo ? traits.filter((t) => t !== 'endothermy' && t !== 'insulation') : traits;
+    const bodyPlan = paleo ? (d.niche === 'woda' || d.niche === 'przybrzeze' ? 'glowonog' : 'stawonog') : 'kregowiec';
+    const spec = buildSpec({ id: 'drapieżnik-' + d.niche + d.era, name: 'drapieżnik', traits: drawn, niche: d.niche, bodyPlan });
     spec.bodyColor = '#6b4a3e';
     spec.proportions = { length: 1.05, girth: 1.12, head: 1.15 };
     return spec;

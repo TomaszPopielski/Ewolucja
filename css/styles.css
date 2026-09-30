@@ -883,3 +883,133 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+
+/* =====================================================================
+   Etap 7–11: układ ekranu gry, karty cech, miarki, zmiana ery, kontrast
+   ===================================================================== */
+
+/* Diorama jest wizytówką gry — wyższa i bardziej „obrazkowa”. */
+.diorama { height: 300px; }
+@media (max-width: 820px) { .diorama { height: 210px; } }
+.diorama.start-hero { height: 190px; }
+@media (max-width: 480px) { .diorama.start-hero { height: 140px; } }
+
+/* Nagłówki paneli jak na tablicy: podwójna kreska pod tytułem. */
+.panel-title { border-bottom: 3px double var(--line-strong); letter-spacing: .01em; }
+.panel-title::first-letter { color: var(--brand); font-size: 1.15em; }
+
+/* Karty cech: dostępne i zdobyte są „na wierzchu”, zablokowane zwijają się do jednej linijki. */
+.trait { border-top: 3px solid var(--wash, var(--line-strong)); position: relative; }
+.trait:not(.compact) .trait-badge { width: 52px; height: 52px; font-size: 1.7rem; }
+.trait:not(.compact) .trait-badge .ico { font-size: 1.75rem; }
+.trait.available .trait-badge, .trait.too_expensive .trait-badge {
+  background: color-mix(in srgb, var(--wash, var(--brand)) 26%, var(--bg-panel));
+  border-color: var(--wash, var(--line-strong));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--bg-panel) 70%, transparent);
+}
+.trait.available { background: var(--bg-panel); }
+.trait.compact { padding: 8px 12px; gap: 3px; border-top-width: 1px; background: transparent; border-style: dashed; border-top-style: dashed; }
+.trait.compact .trait-badge { width: 30px; height: 30px; font-size: 1rem; }
+.trait.compact .trait-desc, .trait.compact .trait-effects, .trait.compact .trait-tradeoff, .trait.compact .trait-condition { display: none; }
+.trait.compact .trait-name { font-size: .92rem; }
+.trait.compact:hover .trait-desc, .trait.compact:hover .trait-effects { display: block; }
+.trait.compact:hover .trait-effects { display: flex; }
+.trait.compact:hover { opacity: .9; }
+
+/* Zakup: cecha „odciska się” jak pieczątka. */
+.trait.just-bought { animation: traitStamp .55s cubic-bezier(.2, .9, .3, 1.2); }
+.trait.just-bought::after {
+  content: "✓"; position: absolute; top: 6px; right: 8px; font-size: 1.1rem; color: var(--good);
+  animation: stampMark .8s ease both;
+}
+@keyframes traitStamp {
+  0% { transform: scale(1.06); box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); }
+  60% { transform: scale(.985); }
+  100% { transform: scale(1); box-shadow: 0 0 0 14px transparent; }
+}
+@keyframes stampMark { from { opacity: 0; transform: scale(2) rotate(-14deg); } to { opacity: .8; transform: scale(1) rotate(0); } }
+
+/* Miarki: jak przymiar w atlasie — wyższe, z podziałką i łagodnym wypełnieniem. */
+.stat-bar, .res-bar {
+  height: 11px; border-radius: 3px; border-color: var(--line-strong);
+  background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), color-mix(in srgb, var(--line-strong) 70%, transparent) calc(10% - 1px) 10%);
+}
+.stat-fill, .res-fill { border-radius: 2px; background-image: linear-gradient(180deg, rgba(255,255,255,.28), rgba(0,0,0,.08)); }
+.stat-fill, .res-fill { transition: width .5s cubic-bezier(.3, .8, .3, 1); }
+
+/* Wyróżnik nie-kolorowy: spadek jest przerywany, zysk ciągły. */
+.effect-chip.down { border-style: dashed; }
+
+/* Zmiana ery jako scena w dioramie. */
+.era-interlude {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  text-align: center; padding: 16px; pointer-events: none;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--bg-panel) 88%, transparent) 30%, color-mix(in srgb, var(--bg) 40%, transparent) 100%);
+  animation: eraInterlude 4.2s ease both;
+}
+.era-interlude strong { font-family: var(--serif); font-size: clamp(1.5rem, 4vw, 2.4rem); color: var(--brand); }
+.era-interlude-end { font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--ink-soft); }
+.era-interlude-sub { font-family: var(--serif); font-style: italic; max-width: 46ch; color: var(--ink); font-size: .95rem; }
+@keyframes eraInterlude { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Wysoki kontrast: wyraźniejsze ramki i tło kart, bez półprzezroczystości. */
+@media (prefers-contrast: more) {
+  :root { --line: var(--line-strong); }
+  .trait, .panel, .tactics-box, .env-box { border-width: 2px; border-color: var(--ink-soft); }
+  .trait.compact { opacity: 1; }
+  .trait.locked, .trait.era_locked { opacity: 1; }
+  .trait-desc, .trait-req, .panel-hint, .stat-name { color: var(--ink); }
+  .stat-bar, .res-bar { border-color: var(--ink); }
+  .diorama-caption { background: var(--bg-panel); border-color: var(--ink); }
+}
+.trait-grid { align-items: start; }
+
+/* Wielkie wymieranie: plansza po uderzeniu katastrofy. */
+.extinction-card {
+  position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; text-align: center; padding: 16px; pointer-events: none; color: #f3ecdd;
+  background: radial-gradient(ellipse at center, rgba(22, 18, 14, .35) 20%, rgba(22, 18, 14, .78) 100%);
+  animation: extinctionIn 3s ease both;
+}
+.extinction-card strong { font-family: var(--serif); font-size: clamp(1.4rem, 4.2vw, 2.6rem); letter-spacing: .02em; }
+.extinction-kicker { font-size: .78rem; text-transform: uppercase; letter-spacing: .22em; opacity: .8; }
+.extinction-sub { font-family: var(--serif); font-style: italic; max-width: 44ch; font-size: .98rem; opacity: .92; }
+@keyframes extinctionIn { 0% { opacity: 0; } 25% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Paleta dla zaburzeń widzenia barw (Okabe–Ito): niebieski = zysk, cynober = strata. */
+:root[data-palette="cb"] { --good: #0072b2; --danger: #d55e00; --accent: #9a6b00; --energy: #a06a00; }
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="cb"] { --good: #56b4e9; --danger: #ff9a52; --accent: #e6a83d; --energy: #e6a83d; }
+}
+:root[data-palette="cb"] .effect-chip.up { border-style: solid; }
+:root[data-palette="cb"] .effect-chip.down { border-style: dashed; }
+
+/* Telefon: „Przeżyj turę” zawsze pod kciukiem (panel linii jest daleko od kart cech). */
+@media (max-width: 820px) {
+  #btn-simulate {
+    position: fixed; left: 14px; right: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: auto; z-index: 30;
+    padding: 14px; font-size: 1.05rem; box-shadow: 0 6px 22px rgba(0, 0, 0, .28);
+  }
+  .screen-game { padding-bottom: 88px; }
+}
+
+/* Ekran startowy i końcowy jak tablica przyrodnicza: numer tablicy, podwójna ramka, rycina w oprawie. */
+.intro-card h1::before {
+  content: "Tablica I"; display: block; margin-bottom: 4px; font-family: var(--font);
+  font-size: .72rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft);
+}
+.end-card {
+  background-image: var(--paper-grain);
+  box-shadow: var(--shadow), inset 0 0 0 7px var(--bg-panel), inset 0 0 0 8px var(--line-strong);
+  padding: 36px;
+}
+.end-card h1::before {
+  content: "Tablica II"; display: block; margin-bottom: 4px; font-family: var(--font);
+  font-size: .72rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft);
+}
+.end-figure {
+  padding: 8px; background: var(--bg-elev); border: 1px solid var(--line-strong);
+  outline: 1px solid var(--line); outline-offset: 3px; border-radius: 3px;
+}
+@media (max-width: 480px) { .end-card { padding: 26px 18px; } }
