@@ -308,5 +308,5 @@ dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 ## Status
 
 Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
-tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+katastrofy, samouczek i tryb nauczyciela. Analiza stanu i proponowane kierunki
+rozwoju: [`docs/KIERUNKI-ROZWOJU.md`](./docs/KIERUNKI-ROZWOJU.md).
