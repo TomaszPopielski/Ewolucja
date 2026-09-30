@@ -393,3 +393,25 @@ partii to gracz „lądowy”, połowa „wodny” (`pref: 'mix'`).
   planuje radiację, może z tego korzystać częściej.
 - **Kalibracja opiera się na botach.** Potrzebne są testy z uczniami: czy
   rozumieją przedział prognozy, wykluczenia cech i koszt doboru.
+
+### 7.4. Po połączeniu z konkurentami, dietami i echami decyzji (PR #9)
+
+PR #9 (sieć troficzna, konkurenci w niszach, echa decyzji, prolog, epilog
+„Antropocen”) został przeniesiony na zasady z sekcji 7.1. Konkurenci
+wyraźnie utrudnili drogę wodną, więc przestroiłem:
+
+- filtrowanie: +2 odżywiania w otwartej wodzie (tam jest najwięcej planktonu);
+- echolokacja: obrona +2 (wczesne wykrywanie drapieżników), kultura akustyczna 34 EP;
+- wymieranie ordowickie 0,38 i permskie 0,55 (dalej głównie morskie), pojemność wody 34 na punkt pokarmu;
+- eurypteryty tylko na przybrzeżu (tak żyły naprawdę);
+- bot kladowy korzysta też z diet.
+
+| Kryterium (300 partii) | Wynik |
+|---|---|
+| Wygrane (klad): łatwy / normalny / trudny | **90 / 67 / 31%** |
+| Ślepe plany | 0% |
+| Zysk z rozgałęziania | +7 / +9 / +15 p.p. |
+| Droga lądowa vs wodna (normalny / trudny) | 75 vs 66% / 31 vs 26% |
+| Zwycięstwa: narzędzia / dźwięk (normalny) | 109 / 93 |
+| „Epoki lodowcowe”: rozwaga vs ślepy plan | 71% vs 34% |
+| „Podbój lądu” (klad) | 99% (scenariusz łatwy) |

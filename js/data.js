@@ -85,6 +85,41 @@
   // ACCLIMATIZATION_FOOD pokarmu.
   var MIGRATION = { baseCost: 8, minCost: 2, acclimatizationFood: 0.75 };
 
+
+  /*
+   * Dieta i sieć troficzna. Każda linia ma dietę, a ta wyznacza, z czego żyje:
+   * - roślinożerca / filtrator — żyje z producentów (rośliny, glony, plankton); pojemność niszy
+   *   = pojemność z `CAPACITY` × `plants` (jak dużo roślin jest w danej niszy i erze);
+   * - mięsożerca (wymaga szczęk) — żyje ze zdobyczy: pojemność = `ambientPrey` × pojemność niszy
+   *   + `preyEdible` × biomasa roślinożerców w niszy (rywale i własne linie gracza). Mięso jest
+   *   kaloryczne (`meatBonus`), ale drapieżników — także rywali — może być tylko tyle, ile zdobyczy;
+   * - wszystkożerca (wymaga wszystkożerności) — pojemność to mieszanka obu źródeł: odporna na
+   *   załamanie jednego z nich, ale nigdy najlepsza.
+   * Własne linie gracza tworzą sieć: mięsożerna gałąź zjada roślinożerną (rośnie na niej, ale
+   * podnosi jej presję drapieżników do `pressureMax`). Zmiana diety kosztuje ⚡ i osłabia żerowanie
+   * w tej turze (`switchFood`).
+   */
+  var DIETS = {
+    roslinozerca: { label: 'Roślinożerca', icon: '🌿', art: 'trait:filter_feeding', requires: null,
+      desc: 'Żyje z producentów: roślin, glonów i planktonu. Najwięcej osobników, ale wyścig o rośliny z konkurentami.' },
+    miesozerca: { label: 'Mięsożerca', icon: '🥩', art: 'trait:jaws', requires: 'jaws',
+      desc: 'Żyje ze zdobyczy: kaloryczne żerowanie, ale mieści się mniej osobników — piramida troficzna. Zdobyczą są roślinożercy (rywale i Twoje własne linie).' },
+    wszystkozerca: { label: 'Wszystkożerca', icon: '🍖', art: 'trait:omnivory', requires: 'omnivory',
+      desc: 'Je i rośliny, i zwierzęta. Nie zależy od jednego źródła, ale w żadnym nie jest najlepszy.' }
+  };
+  var TROPHIC = {
+    // Ile roślin (producentów) daje nisza w danej erze względem bazowej pojemności.
+    plants: { woda: [1, 1, 1], przybrzeze: [1, 1, 1], lad: [1, 1, 1.05], powietrze: [0.8, 0.8, 0.8] },
+    // Pojemność drapieżników bez żadnych roślinożerców, jako ułamek pojemności niszy (fauna „w tle”).
+    ambientPrey: { woda: [0.55, 0.6, 0.6], przybrzeze: [0.55, 0.55, 0.55], lad: [0.4, 0.55, 0.6], powietrze: [0.6, 0.6, 0.6] },
+    preyEdible: 0.6,      // jaka część biomasy roślinożerców to zdobycz
+    meatBonus: 1.2,      // kaloryczność mięsa: mnożnik żerowania mięsożercy
+    predShield: { miesozerca: 1, wszystkozerca: 0.4 },  // wyższy poziom sieci = mniej wrogów (odejmowane od presji)
+    omniMix: 0.6,         // pojemność wszystkożercy: 0,6 lepszego źródła + 0,4 gorszego
+    pressurePer: 3, pressureMax: 2,   // presja własnego mięsożercy na roślinożerne linie gracza
+    switchCost: 4, switchFood: 0.75   // koszt ⚡ zmiany diety i żerowanie w turze zmiany
+  };
+
   // Strategia rozrodu linii (przełącznik; obowiązuje do zmiany). Bez kosztu —
   // sam kompromis. `reserveDrain` — ⚡ zużywane co turę.
   var STRATEGIES = {
@@ -131,7 +166,7 @@
       options: [
         { id: 'colonize', label: 'Wyślij kolonistów',
           gamble: { chance: 0.55, stat: 'mobility', per: 0.05, from: 3,
-            win: { effects: { found: 0.25 }, knowledge: 'founder',
+            win: { effects: { found: 0.25 }, knowledge: 'founder', echo: { id: 'island_echo', after: 3 },
               text: 'Koloniści dotarli — ¼ populacji zakłada nową linię z małą zmiennością (efekt założyciela).' },
             lose: { effects: { popLoss: 0.1 }, knowledge: 'founder', text: 'Przeprawa się nie udała — zginęło 10% populacji.' } },
           desc: 'Ryzyko (szansa rośnie z mobilnością). Sukces: ¼ populacji zakłada nową linię (bez kosztu 🧬, ale z małą zmiennością). Porażka: ginie 10% populacji.' },
@@ -147,7 +182,7 @@
               text: 'Łowca zrezygnował — w tej turze presja drapieżników ×0,5, a koewolucja cofnęła się o 1,5.' },
             lose: { effects: { popLoss: 0.12 }, text: 'Konfrontacja przegrana — zginęło 12% populacji.' } },
           desc: 'Ryzyko (szansa rośnie z obroną). Sukces: presja ×0,5 w tej turze i słabsza koewolucja. Porażka: ginie 12% populacji.' },
-        { id: 'arms', label: 'Wyścig zbrojeń', effects: { stats: { defense: 1, metabolism: 1 }, predatorLevel: 1.5 }, knowledge: 'coevolution',
+        { id: 'arms', label: 'Wyścig zbrojeń', effects: { stats: { defense: 1, metabolism: 1 }, predatorLevel: 1.5 }, knowledge: 'coevolution', echo: { id: 'arms_echo', after: 2 },
           desc: '+1 obrony na stałe, ale uzbrojenie kosztuje (+1 metabolizmu), a drapieżniki w tej niszy szybciej ewoluują (koewolucja +1,5).' },
         { id: 'endure', label: 'Stawić czoła', default: true, turnMod: { predBonus: 5 }, nextMod: { predBonus: 3 },
           desc: 'Presja drapieżników +5 w tej turze i +3 w następnej.' }
@@ -173,7 +208,7 @@
     { id: 'disease', name: 'Epidemia pasożytów', icon: '🦠', art: 'choice:disease',
       desc: 'W populacji szerzy się choroba.',
       options: [
-        { id: 'resist', label: 'Postaw na odporność', cost: { variation: 4 }, knowledge: 'variation',
+        { id: 'resist', label: 'Postaw na odporność', cost: { variation: 4 }, knowledge: 'variation', echo: { id: 'resist_echo', after: 3 },
           desc: 'Kosztuje 4 🧬 — w zmiennej populacji są osobniki odporne; choroba nie zabija.' },
         { id: 'disperse', label: 'Rozprosz populację', cost: { reserves: 2 },
           gamble: { chance: 0.5, stat: 'mobility', per: 0.04,
@@ -194,17 +229,17 @@
           desc: 'Ryzyko (szansa rośnie z odżywianiem). Sukces: odżywianie +1 na stałe. Porażka: ginie 20% populacji i metabolizm +1 na stałe.' },
         { id: 'avoid', label: 'Trzymaj się sprawdzonego', default: true, desc: 'Nic się nie zmienia.' }
       ] },
-    { id: 'rival', name: 'Konkurent w niszy', icon: '⚔️', art: 'know:competition',
+    { id: 'rival', name: 'Konkurent w niszy', icon: '⚔️', art: 'know:competition', needsRival: true,
       desc: 'Inny gatunek zaczyna korzystać z tych samych zasobów co linia.',
       options: [
         { id: 'fight', label: 'Wypieraj konkurenta',
           gamble: { chance: 0.3, stat: 'defense', per: 0.05,
-            win: { turnMod: { foodBonus: 2 }, nextMod: { foodBonus: 2 }, knowledge: 'competition',
-              text: 'Konkurent wyparty — pokarm +2 w tej i w następnej turze.' },
+            win: { effects: { rivalHit: 0.5 }, turnMod: { foodBonus: 2 }, nextMod: { foodBonus: 2 }, knowledge: 'competition',
+              text: 'Konkurent wyparty — jego populacja spadła o połowę, a pokarm +2 w tej i w następnej turze.' },
             lose: { effects: { popLoss: 0.15 }, turnMod: { foodBonus: -2 }, nextMod: { foodBonus: -2 }, knowledge: 'competition',
               text: 'Starcie przegrane — zginęło 15% populacji, a konkurent zabrał część pokarmu (−2 przez dwie tury).' } },
           desc: 'Ryzyko (szansa rośnie z obroną). Sukces: pokarm +2 przez dwie tury. Porażka: ginie 15% populacji i pokarm −2 przez dwie tury.' },
-        { id: 'shift', label: 'Zmień dietę', cost: { variation: 4 }, knowledge: 'displacement',
+        { id: 'shift', label: 'Zmień dietę', cost: { variation: 4 }, effects: { rivalHit: 0.3 }, knowledge: 'displacement', echo: { id: 'shift_echo', after: 2 },
           desc: 'Kosztuje 4 🧬 — linia przesuwa się na inny pokarm (przemieszczenie cech) i unika konkurencji.' },
         { id: 'share', label: 'Dziel się zasobami', default: true, turnMod: { foodBonus: -3 }, nextMod: { foodBonus: -2 },
           desc: 'Pokarm −3 w tej turze i −2 w następnej.' }
@@ -213,7 +248,7 @@
       desc: 'Nieopodal wybucha wulkan. Popioły zasypią okolicę, ale potem użyźnią glebę i wodę.',
       options: [
         { id: 'flee', label: 'Uciekaj z zasięgu', cost: { reserves: 3 }, desc: 'Kosztuje 3 ⚡ — linia bezpiecznie omija erupcję.' },
-        { id: 'stay', label: 'Przeczekaj na miejscu', default: true,
+        { id: 'stay', label: 'Przeczekaj na miejscu', default: true, echo: { id: 'ash_echo', after: 2 },
           gamble: { chance: 0.5,
             win: { nextMod: { foodBonus: 3 }, text: 'Popioły ominęły linię, a użyźniona okolica da w następnej turze +3 pokarmu.' },
             lose: { effects: { popLoss: 0.25 }, nextMod: { foodBonus: 3 },
@@ -287,8 +322,246 @@
             lose: { turnMod: { birthMult: 0.6 }, knowledge: 'mutation_bad', text: 'Mutacja okazała się szkodliwa — rozród ×0,6 w tej turze.' } },
           desc: 'Kosztuje 3 🧬. Ryzyko 50/50. Sukces: +15 EP. Porażka: rozród ×0,6 w tej turze.' },
         { id: 'ignore', label: 'Zostaw to doborowi', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    /* Echa decyzji: karty `chain` nie wchodzą do losowej puli. Wracają po `echo.after`
+       turach jako skutek wcześniejszego wyboru, dla tej samej linii (lub jej kolonii). */
+    { id: 'island_echo', chain: true, name: 'Wyspiarze się zmieniają', icon: '🏝️', art: 'choice:island',
+      desc: 'Izolowana kolonia żyje osobno od kilku pokoleń. Małe populacje na wyspach ewoluują po swojemu: drobnieją, tracą czujność, zdobywają nietypowe cechy.',
+      options: [
+        { id: 'isolate', label: 'Zostaw ich w izolacji', default: true, effects: { stats: { reproduction: 1 }, variation: 3 }, knowledge: 'founder',
+          desc: '+1 rozrodu na stałe i +3 🧬 — izolacja utrwala odrębne cechy (specjacja allopatryczna).' },
+        { id: 'contact', label: 'Nawiąż kontakt z lądem', effects: { variation: 6 }, knowledge: 'hybridization',
+          desc: '+6 🧬 — napływ nowych genów odświeża zmienność, ale kolonia nie wyodrębnia się.' }
+      ] },
+    { id: 'arms_echo', chain: true, name: 'Drapieżniki dogoniły obronę', icon: '🦈', art: 'know:predation',
+      desc: 'Twoja wcześniejsza rozbudowa obrony zaowocowała: drapieżniki wyewoluowały skuteczniejsze sposoby polowania. Jak odpowiesz?',
+      options: [
+        { id: 'escalate', label: 'Podkręć obronę jeszcze bardziej', effects: { stats: { defense: 1 }, predatorLevel: 1 }, knowledge: 'coevolution',
+          desc: '+1 obrony na stałe, ale koewolucja +1 (Hipoteza Czerwonej Królowej).' },
+        { id: 'evade', label: 'Zmień taktykę: unikaj', cost: { reserves: 3 }, effects: { predatorLevel: -1.5 },
+          desc: 'Kosztuje 3 ⚡ — linia zmienia porę i miejsce żerowania; presja drapieżników −1,5.' },
+        { id: 'stand', label: 'Nic nie zmieniaj', default: true, turnMod: { predBonus: 2 },
+          desc: 'W tej turze presja drapieżników +2.' }
+      ] },
+    { id: 'resist_echo', chain: true, name: 'Odporne pokolenie', icon: '🦠', art: 'choice:disease',
+      desc: 'Osobniki odporne na chorobę przeżyły i przekazały swoje geny. Choroba wróciła, ale w populacji jest teraz wiele odpornych linii.',
+      options: [
+        { id: 'select', label: 'Wesprzyj odpornych', default: true, effects: { variation: 4, stats: { defense: 1 } }, knowledge: 'variation',
+          desc: '+4 🧬 i +1 obrony — populacja utrwala odporność.' },
+        { id: 'mix', label: 'Zachowaj różnorodność', effects: { variation: 7 },
+          desc: '+7 🧬 — ryzykujesz tylko lekką chorobę, ale zachowujesz szeroką pulę genów.' }
+      ] },
+    { id: 'shift_echo', chain: true, name: 'Nowa dieta się przyjmuje', icon: '🍽️', art: 'know:displacement',
+      desc: 'Zmiana pokarmu przyniosła skutek: część linii wyspecjalizowała się w nowym źródle. Można to utrwalić lub wrócić do starej diety.',
+      options: [
+        { id: 'specialize', label: 'Wyspecjalizuj się', effects: { stats: { feeding: 1 } }, knowledge: 'displacement',
+          desc: '+1 odżywiania na stałe — sprawniej korzystasz z nowego pokarmu.' },
+        { id: 'generalist', label: 'Zostań wszystkożerny', default: true, effects: { reserves: 3, variation: 2 },
+          desc: '+3 ⚡ i +2 🧬 — elastyczna dieta daje zapas i zmienność.' }
+      ] },
+    { id: 'ash_echo', chain: true, name: 'Wulkaniczna gleba', icon: '🌋', art: 'ui:sprout',
+      desc: 'Popioły po erupcji rozłożyły się w żyzną glebę. Roślinność wraca bujniej niż przedtem.',
+      options: [
+        { id: 'bloom', label: 'Wykorzystaj obfitość', default: true, turnMod: { foodBonus: 3, birthMult: 1.3 }, nextMod: { foodBonus: -1 },
+          desc: 'Pokarm +3 i rozród ×1,3 w tej turze, w następnej pokarm −1.' },
+        { id: 'store', label: 'Odłóż zapasy', effects: { reserves: 5 }, desc: '+5 ⚡ od razu.' }
       ] }
   ];
+
+
+  /*
+   * Rywale (inne gatunki tej ery): zajmują nisze, w których żyje gracz, i dzielą z nim
+   * pojemność. Rosną do udziału `share` pojemności niszy (silniejszy rywal — większego),
+   * ale słabną, gdy gracz zapełnia niszę (wypieranie konkurencyjne). Katastrofy ich też
+   * uderzają. Rywal-drapieżnik (`role: 'predator'`) dodatkowo zwiększa presję drapieżników w niszy,
+   * a konkurent (bez roli) tylko zabiera pokarm. Nowy rywal pojawia się z szansą `spawnChance` na turę, jeśli jest ich mniej niż `max`.
+   */
+  var RIVAL = { predPerStrength: 0.2, predMax: 1.8, spawnChance: 0.22, max: 2, firstTurn: 3, startShare: 0.14, baseShare: 0.2, perStrength: 0.035, maxShare: 0.42, playerPressure: 0.7,
+    follow: 0.3, strengthGain: 0.35, strengthMax: 8, catMult: 0.85, extinctBelow: 5 };
+  var RIVALS = [
+    { id: 'eurypterid', role: 'predator', name: 'Skorpiony morskie', icon: '🦂', minEra: 0, maxEra: 0, niches: ['przybrzeze'],
+      desc: 'Drapieżne eurypteryty — nawet dwumetrowe stawonogi płytkich, przybrzeżnych i słonawych wód paleozoiku.' },
+    { id: 'placoderm', role: 'predator', name: 'Ryby pancerne', icon: '🐟', minEra: 0, maxEra: 0, niches: ['woda'],
+      desc: 'Pancerne ryby (plakodermy) z potężnymi szczękami, panujące w dewonie.' },
+    { id: 'arthropleura', name: 'Wielkie wije', icon: '🐛', minEra: 0, maxEra: 0, niches: ['lad'],
+      desc: 'Artropleury — metrowe stawonogi, które zasiedliły lądowe lasy karbonu.' },
+    { id: 'ammonite', name: 'Amonity', icon: '🐚', minEra: 1, maxEra: 1, niches: ['woda', 'przybrzeze'],
+      desc: 'Głowonogi ze spiralnymi muszlami, jedne z najliczniejszych zwierząt mezozoicznych mórz.' },
+    { id: 'ichthyosaur', role: 'predator', name: 'Ichtiozaury', icon: '🐬', minEra: 1, maxEra: 1, niches: ['woda'],
+      desc: 'Morskie gady o kształcie delfinów, szybkie łowce otwartej wody.' },
+    { id: 'dinosaur', role: 'predator', name: 'Dinozaury', icon: '🦖', minEra: 1, maxEra: 1, niches: ['lad'],
+      desc: 'Dominujące zwierzęta lądowe przez ponad 150 mln lat.' },
+    { id: 'pterosaur', role: 'predator', name: 'Pterozaury', icon: '🦅', minEra: 1, maxEra: 1, niches: ['powietrze', 'przybrzeze'],
+      desc: 'Latające gady, pierwsze kręgowce, które opanowały niebo.' },
+    { id: 'shark', role: 'predator', name: 'Wielkie rekiny', icon: '🦈', minEra: 2, maxEra: 2, niches: ['woda', 'przybrzeze'],
+      desc: 'Rekiny — jedne z najstarszych i najskuteczniejszych drapieżników mórz.' },
+    { id: 'terror_bird', role: 'predator', name: 'Ptaki drapieżne', icon: '🦤', minEra: 2, maxEra: 2, niches: ['lad'],
+      desc: 'Nielotne ptaki-łowcy kenozoiku, przez miliony lat szczyt łańcucha pokarmowego.' },
+    { id: 'bats', name: 'Nietoperze', icon: '🦇', minEra: 2, maxEra: 2, niches: ['powietrze'],
+      desc: 'Jedyne latające ssaki; zajmują nocną niszę w powietrzu.' },
+    { id: 'ungulates', name: 'Kopytne', icon: '🦌', minEra: 2, maxEra: 2, niches: ['lad'],
+      desc: 'Stada roślinożerców stepów i lasów kenozoiku.' }
+  ];
+
+  /*
+   * Zakończenia i epilog. Zwycięstwo kończy się „Antropocenem”: co robi rozumny gatunek
+   * ze światem. Przetrwanie dostaje tytuł zależny od stylu gry (`legacy`), by nie było
+   * jedną, szarą porażką.
+   */
+  var ENDINGS = {
+    anthropocene: {
+      title: 'Epilog: Antropocen',
+      intro: {
+        tools: 'Twój gatunek wykuwa narzędzia, oswaja ogień i przekazuje umiejętności następnym pokoleniom.',
+        sound: 'Twój gatunek porozumiewa się pieśniami i imionami, a wiedza wędruje z pokolenia na pokolenie przez naukę.'
+      },
+      // Skutki dla świata — dobierane z przebiegu partii.
+      impacts: [
+        { when: 'rivals', text: 'Po drodze wyparłeś konkurentów z ich nisz. Rozum rzadko jest łagodny dla sąsiadów.' },
+        { when: 'lost_lines', text: 'Wiele gałęzi Twojej rodziny wymarło. W historii życia to norma: większość gatunków, które kiedykolwiek żyły, już nie istnieje.' },
+        { when: 'radiation', text: 'Twoje potomstwo rozeszło się po wielu niszach, a dziś rozum zmienia je wszystkie.' },
+        { when: 'default', text: 'Czas geologiczny mierzy się milionami lat. Rozumny gatunek potrafi zmienić klimat i obieg pierwiastków w kilka stuleci.' }
+      ],
+      outro: 'Antropocen to proponowana nazwa epoki, w której działalność jednego gatunku zmienia całą planetę. ' +
+        'Tempo dzisiejszych wymierań jest wielokrotnie wyższe niż średnia w historii Ziemi. ' +
+        'Rozum daje moc — ale to, jak z niej korzystać, ewolucja Ci nie podpowie.'
+    },
+    legacy: [
+      { id: 'sky', when: 'sky', title: 'Władcy przestworzy', text: 'Twoja linia opanowała powietrze — niszę, do której prowadzi wiele bardzo kosztownych adaptacji.' },
+      { id: 'radiation', when: 'radiation', title: 'Wielka radiacja', text: 'Twój gatunek rozdzielił się na wiele linii w różnych niszach — tak działała radiacja adaptacyjna po wielkich wymieraniach.' },
+      { id: 'legion', when: 'legion', title: 'Gatunek-legion', text: 'Twoja populacja osiągnęła ogromną liczebność — sukces liczony w osobnikach, choć bez rozumu.' },
+      { id: 'phoenix', when: 'phoenix', title: 'Wąskie gardło i powrót', text: 'Populacja spadła niemal do zera, a mimo to gatunek przetrwał. Tak ocalały m.in. gepardy i żubry.' },
+      { id: 'quiet', when: 'default', title: 'Żywa skamielina', text: 'Twój gatunek trwa bez wielkich zmian — jak rekiny, krokodyle czy latimeria, żywe skamieliny, którym wystarczy dobrze dobrana nisza.' }
+    ]
+  };
+
+
+  /*
+   * Prolog: prekambr (4,5 mld – 541 mln lat temu), zanim ruszy właściwa gra. Trzy wybory
+   * zamiast tur — każdy to zwrot w historii życia z drobnymi, wyważonymi skutkami na start
+   * (`effects`: stats, reserves, variation, ep) i kartą wiedzy (`knowledge`). Nie da się
+   * wybrać źle: każda opcja to kompromis, a łączny bilans jest zbliżony.
+   */
+  var PROLOGUE = [
+    { id: 'energy', when: 'ok. 3,8 mld lat temu', icon: '🌋', title: 'Skąd czerpać energię?',
+      desc: 'Ocean jest pełen związków chemicznych, a nad nim świeci Słońce. Pierwsze komórki muszą znaleźć sposób, by z tego żyć.',
+      options: [
+        { id: 'chemo', icon: '♨️', label: 'Chemosynteza przy kominach', knowledge: 'chemosynthesis',
+          desc: 'Energia z związków siarki i żelaza przy kominach hydrotermalnych.',
+          effects: { stats: { metabolism: -1, mobility: -1 }, variation: 2, reserves: 2 }, tradeoff: 'Oszczędny metabolizm (−1), +2 🧬 i +2 ⚡, ale przywiązanie do kominów (mobilność −1).' },
+        { id: 'photo', icon: '☀️', label: 'Fotosynteza (sinice)', knowledge: 'photosynthesis',
+          desc: 'Energia ze światła słonecznego; ubocznie powstaje tlen.',
+          effects: { stats: { feeding: 1, mobility: -1 }, reserves: 2 }, tradeoff: '+1 odżywiania i +2 ⚡, ale przyrośnięte maty słabo się ruszają (mobilność −1).' },
+        { id: 'phago', icon: '🦠', label: 'Fagocytoza — żywienie cudzymi komórkami', knowledge: 'phagocytosis',
+          desc: 'Komórka otacza i trawi inne komórki — pierwsze drapieżnictwo.',
+          effects: { stats: { feeding: 1, metabolism: 1 } }, tradeoff: '+1 odżywiania, ale +1 metabolizmu.' }
+      ] },
+    { id: 'cells', when: '2 mld – 600 mln lat temu', icon: '🧫', title: 'Jak połączyć siły?',
+      desc: 'Pojedyncza komórka jest prosta i szybka, ale ma swoje granice. Życie zaczyna eksperymentować ze współpracą.',
+      options: [
+        { id: 'endosymbiosis', icon: '🔋', label: 'Endosymbioza — mitochondria', knowledge: 'endosymbiosis',
+          desc: 'Komórka „przygarnia” bakterię, która staje się elektrownią komórki.',
+          effects: { stats: { feeding: 1, mobility: -1 }, reserves: 3 }, tradeoff: '+1 odżywiania i +3 ⚡, ale większa, złożona komórka jest mniej ruchliwa (mobilność −1).' },
+        { id: 'colony', icon: '🫧', label: 'Kolonie i wielokomórkowość', knowledge: 'multicellularity',
+          desc: 'Komórki zostają razem, dzielą się pracą i chronią się nawzajem.',
+          effects: { stats: { defense: 1, mobility: -1 }, variation: 4 }, tradeoff: '+1 obrony i +4 🧬, ale ciężka kolonia jest mniej ruchliwa (mobilność −1).' },
+        { id: 'solitary', icon: '⚡', label: 'Szybko dzielące się pojedyncze komórki', knowledge: 'binary_fission',
+          desc: 'Prostota i tempo: podział co kilkanaście minut daje ogromną liczebność.',
+          effects: { stats: { reproduction: 1, defense: -1 }, ep: -8 }, tradeoff: '+1 rozrodu, ale −1 obrony i −8 EP na start — pojedyncza komórka jest bezbronna i bez zaplecza.' }
+      ] },
+    { id: 'oxygen', when: '600 – 541 mln lat temu', icon: '🫧', title: 'Tlen i pierwsze zwierzęta',
+      desc: 'Sinice przez miliony lat zatruwały ocean i atmosferę tlenem. Dla jednych to katastrofa, dla innych — szansa. Pojawiają się miękkie zwierzęta fauny ediakarskiej.',
+      options: [
+        { id: 'aerobic', icon: '🫁', label: 'Oddychanie tlenowe', knowledge: 'great_oxidation',
+          desc: 'Tlen pozwala wydobyć z pokarmu wielokrotnie więcej energii.',
+          effects: { stats: { feeding: 1, metabolism: 1 }, reserves: 2 }, tradeoff: '+1 odżywiania i +2 ⚡, ale +1 metabolizmu — ciało zużywa więcej energii.' },
+        { id: 'anaerobic', icon: '🕳️', label: 'Odporność na niedotlenienie', knowledge: 'anoxia',
+          desc: 'Linia trzyma się miejsc ubogich w tlen, gdzie brakuje konkurentów.',
+          effects: { stats: { defense: 1, metabolism: -1, feeding: -1 } }, tradeoff: '+1 obrony, ale −1 metabolizmu i −1 odżywiania — mało energii, za to spokojne siedlisko.' },
+        { id: 'soft', icon: '🪼', label: 'Miękkie ciało ediakaru', knowledge: 'ediacaran',
+          desc: 'Płaskie, miękkie zwierzęta bez szkieletu, jak Dickinsonia.',
+          effects: { stats: { mobility: 1, defense: -1 } }, tradeoff: '+1 mobilności, ale −1 obrony (brak pancerza).' }
+      ] }
+  ];
+
+
+  /*
+   * Epilog: Antropocen (grywalny, po zwycięstwie). Rozumny gatunek podejmuje cztery decyzje
+   * o tym, jak korzystać ze swojej mocy. Każda zmienia `tech` (rozwój cywilizacji) i `bio`
+   * (kondycja biosfery); żadna opcja nie jest darmowa. Biosfera startuje z wartości zależnej
+   * od przebiegu partii (`start`): wypierani konkurenci, wymarłe linie i mała różnorodność
+   * ją obniżają. Na końcu werdykt z `verdicts` (pierwszy pasujący) i punkty do wyniku.
+   */
+  var ANTHROPOCENE = {
+    start: { base: 80, perDisplaced: 8, maxDisplaced: 3, perLostLine: 4, maxLostLines: 4, perExtraNiche: 3, min: 30, max: 95 },
+    score: { perTech: 4, perBio: 1 },
+    stages: [
+      { id: 'energy', icon: '🔥', title: 'Skąd brać energię?',
+        desc: 'Ogień, potem pary, silniki i prąd: rozum daje dostęp do energii, jakiej nie miał żaden inny gatunek. Skąd ją brać?',
+        options: [
+          { id: 'coal', icon: '🪨', label: 'Węgiel i ropa naftowa', tech: 5, bio: -12,
+            desc: 'Paliwa z pradawnych lasów karbonu: tanie i bogate w energię.',
+            tradeoff: 'Rozwój +5, biosfera −12: uwalniasz węgiel, który natura zamknęła przed setkami milionów lat.' },
+          { id: 'wood', icon: '🪵', label: 'Drewno, torf i biomasa', tech: 3, bio: -8,
+            desc: 'Prosto i lokalnie, ale las odrasta wolniej, niż go palisz.',
+            tradeoff: 'Rozwój +3, biosfera −8.' },
+          { id: 'renew', icon: '🌬️', label: 'Słońce, wiatr i woda', tech: 2, bio: -2,
+            desc: 'Czysta energia, ale trudniej ją zmagazynować.',
+            tradeoff: 'Rozwój +2, biosfera −2.' }
+        ] },
+      { id: 'food', icon: '🌾', title: 'Jak żywić rosnącą populację?',
+        desc: 'Rozum pozwolił oswoić rośliny i zwierzęta. Populacja rośnie, a z nią potrzeby.',
+        options: [
+          { id: 'clear', icon: '🪓', label: 'Karczować i zakładać pola', tech: 3, bio: -10,
+            desc: 'Więcej pól dzięki wycince lasów i osuszaniu bagien.',
+            tradeoff: 'Rozwój +3, biosfera −10: giną siedliska dzikich gatunków.' },
+          { id: 'chem', icon: '🧪', label: 'Intensywne rolnictwo z chemią', tech: 4, bio: -8,
+            desc: 'Nawozy i środki ochrony roślin dają wysokie plony z mniejszego obszaru.',
+            tradeoff: 'Rozwój +4, biosfera −8: spływy zatruwają rzeki i morza.' },
+          { id: 'rotate', icon: '🌱', label: 'Zróżnicowane uprawy i płodozmian', tech: 2, bio: -2,
+            desc: 'Rotacje, żywopłoty i mniejsze pola zachowują glebę i owady zapylające.',
+            tradeoff: 'Rozwój +2, biosfera −2.' }
+        ] },
+      { id: 'cities', icon: '🏙️', title: 'Jak rosną miasta?',
+        desc: 'Handel i rzemiosło gromadzą ludzi w osadach. Osady stają się miastami.',
+        options: [
+          { id: 'sprawl', icon: '🏗️', label: 'Miasta bez ograniczeń', tech: 5, bio: -10,
+            desc: 'Miasta rozlewają się w każdą stronę i pochłaniają otoczenie.',
+            tradeoff: 'Rozwój +5, biosfera −10.' },
+          { id: 'compact', icon: '🌳', label: 'Zwarte miasta z terenami zielonymi', tech: 3, bio: -3,
+            desc: 'Gęsta zabudowa, parki i korytarze dla dzikiej przyrody.',
+            tradeoff: 'Rozwój +3, biosfera −3.' },
+          { id: 'villages', icon: '🛖', label: 'Rozproszone osady', tech: 1, bio: -1,
+            desc: 'Małe osady lokalnie zaopatrują się w zasoby.',
+            tradeoff: 'Rozwój +1, biosfera −1: mało wymiany wiedzy i handlu.' }
+        ] },
+      { id: 'extinction', icon: '🦋', title: 'Co z gatunkami, które giną?',
+        desc: 'Zmiany krajobrazu i klimatu sprawiają, że gatunki znikają wielokrotnie szybciej niż zwykle. Czy zrobisz coś w tej sprawie?',
+        options: [
+          { id: 'ignore', icon: '🙈', label: 'Nie przeszkadzać rozwojowi', tech: 2, bio: -6,
+            desc: 'Oszczędzasz zasoby na własne cele.',
+            tradeoff: 'Rozwój +2, biosfera −6.' },
+          { id: 'reserves', icon: '🛡️', label: 'Rezerwaty i przywracanie gatunków', tech: 0, bio: 8,
+            desc: 'Chronisz siedliska i wypuszczasz zagrożone gatunki na wolność.',
+            tradeoff: 'Rozwój +0, biosfera +8: kosztuje ziemię i wysiłek.' },
+          { id: 'genebank', icon: '🧬', label: 'Banki genów i inżynieria ekosystemów', tech: 3, bio: 3,
+            desc: 'Przechowujesz materiał genetyczny i wspierasz ekosystemy wiedzą.',
+            tradeoff: 'Rozwój +3, biosfera +3: skuteczne tylko tam, gdzie rozumiesz ekosystem.' }
+        ] }
+    ],
+    verdicts: [
+      { id: 'sustainable', min: { tech: 9, bio: 60 }, icon: '🌍', title: 'Zrównoważona cywilizacja',
+        text: 'Twój gatunek rozwinął technikę i nie zniszczył biosfery. To najtrudniejsza droga: potrzeba wiedzy i rezygnacji z części korzyści.' },
+      { id: 'debt', min: { tech: 9 }, icon: '🏭', title: 'Cywilizacja na kredyt',
+        text: 'Technika kwitnie, ale biosfera się kurczy. Rozwój na koszt ekosystemów działa tak długo, jak długo starcza kapitału natury — a ten się kończy.' },
+      { id: 'guardians', min: { bio: 60 }, icon: '🌿', title: 'Cisi opiekunowie',
+        text: 'Twój gatunek żyje w zgodzie z otoczeniem, ale za cenę rozwoju: niewiele techniki i niewielki wpływ na świat.' },
+      { id: 'collapse', min: {}, icon: '🥀', title: 'Upadek ekosystemów',
+        text: 'Ani rozwoju, ani zdrowej biosfery. Cywilizacja stoi na kruchym gruncie, a coraz uboższa natura nie jest w stanie jej wesprzeć.' }
+    ],
+    // Zakończenie mówi, co sam epilog pokazuje; ta pełna nazwa trafia do ekranu końcowego.
+    outro: 'Antropocen to wciąż otwarty rozdział. Wybory rozumnego gatunku to jedyne miejsce w historii życia, w którym „ewolucja ma cel” — bo cel wybiera ten, kto rozumie konsekwencje.'
+  };
 
   // Punkty ewolucji za turę (ZALOZENIA 4.2): premia za przetrwanie + za sukces
   // reprodukcyjny (łączna liczebność i wzrost wszystkich linii) + za inteligencję
@@ -350,7 +623,7 @@
    * populacji na turę, `crowdRate` za każde 100% nadwyżki). Nowa nisza = nowa
    * pojemność — to daje sens specjacji i migracji (radiacja adaptacyjna).
    */
-  var CAPACITY = { perFood: { woda: 30, przybrzeze: 20, lad: 40, powietrze: 28 }, min: 60, theta: 3,
+  var CAPACITY = { perFood: { woda: 34, przybrzeze: 20, lad: 40, powietrze: 28 }, min: 60, theta: 3,
     crowdRate: 0.35, crowdMax: 0.35, warnAt: 0.8 };
 
   var CATEGORIES = {
@@ -371,10 +644,13 @@
     // --- Pokarm ---
     { id: 'filter_feeding', name: 'Filtrowanie pokarmu', icon: '💧', category: 'pokarm', cost: 10, requires: [], excludes: ['jaws'],
       effects: { feeding: 3 }, tradeoff: 'Skuteczne tylko w wodzie, gdzie jest plankton. Wyklucza szczęki — to inny sposób życia.',
-      conditions: [{ niches: ['lad', 'powietrze'], effects: { feeding: -3 }, note: 'poza wodą brak planktonu' }],
+      conditions: [{ niches: ['woda'], effects: { feeding: 2 }, note: 'otwarta woda — najwięcej planktonu' },
+        { niches: ['lad', 'powietrze'], effects: { feeding: -3 }, note: 'poza wodą brak planktonu' },
+        { diets: ['miesozerca'], effects: { feeding: -3 }, note: 'filtrowanie nie łowi zdobyczy' }],
       desc: 'Odcedzanie drobnych cząstek pokarmu z wody — tania strategia odżywiania.' },
     { id: 'jaws', name: 'Szczęki', icon: '🦷', category: 'pokarm', cost: 16, requires: [], excludes: ['filter_feeding'],
       effects: { feeding: 3, metabolism: 1 }, tradeoff: 'Więcej pokarmu, ale wyższy metabolizm. Wyklucza filtrowanie.',
+      conditions: [{ diets: ['miesozerca'], effects: { feeding: 1 }, note: 'szczęki drapieżnika' }],
       desc: 'Ruchome szczęki otwierają dostęp do większej i twardszej zdobyczy.' },
     { id: 'omnivory', name: 'Wszystkożerność', icon: '🍖', category: 'pokarm', cost: 22, requires: ['jaws'],
       effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Elastyczna dieta kosztuje energię.',
@@ -416,8 +692,8 @@
       effects: { feeding: 1, defense: 1, metabolism: 1 }, tradeoff: 'Utrzymanie narządu wzroku kosztuje energię.',
       desc: 'Wzrok ułatwia zdobywanie pokarmu i wczesne wykrycie zagrożeń.' },
     { id: 'echolocation', name: 'Echolokacja', icon: '🔊', category: 'zmysly', cost: 18, requires: ['ganglia'], minEra: 1, path: 'intelligence',
-      effects: { feeding: 1, defense: 1, intelligence: 1, metabolism: 1 }, tradeoff: 'Działa tam, gdzie dźwięk dobrze się niesie: w wodzie i w locie.',
-      conditions: [{ niches: ['lad'], effects: { feeding: -1, defense: -1 }, note: 'na lądzie echo gubi się wśród przeszkód' }],
+      effects: { feeding: 1, defense: 2, intelligence: 1, metabolism: 1 }, tradeoff: 'Działa tam, gdzie dźwięk dobrze się niesie: w wodzie i w locie. Wcześnie wykrywa drapieżniki.',
+      conditions: [{ niches: ['lad'], effects: { feeding: -1, defense: -2 }, note: 'na lądzie echo gubi się wśród przeszkód' }],
       desc: 'Wysyłanie dźwięków i słuchanie echa pozwala „widzieć” w mętnej wodzie i w ciemności.' },
     { id: 'lateral_line', name: 'Linia boczna', icon: '〰️', category: 'zmysly', cost: 10, requires: [],
       effects: { defense: 1, mobility: 1 }, tradeoff: 'Działa wyłącznie w środowisku wodnym.',
@@ -453,6 +729,8 @@
       desc: 'Scentralizowany mózg umożliwia złożone zachowania.' },
     { id: 'pack_hunting', name: 'Polowanie w grupie', icon: '🐺', category: 'uklad_nerwowy', cost: 20, requires: ['brain'], minEra: 1,
       effects: { feeding: 2, defense: 1, metabolism: 1 }, tradeoff: 'Skuteczne łowy wymagają koordynacji grupy.',
+      conditions: [{ diets: ['miesozerca'], effects: { feeding: 1 }, note: 'łowy w grupie' },
+        { diets: ['roslinozerca'], effects: { feeding: -1 }, note: 'roślinożerca nie ma czego wspólnie łowić' }],
       desc: 'Współdziałanie w grupie zwiększa skuteczność zdobywania pokarmu i obronę.' },
     { id: 'big_brain', name: 'Rozbudowany mózg', icon: '💡', category: 'uklad_nerwowy', cost: 30, requires: ['brain', 'endothermy'], path: 'intelligence',
       effects: { intelligence: 4, metabolism: 2 }, tradeoff: 'Bardzo energochłonny — potrzebuje stabilnej energii.',
@@ -460,7 +738,7 @@
     { id: 'social', name: 'Zachowania społeczne', icon: '👥', category: 'uklad_nerwowy', cost: 26, requires: ['brain'], path: 'intelligence', minEra: 1,
       effects: { intelligence: 2, defense: 1, metabolism: 1 }, tradeoff: 'Życie w grupie wymaga komunikacji i koordynacji.',
       desc: 'Współpraca i uczenie się od innych przyspieszają rozwój poznawczy.' },
-    { id: 'vocal_culture', name: 'Kultura akustyczna', icon: '🎶', category: 'uklad_nerwowy', cost: 38,
+    { id: 'vocal_culture', name: 'Kultura akustyczna', icon: '🎶', category: 'uklad_nerwowy', cost: 34,
       requires: ['big_brain', 'social', 'echolocation'], path: 'intelligence', minEra: 2,
       effects: { intelligence: 3, feeding: 1, defense: 1, metabolism: 1 },
       tradeoff: 'Kulminacja drogi wodnej: język dźwięków przekazywany z pokolenia na pokolenie; działa w wodzie lub na brzegu.',
@@ -491,7 +769,7 @@
           note: 'Rośnie presja drapieżników — obrona zaczyna się liczyć.' },
         { title: 'Ordowik — zlodowacenie', oxygen: 8, food: 7, predators: 5, climate: 'zimno', land: land(4, 2),
           note: 'Nagłe ochłodzenie ścina dostępność pokarmu.',
-          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.45, window: [1, 2],
+          catastrophe: { name: 'Wymieranie ordowickie', niche: 'all', severity: 0.38, window: [1, 2],
             nicheSeverity: { przybrzeze: 0.3, lad: 0.05, powietrze: 0.05 }, knowledge: 'extinction',
             survival: [{ stat: 'mobility', min: 6, mult: 0.6, reason: 'wysoka mobilność — ucieczka do cieplejszych wód' }] } },
         { title: 'Sylur — stabilizacja', oxygen: 10, food: 10, predators: 7, climate: 'umiarkowanie', land: land(7, 3),
@@ -508,7 +786,7 @@
         { title: 'Perm — Wielkie Wymieranie', oxygen: 8, food: 7, predators: 9, climate: 'cieplo', land: land(8, 5),
           note: 'Erupcje trapów syberyjskich: gwałtowne ocieplenie, zakwaszone i niedotlenione oceany. ' +
             'Najmocniej cierpią morza, ale ląd także.',
-          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.65,
+          catastrophe: { name: 'Wymieranie permskie', niche: 'all', severity: 0.55,
             nicheSeverity: { przybrzeze: 0.5, lad: 0.35, powietrze: 0.35 },
             knowledge: 'extinction',
             survival: [{ stat: 'metabolism', max: 6, mult: 0.7, reason: 'niski metabolizm — mniejsze zapotrzebowanie na tlen' }] } }
@@ -627,6 +905,10 @@
 
   // Osiągnięcia (zapisywane między partiami w przeglądarce).
   var ACHIEVEMENTS = [
+    { id: 'steward', icon: '🌍', label: 'Zrównoważona cywilizacja', desc: 'Zakończ epilog „Antropocen” zrównoważoną cywilizacją: rozwój bez zniszczenia biosfery.' },
+    { id: 'web', icon: '🔺', label: 'Sieć troficzna', desc: 'Utrzymaj jednocześnie linię roślinożerną i mięsożerną przez trzy tury.' },
+    { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.' },
+    { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.' },
     { id: 'first_win', icon: '🏆', label: 'Iskra rozumu', desc: 'Wygraj partię.' },
     { id: 'tools_win', icon: '🪓', label: 'Kultura narzędziowa', desc: 'Wygraj drogą narzędzi.' },
     { id: 'sound_win', icon: '🐬', label: 'Pieśń oceanu', desc: 'Wygraj drogą kultury akustycznej.' },
@@ -732,6 +1014,57 @@
       body: 'Każde środowisko wyżywi tylko określoną liczbę osobników — to jego pojemność (nośność). ' +
         'Mała populacja w bogatym środowisku rośnie szybko, ale im bliżej granicy, tym wolniej; nadmiar ginie z głodu i ' +
         'przegęszczenia. Wzrost przyjmuje kształt litery S (wzrost logistyczny).' },
+    trophic: { icon: '🔺', title: 'Piramida troficzna',
+      body: 'Producenci (rośliny, glony) są u podstawy; roślinożercy je zjadają, a mięsożercy zjadają roślinożerców. ' +
+        'Z każdym poziomem energii ubywa — zwykle zostaje ok. 10% — więc drapieżników jest wielokrotnie mniej niż ' +
+        'roślinożerców, a łańcuchy pokarmowe rzadko mają więcej niż kilka ogniw.',
+      fossil: 'W skamieniałych rafach i lasach biomasa drapieżników to zwykle ułamek biomasy roślinożerców.' },
+    trophic_cascade: { icon: '🌊', title: 'Kaskada troficzna',
+      body: 'Zmiana na jednym poziomie sieci pokarmowej przenosi się na inne. Więcej drapieżników — mniej roślinożerców, ' +
+        'ale więcej roślin. Odwrotnie: gdy zabraknie zdobyczy, głodują też drapieżniki. Sieć troficzna to układ ' +
+        'sprzężeń zwrotnych, nie prosty łańcuch.',
+      fossil: 'Po powrocie wilków do Yellowstone zmalało stado jeleni, zregenerowały się wierzby nad rzekami, a wraz z nimi bobry.' },
+    diet: { icon: '🍽️', title: 'Dieta i specjalizacja',
+      body: 'Specjalista (tylko rośliny lub tylko mięso) wykorzystuje swój pokarm najlepiej, ale zależy od jednego źródła. ' +
+        'Generalista (wszystkożerca) przetrwa spadek pokarmu, choć w dobrych czasach ustępuje specjalistom. ' +
+        'To jeden z klasycznych kompromisów doboru naturalnego.',
+      fossil: 'Pandy wielkie to potomkowie mięsożerców, którzy wyspecjalizowali się w bambusie — i są zależne od niego.' },
+    chemosynthesis: { icon: '♨️', title: 'Chemosynteza',
+      body: 'Niektóre bakterie czerpią energię nie ze światła, lecz z reakcji chemicznych, np. utleniania siarkowodoru. ' +
+        'Żyją przy kominach hydrotermalnych, gdzie ciemność i gorąco nie są przeszkodą — być może właśnie tam życie się zaczęło.',
+      fossil: 'Wokół dzisiejszych kominów na dnie oceanu żyją kolonie rurkoczółenek, które karmią się dzięki chemosyntetycznym bakteriom.' },
+    photosynthesis: { icon: '☀️', title: 'Fotosynteza',
+      body: 'Sinice nauczyły się zamieniać światło, wodę i dwutlenek węgla w cukry, wydzielając tlen. ' +
+        'To najważniejszy wynalazek w historii życia: bez niego nie byłoby ani tlenowej atmosfery, ani zwierząt.',
+      fossil: 'Stromatolity — warstwowane skały budowane przez maty sinic — liczą nawet 3,5 mld lat.' },
+    phagocytosis: { icon: '🦠', title: 'Fagocytoza',
+      body: 'Komórka może „połknąć” inną i ją strawić. Dzięki temu powstało pierwsze drapieżnictwo, a wraz z nim wyścig zbrojeń: ' +
+        'ofiary zaczęły rosnąć i opancerzać się. To także droga do endosymbiozy — nie każda połknięta komórka zostaje strawiona.',
+      fossil: 'Ameby i wiele wolno żyjących pierwotniaków do dziś żywią się fagocytozą.' },
+    endosymbiosis: { icon: '🔋', title: 'Endosymbioza',
+      body: 'Mitochondria i chloroplasty to potomkowie dawnych bakterii, które zamieszkały w większej komórce i zostały w niej na stałe. ' +
+        'Mają własne DNA i dzielą się niezależnie. To jeden z największych przykładów współpracy w ewolucji.',
+      fossil: 'Ślady eukariotów pochodzą sprzed ok. 1,8–2 mld lat; czerwone glony sprzed 1,2 mld lat to najstarsze znane organizmy płciowe.' },
+    multicellularity: { icon: '🫧', title: 'Wielokomórkowość',
+      body: 'Wielokomórkowość wyewoluowała wielokrotnie i niezależnie: u zwierząt, roślin, grzybów i glonów. ' +
+        'Komórki dzielą się pracą — jedne żywią, inne bronią, jeszcze inne się rozmnażają — kosztem tego, że część z nich zamiera na rzecz całości.',
+      fossil: 'Kolonie Volvox pokazują dziś pośredni etap między pojedynczą komórką a organizmem.' },
+    binary_fission: { icon: '⚡', title: 'Podział komórki',
+      body: 'Bakterie dzielą się na dwie identyczne komórki nawet co kilkanaście minut. Ogromna liczebność i tempo zmian ' +
+        'pozwalają im błyskawicznie przystosowywać się — dlatego to bakterie, a nie zwierzęta, są najliczniejszą i najstarszą formą życia.',
+      fossil: 'Komórki podobne do bakterii zapisały się w skałach sprzed ponad 3,4 mld lat.' },
+    great_oxidation: { icon: '🫁', title: 'Wielkie utlenienie',
+      body: 'Ok. 2,4 mld lat temu tlen z fotosyntezy zaczął gromadzić się w atmosferze — dla wielu beztlenowców to była katastrofa, ' +
+        'ale oddychanie tlenowe daje kilkanaście razy więcej energii z tej samej porcji pokarmu. Bez tego złożone zwierzęta nie miałyby jak żyć.',
+      fossil: 'Pasmowe formacje żelaziste (BIF) zapisują moment, gdy tlen zaczął rdzewić żelazo w oceanach.' },
+    anoxia: { icon: '🕳️', title: 'Życie bez tlenu',
+      body: 'Wiele organizmów przeżyło Wielkie utlenienie, zamieszkując miejsca ubogie w tlen: osady, głębiny, wnętrza innych organizmów. ' +
+        'Dziś beztlenowce żyją w błocie, jelitach zwierząt i na dnie oceanu. Niedotlenienie wraca w historii Ziemi przy kolejnych wymieraniach.',
+      fossil: 'Bakterie redukujące siarczany to jedni z najstarszych mieszkańców osadów.' },
+    ediacaran: { icon: '🪼', title: 'Fauna ediakarska',
+      body: 'Tuż przed kambrem żyły dziwne, miękkie organizmy bez szkieletów: płaskie „liście”, „materace” i dyski. ' +
+        'Nie wiadomo do końca, czy były przodkami dzisiejszych zwierząt, czy osobną gałęzią, która wymarła.',
+      fossil: 'Dickinsonia z Ediakary w Australii Południowej ma ok. 558 mln lat — to jedne z najstarszych zwierząt.' },
     competition: { icon: '⚔️', title: 'Konkurencja',
       body: 'Gatunki korzystające z tych samych zasobów konkurują ze sobą — dzielą tę samą pojemność środowiska. ' +
         'Dwa gatunki o identycznej niszy nie mogą długo współistnieć (zasada Gausego): jeden wypiera drugi albo ' +
@@ -789,8 +1122,8 @@
     BASE_STATS: BASE_STATS, START_POPULATION: START_POPULATION, MIN_VIABLE_POP: MIN_VIABLE_POP,
     SPECIATION_COST: SPECIATION_COST, SPECIATION_COST_STEP: SPECIATION_COST_STEP, SPECIATION_SHARE: SPECIATION_SHARE, MIN_SPECIATION_POP: MIN_SPECIATION_POP,
     SELECTION: SELECTION, PARALLEL_DISCOUNT: PARALLEL_DISCOUNT, RANGE: RANGE, THREAT: THREAT, COEVOLUTION: COEVOLUTION, WIN_LINE_MIN: WIN_LINE_MIN,
-    MIGRATION: MIGRATION, CAPACITY: CAPACITY, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
-    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
+    MIGRATION: MIGRATION, CAPACITY: CAPACITY, DIETS: DIETS, TROPHIC: TROPHIC, NEW_LINEAGE: NEW_LINEAGE, RESERVES: RESERVES, VARIATION: VARIATION, STRATEGIES: STRATEGIES, BEHAVIORS: BEHAVIORS,
+    CHOICE_CHANCE: CHOICE_CHANCE, CHOICE_EVENTS: CHOICE_EVENTS, PROLOGUE: PROLOGUE, ANTHROPOCENE: ANTHROPOCENE, RIVAL: RIVAL, RIVALS: RIVALS, ENDINGS: ENDINGS, WIN_TRAIT: WIN_TRAIT, WIN_PATHS: WIN_PATHS,
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,

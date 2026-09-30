@@ -42,6 +42,7 @@
       'tactics.strategy': 'Strategia rozrodu',
       'tactics.behavior': 'Zachowanie w tej turze',
       'tactics.selection': 'Ukierunkowany dobór',
+      'tactics.diet': 'Dieta',
       'species.popOverTime': 'Populacja w czasie',
       'species.forecast': 'Prognoza następnej tury',
       'species.envTitle': 'Środowisko następnej tury',

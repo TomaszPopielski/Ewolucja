@@ -1022,3 +1022,32 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
   outline: 1px solid var(--line); outline-offset: 3px; border-radius: 3px;
 }
 @media (max-width: 480px) { .end-card { padding: 26px 18px; } }
+/* --- Konkurenci, echa decyzji, epilog --- */
+.env-rivals, .report-rivals { margin-top: 8px; padding: 7px 10px; border-radius: 8px; font-size: .82rem; border: 1px solid var(--line, currentColor); background: var(--bg-panel); }
+.env-rivals[hidden] { display: none; }
+.rival-row { margin-top: 3px; }
+.rival-tag { font-size: .7rem; padding: 1px 6px; border-radius: 999px; border: 1px solid currentColor; color: var(--ink-soft); white-space: nowrap; }
+.report-rivals { margin: 10px 0; }
+.choice-echo { font-size: .78rem; color: var(--ink-soft); margin: 6px 0 0; font-style: italic; }
+.end-epilogue { margin: 14px 0; padding: 12px 16px; border-left: 4px solid var(--accent); background: var(--bg-panel); border-radius: 8px; }
+.end-epilogue[hidden] { display: none; }
+.end-epilogue h2 { font-family: var(--serif); font-size: 1.1rem; margin: 0 0 6px; }
+.end-epilogue p { font-family: var(--serif); line-height: 1.55; margin: 6px 0; }
+
+/* --- Prolog: prekambr --- */
+.prologue-toggle { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 4px; font-size: .88rem; cursor: pointer; }
+.prologue-toggle input { margin-top: 3px; }
+.prologue-card { max-width: 720px; margin: 0 auto; }
+.prologue-step { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 4px; }
+.prologue-when { font-size: .9rem; color: var(--ink-soft); margin: 2px 0 10px; }
+.prologue-desc { font-family: var(--serif); font-size: 1.05rem; line-height: 1.55; margin: 0 0 14px; }
+.prologue-options { display: grid; gap: 8px; }
+.prologue-option strong { font-size: 1rem; }
+.prologue-trade { color: var(--ink-soft); font-style: italic; font-size: .82rem; }
+.prologue-path { min-height: 1.4em; margin: 12px 0 8px; font-size: .85rem; color: var(--ink-soft); }
+
+.end-anthro h2 { margin-top: 0; }
+.end-anthro .resource-meters { margin: 8px 0; }
+.anthro-picks { font-size: .85rem; color: var(--ink-soft); }
+.anthro-note { font-style: italic; }
+#anthro-meters { margin: 6px 0 12px; }
