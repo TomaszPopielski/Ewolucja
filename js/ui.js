@@ -47,7 +47,7 @@
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     choiceCard: $('choice-card'), resourceMeters: $('resource-meters'),
     strategyButtons: $('strategy-buttons'), behaviorButtons: $('behavior-buttons'),
-    selectionToggle: $('selection-toggle'), selectionText: $('selection-text'),
+    selectionSelect: $('selection-select'), selectionText: $('selection-text'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
     traits: $('traits-container'),
@@ -82,7 +82,7 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 6 && s.status === 'playing') ? s : null;
+      return (s && s.version === 7 && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -115,7 +115,8 @@
 
   function scenarioOpts(sc) {
     return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp,
-      goal: sc.goal, startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id };
+      goal: sc.goal, startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id,
+      winPaths: sc.winPaths, capMult: sc.capMult, forcedGoals: sc.forcedGoals };
   }
   function renderScenarios() {
     el.scenarioCards.innerHTML = '';
@@ -130,7 +131,8 @@
         (thumb ? '<img class="scenario-thumb" alt="" src="' + thumb + '">' : '') +
         '<span class="scenario-name">' + sc.name + '</span>' +
         '<span class="scenario-diff">' + diff.label + ' · cel: int. ' + (sc.goal != null ? sc.goal : diff.goal) + ' + kultura</span>' +
-        '<span class="scenario-intro">' + sc.intro + '</span>';
+        '<span class="scenario-intro">' + sc.intro + '</span>' +
+        (sc.rules ? '<span class="scenario-rules">' + escapeHtml(sc.rules) + '</span>' : '');
       card.addEventListener('click', function () {
         newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
       });
@@ -148,7 +150,7 @@
     el.era.title = era.dates || '';
     el.intel.textContent = Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal;
     // Ile cech aktywnej linii można kupić teraz — widać to bez przewijania do kart.
-    var afford = DATA.TRAITS.filter(function (t) { return Engine.traitStatus(state, t) === 'available'; }).length;
+    var afford = DATA.TRAITS.filter(function (t) { return Engine.traitStatus(state, t, DATA) === 'available'; }).length;
     el.epAfford.textContent = state.status !== 'playing' ? '' :
       (afford ? 'stać Cię na ' + afford + ' ' + plural(afford, 'cechę', 'cechy', 'cech') : 'na razie nic do kupienia');
     el.statusChoice.hidden = !(state.pendingChoice && state.status === 'playing');
@@ -437,8 +439,10 @@
     if (!base) { el.forecastBody.innerHTML = '<span class="forecast-none">Era dobiega końca.</span>'; return; }
 
     var deltaClass = base.delta >= 0 ? 'pos' : 'neg';
+    var range = base.projectedLow !== base.projectedHigh ? ' <span class="fc-range" title="Warunki tury mogą się jeszcze nieco odchylić">(' +
+      base.projectedLow + '–' + base.projectedHigh + ')</span>' : '';
     var html = '<div class="forecast-row"><span>Populacja</span><span class="fc ' + deltaClass + '">' +
-      (base.delta >= 0 ? '+' : '') + base.delta + ' → ' + base.projectedPop + '</span></div>';
+      (base.delta >= 0 ? '+' : '') + base.delta + ' → ' + base.projectedPop + range + '</span></div>';
     html += '<div class="forecast-row"><span>Bilans energii</span><span class="fc ' +
       (base.energy >= 0 ? 'pos' : 'neg') + '">' + num(base.energy) + '</span></div>';
     html += '<div class="forecast-row"><span>' + ENERGY + ' Rezerwy</span><span class="fc ' +
@@ -475,6 +479,9 @@
       html += '<div class="forecast-note">Nowy gatunek: miejscowe drapieżniki jeszcze na niego nie polują (presja ×' +
         num(DATA.NEW_LINEAGE.predMult) + ').</div>';
     }
+    if (base.strategyBlocked) {
+      html += '<div class="forecast-warn">Za mało rezerw na strategię r (1 ' + ENERGY + ' na turę) — linia rozmnaża się zwyczajnie.</div>';
+    }
     if (base.behaviorBlocked) {
       html += '<div class="forecast-warn">Za mało rezerw na wybrane zachowanie — linia będzie żyła zwyczajnie.</div>';
     }
@@ -501,7 +508,7 @@
     });
     if (Engine.goalBlockedByPopulation(state, DATA)) {
       html += '<div class="forecast-warn">' + ico('ui:target', '🎯') + ' Inteligencja i kultura są, ale do zwycięstwa potrzeba co najmniej ' +
-        DATA.WIN_MIN_POP + ' osobników w tej linii — odbuduj populację.</div>';
+        DATA.WIN_LINE_MIN + ' osobników w linii rozumnej i ' + DATA.WIN_MIN_POP + ' w całym gatunku — odbuduj populację.</div>';
     }
     if (base.critical) {
       html += '<div class="forecast-warn">' + ico('ui:paw', '🐾') + ' Populacja krytycznie mała (poniżej ' +
@@ -550,11 +557,16 @@
       el.behaviorButtons.appendChild(b);
     });
 
-    var V = DATA.VARIATION;
-    el.selectionToggle.checked = !!l.selection;
-    el.selectionToggle.disabled = !playing || (!l.selection && l.variation < V.selectionCost);
-    el.selectionText.innerHTML = '<strong>Ukierunkowany dobór</strong> (' + V.selectionCost + ' ' + GENE + ' na turę): ' +
-      'częstsze i częściej korzystne mutacje — silny dobór zużywa zmienność.';
+    var S = DATA.SELECTION, keys = ['feeding', 'defense', 'reproduction', 'mobility', 'metabolism', 'intelligence'];
+    el.selectionSelect.innerHTML = '<option value="">— wyłączony —</option>' + keys.map(function (k) {
+      var ok = Engine.selectionAllowed(l, k);
+      return '<option value="' + k + '"' + (ok ? '' : ' disabled') + (l.selection === k ? ' selected' : '') + '>' +
+        (k === 'metabolism' ? 'niższy metabolizm' : Engine.statLabel(k)) + (ok ? '' : ' (wymaga mózgu)') + '</option>';
+    }).join('');
+    el.selectionSelect.disabled = !playing || (!l.selection && l.variation < S.cost);
+    el.selectionText.innerHTML = S.cost + ' ' + GENE + ' na turę; co turę szansa ' + Math.round(S.chance * 100) + '% (inteligencja ' +
+      Math.round(S.intelChance * 100) + '%) na +1 do wybranej cechy. Koszt doboru: rozród ×' + num(S.birthMult) +
+      ' — odsiane osobniki nie zostawiają potomstwa.';
 
     renderChoiceCard();
   }
@@ -622,7 +634,7 @@
     if (applyAction(Engine.setBehavior(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
   }
   function onToggleSelection() {
-    if (turnBusy || !applyAction(Engine.setSelection(DATA, state, state.activeLineageId, el.selectionToggle.checked))) { renderTactics(); return; }
+    if (turnBusy || !applyAction(Engine.setSelection(DATA, state, state.activeLineageId, el.selectionSelect.value || false))) { renderTactics(); return; }
     renderTactics(); renderForecast(); updateUndoButton();
   }
   function onChoose(optionId) {
@@ -672,9 +684,15 @@
   }
   // Zapowiedź katastrofy w następnej turze — czas, by przenieść linię lub odłożyć zapasy.
   function threatHtml(th) {
-    return ico('ui:hourglass', '⏳') + ' <strong>Zapowiedź na następną turę' + (th.newEra ? ' (' + escapeHtml(th.newEra) + ')' : '') + ':</strong> ' +
+    var when = th.turnsAhead === 1 ? 'na następną turę' : 'za ' + th.turnsAhead + ' tury';
+    var sev = th.severity ? Object.keys(th.severity).filter(function (k) { return th.severity[k][1] > 0; }).map(function (k) {
+      var r = th.severity[k];
+      return escapeHtml(nicheLabel(k)) + ' ' + (r[0] === r[1] ? r[0] : r[0] + '–' + r[1]) + '%';
+    }).join(', ') : '';
+    return ico('ui:hourglass', '⏳') + ' <strong>Zapowiedź ' + when + (th.newEra ? ' (' + escapeHtml(th.newEra) + ')' : '') + ':</strong> ' +
       (th.regional ? 'katastrofa regionalna — ' : '') + escapeHtml(th.name) + ', uderzy ' +
       (th.niche === 'all' ? 'we wszystkie nisze' : 'w niszę „' + escapeHtml(nicheLabel(th.niche)) + '”') + '.' +
+      (sev ? ' Przewidywane straty bez ochrony: ' + sev + ' (cechy, zmienność i zasięg w kilku niszach je zmniejszają).' : '') +
       (th.note ? ' ' + escapeHtml(th.note) : '');
   }
   function renderThreat(node, th) {
@@ -760,7 +778,7 @@
   // Cecha kupiona przed chwilą dostaje animację „pieczątki” (raz).
   var lastBoughtId = null;
   function renderTraitCard(trait, lineage) {
-    var status = Engine.traitStatus(state, trait);
+    var status = Engine.traitStatus(state, trait, DATA);
     var btn = document.createElement('button');
     btn.type = 'button';
     var compact = status === 'locked' || status === 'era_locked';
@@ -770,14 +788,20 @@
     btn.dataset.traitId = trait.id;
     btn.disabled = (status !== 'available') || state.status !== 'playing';
 
+    var cost = Engine.traitCost(DATA, state, trait, lineage), par = cost < trait.cost ? Engine.parallelSource(state, lineage, trait) : null;
     var costLabel;
     if (status === 'owned') costLabel = ico('ui:check', '✓') + ' zdobyta';
+    else if (status === 'excluded') costLabel = ico('ui:close', '✗') + ' wykluczona';
     else if (status === 'locked') costLabel = ico('ui:lock', '🔒') + ' zablokowana';
     else if (status === 'era_locked') costLabel = ico('ui:hourglass', '⏳') + ' ' + DATA.ERAS[trait.minEra].name;
-    else costLabel = trait.cost + ' EP';
+    else costLabel = (par ? '<s>' + trait.cost + '</s> ' : '') + cost + ' EP';
 
     var extra = '';
-    if (status === 'locked') {
+    if (status === 'excluded') {
+      var exId = Engine.excludedBy(lineage, trait, DATA), exT = DATA.TRAITS.filter(function (x) { return x.id === exId; })[0];
+      extra = '<div class="trait-req">' + ico('ui:close', '✗') + '<span>Wyklucza się z cechą „<strong>' + escapeHtml(exT ? exT.name : exId) +
+        '</strong>” — ta linia wybrała inny sposób życia.</span></div>';
+    } else if (status === 'locked') {
       var missing = trait.requires.filter(function (id) { return lineage.traits.indexOf(id) === -1; });
       extra = '<div class="trait-req">' + ico('ui:lock', '🔒') + '<span>Najpierw zdobądź: <strong>' + reqNames(missing) +
         '</strong> (koszt: ' + trait.cost + ' EP)</span></div>';
@@ -785,7 +809,11 @@
       extra = '<div class="trait-req">' + ico('ui:hourglass', '⏳') + '<span>Dostępna od ery: <strong>' + DATA.ERAS[trait.minEra].name +
         '</strong> (koszt: ' + trait.cost + ' EP)</span></div>';
     } else if (status === 'too_expensive') {
-      extra = '<div class="trait-req warn">Brakuje ' + (trait.cost - state.ep) + ' EP</div>';
+      extra = '<div class="trait-req warn">Brakuje ' + (cost - state.ep) + ' EP</div>';
+    }
+    if (par && status !== 'owned') {
+      extra += '<div class="trait-parallel">' + ico('ui:branch', '🔁') + '<span>Ewolucja równoległa: linia „' + escapeHtml(par.name) +
+        '” ma już tę cechę — taniej o ' + Math.round(DATA.PARALLEL_DISCOUNT * 100) + '%.</span></div>';
     }
 
     btn.dataset.cat = trait.category;
@@ -1161,7 +1189,7 @@
           ? 'Jedna z Twoich linii osiągnęła próg inteligencji i stworzyła kulturę akustyczną — jak delfiny i walenie: imiona, pieśni i tradycje przekazywane przez naukę. Rozum nie potrzebuje rąk.'
           : 'Jedna z Twoich linii osiągnęła próg inteligencji i zaczęła używać narzędzi — na horyzoncie kultura i technologia. Efekt konsekwentnego rozwoju układu nerwowego mimo katastrof i presji środowiska.')
         : s === 'survived' && Engine.goalBlockedByPopulation(state, DATA)
-        ? 'Twoja linia osiągnęła próg inteligencji i ma kulturę, ale jest zbyt nieliczna (poniżej ' + DATA.WIN_MIN_POP + ' osobników), by dać początek kulturze. Rozum to za mało — potrzebny jest też żywotny gatunek.'
+        ? 'Twoja linia osiągnęła próg inteligencji i ma kulturę, ale gatunek jest zbyt nieliczny (potrzeba ' + DATA.WIN_LINE_MIN + ' osobników w linii rozumnej i ' + DATA.WIN_MIN_POP + ' w całym gatunku), by dać początek kulturze. Rozum to za mało — potrzebny jest też żywotny gatunek.'
         : s === 'survived'
         ? 'Twoje linie przetrwały ' + eraList(Engine.playedEras(DATA, state)) + ', ale żadna nie rozwinęła dostatecznie mózgu. Dobre przetrwanie to nie to samo co droga do rozumności — spróbuj skupić się na ścieżce oznaczonej gwiazdką.'
         : state.endReason === 'nonviable'
@@ -1360,13 +1388,13 @@
     var span = eras.length === 1 ? 'w erze ' + eras[0].name.toLowerCase().replace(/k$/, 'ku')
       : 'w ciągu ' + (eras.length === 2 ? 'dwóch' : 'trzech') + ' er (' + eraList(eras) + ')';
     return [
-    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i kultury (narzędzia na lądzie albo kultura akustyczna w wodzie) ' + span + ', utrzymując żywotną populację (co najmniej ' + DATA.WIN_MIN_POP + ' osobników).' },
+    { title: 'Witaj w Ewolucji!', text: 'Prowadzisz nie pojedyncze zwierzę, lecz całą populację. Twój cel: doprowadzić którąkolwiek linię do inteligencji ' + state.intelligenceGoal + ' i kultury (narzędzia na lądzie albo kultura akustyczna w wodzie) ' + span + ', utrzymując żywotny gatunek (co najmniej ' + DATA.WIN_MIN_POP + ' osobników we wszystkich liniach, w tym ' + DATA.WIN_LINE_MIN + ' w linii rozumnej).' },
     { title: 'Punkty ewolucji (EP)', text: 'Za przetrwanie i rozwój zdobywasz EP (u góry po lewej). Wydajesz je na trwałe cechy w panelu „Adaptacje” po prawej. Każda cecha ma koszt i kompromis.' },
     { title: 'Prognoza i kompromisy', text: 'Panel „Prognoza następnej tury” pokazuje, jak zmieni się populacja. Najedź na cechę, aby zobaczyć jej wpływ przed zakupem (co-jeśli).' },
-    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → kultura. Są dwie drogi: narzędzia (ręka chwytna; ląd lub brzeg) albo kultura akustyczna (echolokacja; woda lub brzeg). Wygrywasz, gdy linia osiągnie próg inteligencji i kulturę (kenozoik), licząc co najmniej ' + DATA.WIN_MIN_POP + ' osobników. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację.' },
-    { title: 'Rezerwy i zmienność', text: 'Każda linia ma dwie własne waluty. ⚡ Rezerwy energii to odłożone nadwyżki pokarmu — ratują przed głodem, płacisz nimi za migrację i zachowania w turze. 🧬 Zmienność genetyczna rośnie z liczebnością i znika w wąskim gardle — płacisz nią za specjację i ukierunkowany dobór, a wysoka łagodzi katastrofy.' },
+    { title: 'Droga do celu', text: 'Cechy oznaczone {star} prowadzą do inteligencji: Zwoje → Mózg → Rozbudowany mózg → życie społeczne → kultura. Są dwie drogi: narzędzia (ręka chwytna; tylko na lądzie) albo kultura akustyczna (echolokacja; tylko w otwartej wodzie). Przybrzeże to etap przejściowy. Wygrywasz, gdy linia osiągnie próg inteligencji i kulturę (kenozoik), a gatunek jest żywotny. Uważaj: duży mózg zużywa dużo energii — kupiony za wcześnie może zagłodzić populację. Filtrowanie i szczęki wykluczają się: wybierasz sposób życia.' },
+    { title: 'Rezerwy i zmienność', text: 'Każda linia ma dwie własne waluty. ⚡ Rezerwy energii to odłożone nadwyżki pokarmu — ratują przed głodem, płacisz nimi za migrację i zachowania w turze. 🧬 Zmienność genetyczna rośnie z liczebnością i znika w wąskim gardle — płacisz nią za specjację i ukierunkowany dobór (który kosztuje też część potomstwa), a wysoka łagodzi katastrofy.' },
     { title: 'Decyzje linii', text: 'W panelu „Decyzje linii” wybierasz strategię rozrodu (r — dużo potomstwa, K — mało, ale dobrze chronionego) i zachowanie w najbliższej turze. Najedź na przycisk, by zobaczyć skutek w prognozie. Czasem pojawi się karta decyzji — zdarzenie, na które odpowiadasz przed turą.' },
-    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda nisza wyżywi ograniczoną liczbę osobników (pojemność) — gdy jest pełna, nowa gałąź w wolnej niszy daje nowe zasoby, a linie w jednej niszy konkurują. Wymierania {meteor} uderzają w nisze różnie, więc linie w kilku niszach rozkładają ryzyko. Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
+    { title: 'Specjacja i nisze', text: 'Możesz rozdzielić linię (Specjacja, płatna zmiennością 🧬) i wysłać gałąź do innej niszy: {woda} woda, {przybrzeze} przybrzeże, {lad} ląd (wymaga kończyn), {powietrze} powietrze (wymaga lotu). Każda nisza wyżywi ograniczoną liczbę osobników (pojemność) — gdy jest pełna, nowa gałąź w wolnej niszy daje nowe zasoby, a linie w jednej niszy konkurują. Wymierania {meteor} uderzają w nisze różnie, a gatunek obecny w kilku niszach traci w każdej katastrofie mniej (szeroki zasięg). Do zwycięstwa liczy się cały gatunek, a gałąź zdobywa cechy linii pokrewnej taniej (ewolucja równoległa). Migracja kosztuje rezerwy ⚡ i turę aklimatyzacji.' }
     ];
   }
   var tutorialSteps = [];
@@ -1414,7 +1442,7 @@
     window.GameI18n.applyStatic(document);
     initStickyStatus();
     el.introGoal.innerHTML = ico('ui:target', '🎯') + ' <strong>Cel:</strong> doprowadź którąkolwiek linię do progu inteligencji i kultury — narzędzi na lądzie albo kultury akustycznej w wodzie — ' +
-      'utrzymując co najmniej ' + DATA.WIN_MIN_POP + ' osobników, przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
+      'utrzymując żywotny gatunek (co najmniej ' + DATA.WIN_MIN_POP + ' osobników), przez ery (' + DATA.ERAS.map(function (e) { return e.name; }).join(', ') + '). ' +
       'Rozwijaj układ nerwowy (' + ico('ui:star', '⭐', 'ico-star') + '), rozkładaj ryzyko przez specjację i nisze, przetrwaj wymierania masowe. ' +
       'Wybierz scenariusz poniżej — różnią się trudnością i punktem startu.';
 
@@ -1443,7 +1471,7 @@
     });
     el.btnUndo.addEventListener('click', onUndo);
     el.btnSpeciate.addEventListener('click', onSpeciate);
-    el.selectionToggle.addEventListener('change', onToggleSelection);
+    el.selectionSelect.addEventListener('change', onToggleSelection);
     el.btnTree.addEventListener('click', showTree);
     el.btnReportClose.addEventListener('click', onReportClose);
     el.btnCodex.addEventListener('click', showCodex);

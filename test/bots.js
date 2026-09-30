@@ -16,7 +16,13 @@
  *                strategię zrównoważoną i opcje domyślne kart;
  * - „tactics1” — jak „tactics”, ale bez specjacji (jedna linia);
  * - „crowd”    — jak „tactics1”, ale specjuje, gdy tylko może, i zostawia
- *                gałęzie w tej samej niszy (bezmyślne mnożenie linii).
+ *                gałęzie w tej samej niszy (bezmyślne mnożenie linii);
+ * - „clade”    — prowadzi cały klad: gałąź do każdej wolnej niszy (poza ostatnią
+ *                erą), każda linia ewoluuje osobno (ewolucja równoległa), gałąź
+ *                z kończynami może podbić przestworza.
+ *
+ * `init.pref` — 'land' / 'sea' / 'mix' (ziarno nieparzyste — ląd): gracz od
+ * początku obiera drogę narzędzi na lądzie albo kultury akustycznej w wodzie.
  *
  * Losowość z ziarnem (mulberry32), więc wyniki są powtarzalne.
  */
@@ -38,10 +44,23 @@ function seededRng(seed) {
 var PLAN = ['eyes', 'scales', 'many_eggs', 'ganglia', 'fins', 'limbs', 'shell', 'jaws',
   'brain', 'endothermy', 'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care'];
 var STAR = ['ganglia', 'brain', 'scales', 'endothermy', 'big_brain', 'social', 'fins', 'limbs',
-  'grasping_hand', 'tool_use'];
+  'grasping_hand', 'tool_use', 'many_eggs', 'parental_care'];
 // Droga wodna do rozumu (kultura akustyczna) — dla linii, które zostają w wodzie.
-var STAR_SEA = ['ganglia', 'brain', 'scales', 'endothermy', 'big_brain', 'social', 'echolocation', 'vocal_culture'];
-function pathFor(l) { return l.niche === 'woda' ? STAR_SEA : STAR; }
+var STAR_SEA = ['ganglia', 'brain', 'scales', 'endothermy', 'big_brain', 'social', 'echolocation', 'vocal_culture',
+  'many_eggs', 'parental_care'];
+// Droga do rozumu linii: w wodzie — akustyczna, gdzie indziej — narzędzia (o ile scenariusz na nią pozwala).
+function pathFor(l, s) {
+  var ids = E.winPaths(D, s).map(function (p) { return p.id; });
+  if (ids.indexOf('sound') === -1) return STAR;
+  if (ids.indexOf('tools') === -1) return STAR_SEA;
+  // Preferencja gracza (s.botPref): droga lądowa albo wodna od początku partii.
+  if (s.botPref === 'land') return STAR;
+  if (s.botPref === 'sea') return STAR_SEA;
+  // Linia trzyma się raz obranej drogi: filtrowanie i echolokacja — woda, szczęki i kończyny — ląd.
+  if (l.traits.indexOf('filter_feeding') !== -1 || l.traits.indexOf('echolocation') !== -1) return STAR_SEA;
+  if (l.traits.indexOf('jaws') !== -1 || l.traits.indexOf('limbs') !== -1) return STAR;
+  return l.niche === 'woda' ? STAR_SEA : STAR;
+}
 
 function trait(id) { return D.TRAITS.filter(function (t) { return t.id === id; })[0]; }
 
@@ -58,18 +77,26 @@ function buyInOrder(s, plan) {
   return s;
 }
 
-function adaptiveTurn(s) {
+function adaptiveTurn(s, keepApart) {
   for (var k = 0; k < 10; k++) {
     var a = E.getActiveLineage(s), f = E.forecast(D, s, a);
     if (!f) break;
-    var pop = a.population, best = null, bestScore = -Infinity, path = pathFor(a);
+    var pop = a.population, best = null, bestScore = -Infinity, path = pathFor(a, s);
     D.TRAITS.forEach(function (t) {
-      if (E.traitStatus(s, t) !== 'available') return;
+      if (E.traitStatus(s, t, D) !== 'available') return;
+      if (s.botPref === 'land' && t.id === 'filter_feeding') return;   // filtrowanie wiąże z wodą
       var w = E.forecastWithTrait(D, s, a, t), score, star = path.indexOf(t.id);
       if (star !== -1) {
         // Cecha ścieżki tylko wtedy, gdy nie zagładza linii i nie zbija populacji
         // poniżej żywotnej liczebności potrzebnej do zwycięstwa.
-        if (w.energy < 0 || w.projectedPop < Math.max(D.WIN_MIN_POP + 10, pop * 0.9)) return;
+        // (warunek żywotności: linia ≥ WIN_LINE_MIN, cały klad ≥ WIN_MIN_POP)
+        var clade = E.totalPopulation(s) - pop + w.projectedPop;
+        // W ostatniej erze liczy się finisz: spadek populacji jest do przyjęcia, jeśli
+        // zostaje zapas nad progiem żywotności, a zapasy pokryją deficyt.
+        var sprint = s.eraIndex >= D.ERAS.length - 1;
+        var okEnergy = sprint ? w.energy >= -6 : w.energy >= 0;
+        var okPop = sprint ? w.projectedPop >= (D.WIN_LINE_MIN || 0) + 20 : w.projectedPop >= Math.max((D.WIN_LINE_MIN || 0) + 10, pop * 0.9);
+        if (!okEnergy || !okPop || clade < (D.WIN_MIN_POP || 0) + (sprint ? 20 : 10)) return;
         score = 1000 - star;
       } else {
         // Inna cecha — gdy wyraźnie poprawia prognozę lub bilans energii.
@@ -82,14 +109,26 @@ function adaptiveTurn(s) {
     s = E.buyTrait(D, s, best.id).state;
   }
   var l = E.getActiveLineage(s), fc = E.forecast(D, s, l);
-  // Kultura w niewłaściwej niszy — przenieś linię na brzeg (działają tam obie drogi).
-  if (fc && E.cultureNicheBlocked(s, D).some(function (b) { return b.lineageId === l.id; })) {
-    var mv = E.migrateLineage(D, s, l.id, 'przybrzeze');
+  // Kultura w niewłaściwej niszy — przenieś linię tam, gdzie ta kultura działa.
+  var blocked = fc && E.cultureNicheBlocked(s, D).filter(function (b) { return b.lineageId === l.id; })[0];
+  if (blocked) {
+    var mv = E.migrateLineage(D, s, l.id, blocked.path.niches[0]);
     if (mv.ok) return mv.state;
+  }
+  // Gracz „lądowy” wychodzi na ląd, gdy tylko ląd wyżywi linię niewiele gorzej.
+  if (fc && s.botPref === 'land' && pathFor(l, s) === STAR && l.niche !== 'lad' && l.traits.indexOf('limbs') !== -1 &&
+      !s.lineages.some(function (o) { return o.alive && o.id !== l.id && o.niche === 'lad'; })) {
+    var ml = E.migrateLineage(D, s, l.id, 'lad');
+    if (ml.ok) {
+      var fl = E.forecast(D, ml.state, E.getActiveLineage(ml.state));
+      if (fl.projectedPop >= fc.projectedPop * 0.85 && fl.energy >= -1) return ml.state;
+    }
   }
   if (fc) {
     E.availableNiches(D, l).forEach(function (niche) {
       if (niche === l.niche) return;
+      // Gałęzie kladu nie zbijają się w jednej niszy.
+      if (keepApart && s.lineages.some(function (o) { return o.alive && o.id !== l.id && o.niche === niche; })) return;
       var m = E.migrateLineage(D, s, l.id, niche);
       if (!m.ok) return;
       var f2 = E.forecast(D, m.state, E.getActiveLineage(m.state));
@@ -100,7 +139,8 @@ function adaptiveTurn(s) {
 }
 
 // Wartość stanu linii dla bota: prognozowana populacja + zapas energii.
-function tacticScore(f) { return f.projectedPop + f.reservesAfter * 4; }
+// Przy małej populacji liczą się osobniki, nie zapasy.
+function tacticScore(f) { return f.projectedPop + f.reservesAfter * Math.min(4, f.projectedPop / 15); }
 
 /* Stan po wyniku ryzyka (sukces/porażka) — kopia skutków z silnika na potrzeby
    oceny bota: statystyki, zasoby, populacja i modyfikator tej tury. */
@@ -111,13 +151,14 @@ function withOutcome(state, lineageId, out) {
   if (fx.variation) l.variation = Math.max(0, l.variation + fx.variation);
   if (fx.popLoss) l.population -= Math.round(l.population * fx.popLoss);
   if (fx.popGain) l.population += Math.round(l.population * fx.popGain);
+  if (fx.found) { n.botColony = Math.floor(l.population * fx.found); l.population -= n.botColony; }
   if (fx.ep) n.ep += fx.ep;
   if (out.turnMod) l.mods.push(Object.assign({ turn: E.nowTurn(D, n) }, out.turnMod));
   return n;
 }
 function choiceScore(before, st, lineageId) {
   var l = E.getLineage(st, lineageId), b = E.getLineage(before, lineageId), f = E.forecast(D, st, l);
-  var colony = st.lineages.length > before.lineages.length ? st.lineages[st.lineages.length - 1].population : 0;
+  var colony = st.lineages.length > before.lineages.length ? st.lineages[st.lineages.length - 1].population : (st.botColony || 0);
   var perm = (l.stats.defense - b.stats.defense + l.stats.feeding - b.stats.feeding + l.stats.reproduction - b.stats.reproduction -
     (l.stats.metabolism - b.stats.metabolism)) * 15;
   return tacticScore(f) + colony * 1.5 + l.variation * 3 + perm + (st.ep - before.ep) * 2;
@@ -155,9 +196,14 @@ function tacticsTurn(s) {
       s = E.setStrategy(D, s, l.id, best.st).state;
       s = E.setBehavior(D, s, l.id, best.bh).state;
     }
-    var v = E.getLineage(s, l.id).variation;
-    if (v >= 14) s = E.setSelection(D, s, l.id, true).state;
-    else if (v < 8) s = E.setSelection(D, s, l.id, false).state;
+    var cur = E.getLineage(s, l.id), v = cur.variation;
+    var key = (cur.traits.indexOf('brain') !== -1 && cur.stats.intelligence < s.intelligenceGoal) ? 'intelligence' : 'feeding';
+    // Dobór, gdy zmienności starcza z zapasem; w ostatniej erze przed katastrofą zmienność chroni.
+    // Dobór ma koszt w potomstwie — włącz, gdy linia nie traci na tym zbyt wiele.
+    var off = E.forecast(D, E.setSelection(D, s, l.id, false).state, cur), onS = E.setSelection(D, s, l.id, key);
+    if (onS.ok && v >= D.SELECTION.cost + 1 && off && E.forecast(D, onS.state, E.getLineage(onS.state, l.id)).projectedPop >= off.projectedPop * 0.93)
+      s = onS.state;
+    else s = E.setSelection(D, s, l.id, false).state;
   });
   return s;
 }
@@ -182,6 +228,44 @@ function radiate(s) {
   if (!best) return s;                 // bez migracji specjacja nie ma sensu
   return E.setActiveLineage(best, parentId);
 }
+/* Klad: gałąź do każdej wolnej niszy (poza ostatnią erą), a potem każda linia
+   ewoluuje osobno — od największej; gałęzie korzystają z ewolucji równoległej. */
+function cladeTurn(s) {
+  var a = E.getActiveLineage(s);
+  if (s.eraIndex < D.ERAS.length - 1 && a.population >= 80 && E.canSpeciate(D, s).ok) {
+    var taken = E.nicheLoad(s), free = E.availableNiches(D, a).filter(function (n) { return !taken[n]; });
+    if (free.length) {
+      var sp = E.speciate(D, s, 'Gałąź');
+      if (sp.ok) {
+        var t = sp.state, child = t.activeLineageId, best = null, bestPop = -1;
+        free.forEach(function (n) {
+          var m = E.migrateLineage(D, t, child, n); if (!m.ok) return;
+          var fc = E.forecast(D, m.state, E.getLineage(m.state, child));
+          if (fc.projectedPop > bestPop) { bestPop = fc.projectedPop; best = m.state; }
+        });
+        if (best) s = E.setActiveLineage(best, a.id);
+      }
+    }
+  }
+  var order = E.aliveLineages(s).slice().sort(function (x, y) { return y.population - x.population; });
+  // Najpierw radiacja w przestworza: gałąź (nie linia główna) z kończynami podbija przestworza, gdy zostaje zapas EP.
+  var fl = D.TRAITS.filter(function (t) { return t.id === 'flight'; })[0];
+  if (!s.lineages.some(function (l) { return l.alive && l.niche === 'powietrze'; })) {
+    // (nie linia najbliższa rozumu — ona zostaje na swojej drodze)
+    var brainiest = order.slice().sort(function (x, y) { return y.stats.intelligence - x.stats.intelligence; })[0];
+    order.filter(function (l) { return order.length > 1 && l.id !== brainiest.id; }).some(function (l) {
+      var st = E.setActiveLineage(s, l.id), cur = E.getActiveLineage(st);
+      if (!cur || !cur.alive || E.traitStatus(st, fl, D) !== 'available' || st.ep < E.traitCost(D, st, fl)) return false;
+      var b = E.buyTrait(D, st, 'flight'); if (!b.ok) return false;
+      var m = E.migrateLineage(D, b.state, l.id, 'powietrze'); if (!m.ok) return false;
+      var f = E.forecast(D, m.state, E.getActiveLineage(m.state));
+      if (f && f.energy >= -1.5) { s = m.state; return true; }
+      return false;
+    });
+  }
+  order.forEach(function (l) { s = adaptiveTurn(E.setActiveLineage(s, l.id), true); });
+  return E.setActiveLineage(s, order[0].id);
+}
 function crowd(s) {
   var a = E.getActiveLineage(s);
   if (!E.canSpeciate(D, s).ok) return s;
@@ -192,12 +276,14 @@ function play(kind, init, seed) {
   var rng = seededRng(seed);
   // Świat z kodem (kalendarz katastrof, katastrofy regionalne, cele er) — jak w grze.
   var s = E.createInitialState(D, 'Bot', Object.assign({ seed: 'BOT' + seed }, init || {}));
+  if (init && init.pref) s.botPref = init.pref === 'mix' ? (seed % 2 ? 'land' : 'sea') : init.pref;
   var guard = 0;
   while (s.status === 'playing' && guard++ < 40) {
     if (kind === 'adaptive') s = adaptiveTurn(s);
     else if (kind === 'tactics') s = tacticsTurn(radiate(adaptiveTurn(s)));
     else if (kind === 'tactics1') s = tacticsTurn(adaptiveTurn(s));
     else if (kind === 'crowd') s = tacticsTurn(crowd(adaptiveTurn(s)));
+    else if (kind === 'clade') s = tacticsTurn(cladeTurn(s));
     else s = buyInOrder(s, kind === 'plan' ? PLAN : STAR);
     s = E.simulateTurn(D, s, rng).state;
   }
@@ -210,6 +296,7 @@ function stepFor(kind, s) {
   if (kind === 'tactics') return tacticsTurn(radiate(adaptiveTurn(s)));
   if (kind === 'tactics1') return tacticsTurn(adaptiveTurn(s));
   if (kind === 'crowd') return tacticsTurn(crowd(adaptiveTurn(s)));
+  if (kind === 'clade') return tacticsTurn(cladeTurn(s));
   return buyInOrder(s, kind === 'plan' ? PLAN : STAR);
 }
 
@@ -230,7 +317,8 @@ function avgScore(kind, init, n) {
 function scenarioInit(id) {
   var sc = D.SCENARIOS.filter(function (x) { return x.id === id; })[0];
   return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp, goal: sc.goal,
-    startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id };
+    startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id,
+    winPaths: sc.winPaths, capMult: sc.capMult, forcedGoals: sc.forcedGoals };
 }
 
 module.exports = { seededRng: seededRng, play: play, winRate: winRate, avgScore: avgScore, stepFor: stepFor, scenarioInit: scenarioInit, PLAN: PLAN, STAR: STAR, STAR_SEA: STAR_SEA };

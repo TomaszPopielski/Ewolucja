@@ -301,6 +301,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .scenario-name { font-family: var(--serif); font-weight: 600; font-size: 1.08rem; }
 .scenario-diff { font-size: .74rem; color: var(--ep); font-weight: 600; }
 .scenario-intro { grid-column: 2; font-size: .84rem; color: var(--ink-soft); margin-top: 4px; }
+.scenario-rules { grid-column: 2; font-size: .78rem; color: var(--ink); margin-top: 4px; font-style: italic; }
 
 /* Przyciski nisz */
 .niche-buttons { display: inline-flex; gap: 4px; flex-wrap: wrap; }
@@ -425,6 +426,9 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 .ico-gene { color: var(--gene); --wash: var(--gene); }
 .choice-icon .ico { font-size: 1.6rem; }
 .tactic-toggle { display: flex; gap: 8px; align-items: flex-start; font-size: .78rem; color: var(--ink-soft); cursor: pointer; }
+.tactic-selection .selection-select { font: inherit; font-size: .8rem; padding: 4px 6px; border: 1px solid var(--line, #c9bfa8); border-radius: 6px;
+  background: var(--paper, #fff); color: var(--ink); max-width: 100%; }
+.tactic-selection .selection-text { display: block; font-size: .74rem; color: var(--ink-soft); margin-top: 4px; }
 .tactic-toggle input { margin-top: 2px; accent-color: var(--gene); }
 .tactic-toggle strong { color: var(--ink); }
 .choice-card {
@@ -672,6 +676,11 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .trait-req .ico { font-size: .95rem; }
 .trait-req.warn { color: var(--danger); }
 .trait.locked .trait-cost { color: var(--ink-soft); }
+.trait.excluded { opacity: .6; }
+.trait.excluded .trait-cost { color: var(--ink-soft); }
+.trait-parallel { font-size: .72rem; color: var(--gene, var(--accent)); display: flex; gap: 4px; align-items: flex-start; }
+.trait-cost s { opacity: .6; font-weight: normal; }
+.fc-range { font-weight: normal; opacity: .75; font-size: .9em; }
 .trait.locked .trait-req { color: var(--accent); }
 
 /* Akcje w oknach modalnych */

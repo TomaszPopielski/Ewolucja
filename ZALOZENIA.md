@@ -84,7 +84,7 @@ Każdy gatunek gracza opisują atrybuty:
 ### 4.2a. Waluty linii i decyzje taktyczne
 Oprócz EP (trwałe cechy) każda linia ma dwie własne waluty o krótszym horyzoncie:
 - **⚡ Rezerwy energii** — nadwyżka energii odkładana na chude tury; deficyt najpierw je zużywa. Płaci się nimi za **migrację** (wędrówka to wydatek energii) i **zachowanie linii** (obowiązuje do zmiany przez gracza: ukrywanie się, intensywne żerowanie; gromadzenie zapasów jest darmowe, ale kosztem potomstwa). Uczą budżetu energetycznego.
-- **🧬 Zmienność genetyczna** — rośnie z czasem i liczebnością, maleje w wąskim gardle i katastrofie (dryf genetyczny). Płaci się nią za **specjację** (nowy gatunek wymaga zmienności) i **ukierunkowany dobór** (silny dobór zużywa zmienność); wysoka zmienność łagodzi katastrofy. Uczy, że zmienność to paliwo doboru.
+- **🧬 Zmienność genetyczna** — rośnie z czasem i liczebnością, maleje w wąskim gardle i katastrofie (dryf genetyczny). Płaci się nią za **specjację** (nowy gatunek wymaga zmienności) i **ukierunkowany dobór** na wybraną cechę (zużywa zmienność i część potomstwa — koszt doboru wg Haldane’a); wysoka zmienność łagodzi katastrofy. Uczy, że zmienność to paliwo doboru.
 - **Strategia rozrodu r/K** — przełącznik bez kosztu, czysty kompromis między liczbą a przeżywalnością potomstwa.
 - **Karty decyzji** — zdarzenia z wyborem (wyspa i efekt założyciela, nowy drapieżnik i wyścig zbrojeń, zakwit i boom z załamaniem, epidemia i odporność, trujący pokarm, konkurencja i przemieszczenie cech, wulkan, hybrydyzacja, dobór płciowy, padlina, symbioza, łagodny sezon, odrętwienie w chudym sezonie, niezwykły mutant) oraz zdarzenia pozytywne (zakwit, łagodny sezon), o których też rozstrzyga gracz; bez wyboru działa opcja domyślna. Część opcji to **ryzyko** z wynikiem pozytywnym albo negatywnym, losowanym w turze; szansa zależy od cech linii (np. obrona przy odstraszaniu łowcy). Karta nie powtarza się w partii, dopóki pula się nie wyczerpie.
 
@@ -106,11 +106,13 @@ Zasada: **cecha korzystna w jednej epoce może być obciążeniem w innej** — 
 ### 4.5. Specjacja i drzewo filogenetyczne
 - Gdy część populacji zaadaptuje się do odrębnej niszy, gracz może wykonać **rozdzielenie gatunku** (specjacja) → nowa gałąź na drzewie życia.
 - Gracz może prowadzić kilka linii równolegle, dywersyfikując ryzyko.
-- Każda nisza ma **pojemność** (nośność) zależną od pokarmu; linie w jednej niszy konkurują o nią (wzrost logistyczny, przegęszczenie). Nowa gałąź w wolnej niszy dostaje własne zasoby i chwilowe **uwolnienie od wrogów** — to model radiacji adaptacyjnej. Wymierania mają różną siłę w różnych niszach, więc rozproszenie linii realnie chroni gatunek.
+- Każda nisza ma **pojemność** (nośność) zależną od pokarmu; linie w jednej niszy konkurują o nią (wzrost logistyczny, przegęszczenie). Nowa gałąź w wolnej niszy dostaje własne zasoby i chwilowe **uwolnienie od wrogów** — to model radiacji adaptacyjnej. Wymierania mają różną siłę w różnych niszach, a gatunek obecny w kilku niszach traci w nich mniej (**szeroki zasięg** — najlepszy paleontologiczny predyktor przetrwania wymierań). Gałąź zdobywa cechy linii pokrewnej taniej (**ewolucja równoległa**), a koewolucja drapieżników działa w każdej niszy osobno.
+- Nisze mają tożsamość: woda (kultura akustyczna, najcięższe wymierania morskie), ląd (narzędzia, duża pojemność, wymaga kończyn i najlepiej jaja lądowego), powietrze (bezpieczne, uboższe, wymaga lotu), przybrzeże (etap przejściowy, mniejsza pojemność).
 - Wizualizacja: interaktywne, rozgałęziające się **drzewo życia** pokazujące historię wszystkich linii (żywych i wymarłych).
 
 ### 4.6. Warunek zwycięstwa i porażki
-- **Zwycięstwo:** osiągnięcie progu inteligencji → wyewoluowanie gatunku rozumnego zdolnego do kultury/technologii. Dwie drogi: kultura narzędziowa (ląd lub brzeg) i kultura akustyczna (woda lub brzeg), bo rozum nie wymaga rąk (delfiny, walenie).
+- **Zwycięstwo:** osiągnięcie progu inteligencji → wyewoluowanie gatunku rozumnego zdolnego do kultury/technologii. Dwie drogi: kultura narzędziowa (ląd) i kultura akustyczna (otwarta woda), bo rozum nie wymaga rąk (delfiny, walenie). Liczy się żywotność całego kladu: linia rozumna i wszystkie linie pokrewne razem.
+- **Niepewność:** prognoza podaje przedział (warunki tury odchylają się jeszcze po decyzji), a katastrofy są zapowiadane do 2 tur wcześniej z przybliżoną siłą w każdej niszy.
 - **Uczciwy sygnał:** gdy zwycięstwo staje się niemożliwe (hojne oszacowanie z góry), gra mówi to od razu i pozwala grać o przetrwanie, cofnąć turę albo zakończyć partię.
 - **Regrywalność:** kod świata (ten sam kod = ten sam świat), przesuwane wymierania i katastrofy regionalne zapowiadane turę wcześniej, losowe cele ery z nagrodą EP, wynik punktowy i osiągnięcia.
 - **Porażka:** wymarcie wszystkich linii gracza.
