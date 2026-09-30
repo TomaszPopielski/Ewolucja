@@ -1,16 +1,18 @@
 # Ewolucja 🧬
 
-Edukacyjna gra przeglądarkowa o **doborze naturalnym** i historii życia,
-inspirowana *Evolution: The Game of Intelligent Life* (1997).
+Turowa gra strategiczna o **doborze naturalnym** i historii życia, dla młodzieży
+i dorosłych. Inspirowana *Evolution: The Game of Intelligent Life* (1997).
 
 Poprowadź linię rozwojową zwierząt przez trzy ery — **paleozoik, mezozoik
 i kenozoik** — od prostego organizmu w morzu aż do gatunku o rozwiniętym mózgu. Wydawaj **punkty ewolucji**
-na cechy, gospodaruj **rezerwami energii** i **zmiennością genetyczną**, dostosowuj
-się do zmiennego środowiska i ucz się, jak działa ewolucja.
+na cechy, gospodaruj **rezerwami energii** i **zmiennością genetyczną**, zajmuj nisze,
+dostosowuj się do zmiennego środowiska i przetrwaj wymierania, które potrafią
+rozbić nawet dobry plan. Każda adaptacja ma swoją cenę.
 
-> Gra edukacyjna. Model jest świadomie uproszczony — służy zrozumieniu
-> mechanizmów, nie odwzorowaniu konkretnych gatunków. Pełne założenia
-> projektowe: [`ZALOZENIA.md`](./ZALOZENIA.md).
+> Świat gry opiera się na prawdziwej biologii i paleontologii, ale model jest
+> uproszczony dla czytelności decyzji — to gra, nie symulator ani lekcja.
+> Pełne założenia projektowe (w tym to, co odcięto z pierwotnego zamiaru gry
+> szkolnej): [`ZALOZENIA.md`](./ZALOZENIA.md).
 
 ## Jak uruchomić
 
@@ -126,7 +128,7 @@ zależnej od Twojej gry (wyparci konkurenci i wymarłe linie ją obniżają, wie
 zajętych nisz podnosi). Werdykt: *Zrównoważona cywilizacja*, *Cywilizacja na kredyt*,
 *Cisi opiekunowie* lub *Upadek ekosystemów*; punkty trafiają do wyniku, a za
 zrównoważoną cywilizację jest osiągnięcie. Epilog nie zmienia tego, że partia
-jest wygrana — to opcjonalna lekcja o konsekwencjach rozumu.
+jest wygrana — to opcjonalny epilog o konsekwencjach rozumu.
 
 ### Prolog: prekambr
 
@@ -185,8 +187,8 @@ i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
 
 - **Kod świata** (np. `K7Q2MX`) — każda partia ma kod widoczny pod osią czasu.
   Ten sam kod to ten sam świat: warunki tur, kalendarz katastrof, karty decyzji
-  i cele er. Wpisz go na ekranie startowym (np. cała klasa w jednym świecie)
-  albo kliknij „Ten sam świat jeszcze raz” na końcu gry. Puste pole = nowy świat.
+  i cele er. Wpisz go na ekranie startowym (np. by zagrać ze znajomymi w tym samym
+  świecie i porównać wyniki) albo kliknij „Ten sam świat jeszcze raz” na końcu gry. Puste pole = nowy świat.
 - **Przesuwane wymierania** — wymieranie ordowickie i dewońskie trafiają w jedną
   z dwóch tur swojego okresu (na osi czasu oznaczone „?”), a w każdej erze
   pojawiają się **dwie katastrofy regionalne** w losowych turach, wymierzone
@@ -200,8 +202,9 @@ i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
   populacja, cele er, nisze, tury zapasu, osiągnięcia × mnożnik trudności),
   rekord scenariusza i 13 osiągnięć zapisywanych w przeglądarce.
 
-Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
-paleontologia, ekologia).
+Po drodze odblokowujesz wpisy **Kodeksu** — podręcznej encyklopedii gry
+(biologia, paleontologia, ekologia). Czytanie jest dobrowolne; nic nie blokuje
+postępu.
 
 ## Struktura projektu
 
@@ -274,8 +277,8 @@ obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
   i wykres populacji na osi er.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
   widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
-- **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
-- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
+- **Samouczek** pierwszych kroków, **cofanie tury**, **wykres populacji**.
+- **Podsumowanie partii** (kopiuj / pobierz .txt — do zachowania lub pokazania innym).
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
@@ -307,6 +310,10 @@ dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 
 ## Status
 
-Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
-tryb offline (PWA), tryb wieloosobowy, kolejne języki.
+Działająca, pełna gra: trzy ery z prologiem i epilogiem, trzy scenariusze
+i poziomy trudności, nisze z pojemnością, specjacja z drzewem życia, diety
+i sieć troficzna, konkurenci, katastrofy, karty decyzji i echa, kod świata,
+wynik i osiągnięcia. Kierunki rozwoju — uczciwy wynik przy cofaniu tury,
+głębsze rozgałęzianie, scenariusze z własnymi celami, tryb swobodny, wyzwania
+na wspólnym kodzie świata, PWA i kolejne języki — opisuje
+[`ZALOZENIA.md`](./ZALOZENIA.md), sekcja 10.

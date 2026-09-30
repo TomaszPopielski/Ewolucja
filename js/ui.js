@@ -2,7 +2,7 @@
  * ui.js — kontroler interfejsu.
  * Spina dane (GameData), silnik (Engine) i i18n (GameI18n) z DOM.
  * Logika gry jest w silniku; tutaj render, zdarzenia, zapis lokalny,
- * cofanie (tryb nauczyciela), samouczek i prognoza „co-jeśli”.
+ * cofanie tury, samouczek i prognoza „co-jeśli”.
  */
 (function () {
   'use strict';
@@ -97,7 +97,7 @@
   function onUndo() { if (turnBusy || !undoStack.length) return; state = JSON.parse(undoStack.pop()); save(); renderAll(); }
   function updateUndoButton() {
     el.btnUndo.disabled = (undoStack.length === 0);
-    el.btnUndo.textContent = '↶ Cofnij' + (undoStack.length ? ' (' + undoStack.length + ')' : '') + ' — tryb nauczyciela';
+    el.btnUndo.textContent = '↶ Cofnij turę' + (undoStack.length ? ' (' + undoStack.length + ')' : '');
   }
 
   function showScreen(name) {

@@ -1,5 +1,10 @@
 # Ewolucja — recenzja
 
+> **Dokument historyczny.** Ta recenzja powstała, gdy Ewolucja była grą edukacyjną dla uczniów,
+> i ocenia ją również jako pomoc dydaktyczną. Od zmiany założeń ([`ZALOZENIA.md`](../ZALOZENIA.md), sekcja 13)
+> wartość edukacyjna nie jest kryterium, a fragmenty o quizach, trybie nauczyciela i lekcjach
+> **nie obowiązują**. Pomiary i opis mechanik zachowano jako zapis stanu z tamtego dnia.
+
 > **Gatunek:** strategia turowa, gra edukacyjna · **Platforma:** przeglądarka (jeden plik HTML, działa offline) · **Cena:** za darmo · **Wersja testowana:** 0.2.0, commit `7fadc26` · **Czas jednej partii:** 20–30 minut
 >
 > **Wymagania:** dowolna przeglądarka z ostatnich lat. Na słabszym sprzęcie gra sama obniża jakość grafiki.

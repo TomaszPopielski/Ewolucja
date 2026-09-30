@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Ewolucja — edukacyjna gra przeglądarkowa o doborze naturalnym i historii życia." />
-  <title>Ewolucja — gra edukacyjna</title>
+  <meta name="description" content="Ewolucja — turowa gra strategiczna o doborze naturalnym i historii życia na Ziemi. Poprowadź linię rodową od kambru do gatunku rozumnego." />
+  <title>Ewolucja — gra strategiczna</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -35,8 +35,8 @@
           Poprowadź linię rozwojową zwierząt przez trzy ery — od prostego organizmu w morzu
           aż do gatunku o rozwiniętym mózgu. Wydawaj <strong>punkty ewolucji</strong> na cechy,
           gospodaruj <strong>rezerwami energii</strong> i <strong>zmiennością genetyczną</strong>,
-          zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
-          <strong>dobór naturalny</strong>.
+          zajmuj nisze i przetrwaj wymierania masowe. Każda adaptacja ma swoją cenę,
+          a <strong>dobór naturalny</strong> nie wybacza błędów.
         </p>
         <div class="intro-goal" id="intro-goal"></div>
         <form id="form-start" class="start-form">
@@ -48,11 +48,11 @@
                  placeholder="np. K7Q2MX — puste = nowy, losowy świat" aria-describedby="world-seed-hint" />
           <label class="prologue-toggle"><input type="checkbox" id="prologue-toggle" checked />
             <span><strong>Zacznij od prologu — prekambr</strong> (3 wybory, ok. minuty): jak życie zdobyło energię, złożoność i tlen. Twoje wybory dają drobne kompromisy na start. Dotyczy scenariuszy od paleozoiku.</span></label>
-          <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go całej klasie, by porównać wyniki.</p>
+          <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go znajomym, by porównać wyniki.</p>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
-        <p class="edu-note" data-i18n="start.eduNote"></p>
+        <p class="model-note" data-i18n="start.modelNote"></p>
       </div>
     </section>
 
@@ -179,7 +179,7 @@
           </div>
 
           <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
-          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
+          <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij turę</button>
         </aside>
 
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
@@ -320,7 +320,7 @@
         <h2 id="summary-title" class="modal-title" data-icon="ui:document">Podsumowanie gry</h2>
         <button id="btn-summary-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
       </div>
-      <p class="panel-hint">Podsumowanie rozgrywki do skopiowania lub pobrania (np. dla nauczyciela).</p>
+      <p class="panel-hint">Podsumowanie partii do skopiowania lub pobrania — np. by zachować wynik albo porównać go z innymi w tym samym świecie (kod świata).</p>
       <textarea id="summary-text" class="summary-text" readonly rows="14"></textarea>
       <div class="modal-actions">
         <button id="btn-summary-copy" class="btn btn-primary" type="button">Kopiuj do schowka</button>

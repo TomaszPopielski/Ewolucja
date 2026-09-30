@@ -8,7 +8,7 @@
  * ⚡ rezerwy — taktyka tury, 🧬 zmienność — specjacja i dobór), strategie
  * rozrodu, zachowania w turze i karty decyzji.
  *
- * Funkcje mutujące zwracają NOWY stan (kopię) — tryb nauczyciela cofa akcje.
+ * Funkcje mutujące zwracają NOWY stan (kopię) — na tym opiera się cofanie tury.
  */
 (function (root, factory) {
   var engine = factory();
@@ -27,7 +27,7 @@
   function dedupe(a) { var s = {}, o = []; a.forEach(function (x) { if (!s[x]) { s[x] = 1; o.push(x); } }); return o; }
   /* ---------- Losowość z ziarnem („kod świata”) ----------
      Świat (warunki tur, kalendarz katastrof, zdarzenia, karty, cele er) wynika z
-     kodu świata i numeru tury — przy tym samym kodzie cała klasa gra w tym samym
+     kodu świata i numeru tury — przy tym samym kodzie wszyscy grają w tym samym
      świecie. Los linii (mutacje, straty, ryzyka) ma osobny strumień zapisany w
      stanie, więc te same decyzje dają tę samą partię. */
   function hashStr(str) {

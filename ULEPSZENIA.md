@@ -3,9 +3,17 @@
 Przegląd stanu gry (commit `0721bef`: scenariusze, trudność, cztery nisze,
 koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALOZENIA.md).
 
+> **Zmiana kierunku.** Ten dokument powstał, gdy Ewolucja była pomocą dydaktyczną
+> dla uczniów. Od przepisania założeń ([`ZALOZENIA.md`](./ZALOZENIA.md), sekcja 13)
+> jest to gra dla młodzieży i dorosłych, więc pozycje edukacyjne przeklasyfikowano:
+> quizy (3.1) **porzucono**, „tryb nauczyciela” (3.2) stał się zagadnieniem
+> uczciwego wyniku, a dawne odniesienia do lekcji i uczniów czytaj jako
+> zapis historyczny. Numery sekcji `ZALOZENIA.md` w tabelach odpowiadają nowemu
+> dokumentowi (numeracja zachowana).
+
 > **Status:** etapy 1 (poprawki P1) i 2 (balans) zrealizowane — punkty oznaczone ✅
 > mają testy w `test/engine.test.js` (balans: `test/bots.js`). Kolejne etapy
-> (edukacja, dostępność i technika, treści) — do zrobienia.
+> (uczciwy wynik i treść, dostępność i technika, rozwój treści) — do zrobienia.
 >
 > **Balans po etapie 2 i warunku żywotnej populacji** (100 gier z ziarnami 1–100, % zwycięstw):
 >
@@ -121,8 +129,8 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 | # | Pri | Założenie | Stan | Propozycja |
 |---|---|---|---|---|
-| 3.1 | P1 | §6 Mini-quizy po erze z bonusem EP | brak | 2–3 pytania z kart wiedzy odblokowanych w danej erze; bonus EP za poprawne odpowiedzi; pytania w `data.js`. |
-| 3.2 | P2 | §6 Tryb nauczyciela jako **tryb** („zapauzowanie, cofnięcie tury, omówienie”) | cofanie jest zawsze włączone | Przełącznik trybu na starcie. Poza nim brak cofania tury, bo inaczej można w kółko losować mutacje, zdarzenia i (od etapu 2) warunki środowiska. W trybie nauczyciela dodać „omów turę” (powrót do raportu) i cofanie z ekranu końcowego. |
+| 3.1 ❌ | — | (dawne §6) Mini-quizy po erze z bonusem EP | **porzucone** | Decyzja produktowa: gra nie egzaminuje (ZALOZENIA §6, §13). Pozycja zostaje jako zapis historii. |
+| 3.2 | P1 | §8, §10.2 **Uczciwy wynik: cofanie tury jako opcja trybu swobodnego** (dawniej „tryb nauczyciela”) | cofanie jest zawsze włączone i nie wpływa na wynik | Przełącznik trybu na starcie. Wynik i rekordy liczone tylko w partii bez cofania (albo brak cofania poza trybem swobodnym), bo inaczej można w kółko losować mutacje, zdarzenia i ryzyka. Cofanie z ekranu końcowego zostaje w trybie swobodnym. |
 | 3.3 | P2 | §5 Prekambr i Antropocen | gra startuje w paleozoiku i kończy na progu rozumności | Krótki prekambr (fotosynteza, wielokomórkowość, tlen) jako opcjonalny prolog; Antropocen jako epilog/ekran zwycięstwa. |
 | 3.4 | P2 | §4.1 Typ odżywiania (roślino-/mięso-/wszystkożerność) | tylko liczba „odżywianie” | Dieta jako atrybut modyfikujący, który pokarm liczy się w danej niszy (rośliny na lądzie od sylur/karbonu, zdobycz ↔ drapieżnictwo). |
 | 3.5 | P2 | §4.2 EP za „zajęcie nowej niszy” i „wygrane starcia” | premia za niszę naliczana co turę, brak EP za starcia | Jednorazowy bonus za pierwszą kolonizację niszy; EP za turę z niskimi stratami od drapieżników. |
@@ -130,20 +138,20 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 | 3.7 | P2 | §7 Tryb dla daltonistów | brak (kolory pos/neg = zielony/czerwony) | Dodatkowe symbole ▲▼ obok liczb i alternatywna paleta. |
 | 3.8 | P2 | §9 PWA / działanie offline | brak manifestu i service workera | `manifest.webmanifest` + prosty service worker cache-first. |
 | 3.9 | P3 | §4.5 Specjacja „gdy część populacji zaadaptuje się do odrębnej niszy” | potomek jest identyczną kopią w tej samej niszy | Przy specjacji wymagać wyboru innej niszy albo dać potomkowi darmową mutację różnicującą. |
-| 3.10 | P3 | §11 Długość sesji ≈ 45 min | niezmierzona | Pomiar czasu gry w testach z uczniami; opcja „krótka gra” (jedna era). |
+| 3.10 | P3 | §11 Długość sesji (dawniej ≈ 45 min na lekcję) | rzędu 20–30 min wg recenzji | Pomiar czasu gry w testach z graczami; opcja „krótka gra” (jedna era) jako wygoda, nie wymóg. |
 | 3.11 | P3 | §8 Tryb wieloosobowy | brak (świadomie poza zakresem) | Na później: tryb *hot-seat* na jednym komputerze. |
 
-## 4. Rzetelność merytoryczna i warstwa edukacyjna
+## 4. Rzetelność merytoryczna i treść Kodeksu
 
 | # | Pri | Problem | Propozycja |
 |---|---|---|---|
 | 4.1 ✅ | P1 | **Wymieranie permskie oznaczone jako `zimno`.** Wymieranie P–T wiąże się z trapami syberyjskimi i gwałtownym **ociepleniem** (oraz zakwaszeniem i niedotlenieniem oceanów). | Klimat `cieplo`, niski tlen; nota o wulkanizmie i ociepleniu. |
 | 4.2 ✅ | P1 | Wymieranie permskie uderza tylko w niszę `woda`, a w rzeczywistości dotknęło też ląd (ok. 70% kręgowców lądowych). | `niche: 'all'` z mniejszą siłą na lądzie. |
-| 4.3 | P2 | Ryzyko utrwalania mitu **„ewolucja ma cel”** (ZALOZENIA §11): „droga do inteligencji ⭐”, „Kulminacja”, „Cel”. | Karta wiedzy „Ewolucja nie ma celu — cel ma gracz”, pokazywana na starcie i przy pierwszym zakupie ⭐; zmiana podpisu na „ścieżka gracza”. |
+| 4.3 | P2 | Ryzyko utrwalania mitu **„ewolucja ma cel”** (ZALOZENIA §1.4): „droga do inteligencji ⭐”, „Kulminacja”, „Cel”. | Karta wiedzy „Ewolucja nie ma celu — cel ma gracz”, pokazywana na starcie i przy pierwszym zakupie ⭐; zmiana podpisu na „ścieżka gracza”. |
 | 4.4 | P2 | Brakuje dwóch z „wielkiej piątki” wymierań: późnodewońskiego i triasowo-jurajskiego. | Dodać jako katastrofy (dewon — morza, niedotlenienie; T–J — po triasie). |
-| 4.5 | P2 | Uproszczenia nie są oznaczone przy konkretnych mechanikach (ZALOZENIA §6: „uproszczenia oznaczane jako uproszczenia”). | Znacznik „ℹ uproszczenie” w kartach (np. nisza powietrzna już w mezozoiku, kolejność pióra→stałocieplność). |
+| 4.5 | P2 | Uproszczenia nie są oznaczone przy konkretnych mechanikach (ZALOZENIA §1.4: uproszczenia nazywamy uproszczeniami). | Znacznik „ℹ uproszczenie” w kartach (np. nisza powietrzna już w mezozoiku, kolejność pióra→stałocieplność). |
 | 4.6 | P3 | Kodeks pokazuje tylko odkryte karty, bez postępu. | „Odkryto 9/15” i zarysy nieodkrytych kart (motywacja). |
-| 4.7 | P3 | Podsumowanie dla nauczyciela nie zawiera przebiegu gry, choć stan ma `history`. | Oś tur w eksporcie: zakupy, migracje, katastrofy i populacja w każdej turze. |
+| 4.7 | P3 | Podsumowanie partii nie zawiera przebiegu gry, choć stan ma `history`. | Oś tur w eksporcie: zakupy, migracje, katastrofy i populacja w każdej turze. |
 
 ## 5. UX i dostępność
 
@@ -153,7 +161,7 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 | 5.2 | P2 | Samouczek (`role="dialog"`) nie przejmuje fokusu, a Escape nie zamyka ani samouczka, ani raportu tury. Żaden modal nie więzi fokusu. | `js/ui.js:660`, `js/ui.js:680`, `js/ui.js:730-737` | Wspólna obsługa modali: pułapka fokusu, Escape, powrót fokusu. |
 | 5.3 | P2 | Wykres populacji ma `aria-hidden` i nie ma alternatywy tekstowej (ZALOZENIA §7). | `index.html` sparkline | `aria-label` z trendem („120 → 340, rośnie”). |
 | 5.4 | P3 | Komunikaty błędów (`flash`) podmieniają napis na przycisku „Przeżyj turę” — łatwo je przeoczyć, czytnik ekranu ich nie ogłasza. | `js/ui.js:682` | Osobny toast z `aria-live="polite"`. |
-| 5.5 | P3 | Brak skrótów klawiszowych do głównych akcji (tablica multimedialna, klawiatura). | — | Np. `Spacja` — tura, `K` — Kodeks, `D` — drzewo, `1–4` — nisze. |
+| 5.5 | P3 | Brak skrótów klawiszowych do głównych akcji (obsługa samą klawiaturą). | — | Np. `Spacja` — tura, `K` — Kodeks, `D` — drzewo, `1–4` — nisze. |
 | 5.6 | P3 | Stary zapis (inna wersja) jest po cichu odrzucany. | `js/ui.js:65` | Informacja „zapis z poprzedniej wersji nie jest zgodny” albo migracja zapisu. |
 
 ## 6. Technika i jakość
@@ -172,6 +180,6 @@ Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku
 
 1. ✅ **Sprint poprawek (P1, małe):** 1.1–1.4, 4.1–4.2, 1.6–1.7, README (1.10) i testy regresji (6.3).
 2. ✅ **Sprint balansu:** 2.1 (migracja), 2.2 (EP ze specjacji), 2.3 (kalibracja + test statystyczny), 2.4 (działające kompromisy), 2.5 (selektywne katastrofy).
-3. **Sprint edukacyjny:** quizy po erze (3.1), karta „ewolucja nie ma celu” (4.3), tryb nauczyciela jako tryb (3.2), rozszerzony eksport (4.7), oznaczanie uproszczeń (4.5).
+3. **Sprint uczciwego wyniku i treści:** cofanie jako opcja trybu swobodnego (3.2), karta „ewolucja nie ma celu” w Kodeksie (4.3), dziennik partii (4.7), oznaczanie uproszczeń w Kodeksie (4.5). Quizy po erze (3.1) — porzucone.
 4. **Sprint dostępności i techniki:** 5.1–5.3, tryb dla daltonistów (3.7), PWA (3.8), i18n silnika (6.1), `npm test` + CI (6.2).
 5. **Rozwój treści:** prekambr/antropocen (3.3), dieta (3.4), scenariusze z własnymi celami (3.6), brakujące wymierania (4.4).
