@@ -14,6 +14,8 @@
  *                linii zbliża się do pojemności — specjacja i wysłanie nowej
  *                gałęzi do wolnej niszy (radiacja). „adaptive” zostawia
  *                strategię zrównoważoną i opcje domyślne kart;
+ * - „trophic”  — „tactics” + dobór diety: co turę porównuje prognozę każdej dozwolonej diety
+ *                (z kosztem przestawienia) i zmienia dietę, gdy daje wyraźnie więcej osobników;
  * - „tactics1” — jak „tactics”, ale bez specjacji (jedna linia);
  * - „crowd”    — jak „tactics1”, ale specjuje, gdy tylko może, i zostawia
  *                gałęzie w tej samej niszy (bezmyślne mnożenie linii);
@@ -266,6 +268,22 @@ function cladeTurn(s) {
   order.forEach(function (l) { s = adaptiveTurn(E.setActiveLineage(s, l.id), true); });
   return E.setActiveLineage(s, order[0].id);
 }
+// Dieta: gdy nisza robi się ciasna (zapełnienie > 60%) albo linia głoduje, przełącz ją na dietę z największym
+// zapasem miejsca (pojemność − obciążenie) przy nieujemnym bilansie energii; przestawienie kosztuje ⚡.
+function dietTurn(s) {
+  E.aliveLineages(s).forEach(function (l) {
+    var cur = E.forecast(D, s, l), room = cur.capacity - cur.nicheLoad;
+    if (cur.nicheLoad < cur.capacity * 0.6 && cur.energy >= 0) return;
+    var best = null, bestRoom = room + cur.capacity * 0.2;
+    Object.keys(D.DIETS).forEach(function (d) {
+      if (d === E.dietOf(l) || !E.canSetDiet(D, l, d).ok) return;
+      var f = E.forecastWithDiet(D, s, l, d), r = f.capacity - f.nicheLoad;
+      if (r > bestRoom && f.projectedPop >= cur.projectedPop * 0.9) { bestRoom = r; best = d; }
+    });
+    if (best) { var res = E.setDiet(D, s, l.id, best); if (res.ok) s = res.state; }
+  });
+  return s;
+}
 function crowd(s) {
   var a = E.getActiveLineage(s);
   if (!E.canSpeciate(D, s).ok) return s;
@@ -281,9 +299,10 @@ function play(kind, init, seed) {
   while (s.status === 'playing' && guard++ < 40) {
     if (kind === 'adaptive') s = adaptiveTurn(s);
     else if (kind === 'tactics') s = tacticsTurn(radiate(adaptiveTurn(s)));
+    else if (kind === 'trophic') s = dietTurn(tacticsTurn(radiate(adaptiveTurn(s))));
     else if (kind === 'tactics1') s = tacticsTurn(adaptiveTurn(s));
     else if (kind === 'crowd') s = tacticsTurn(crowd(adaptiveTurn(s)));
-    else if (kind === 'clade') s = tacticsTurn(cladeTurn(s));
+    else if (kind === 'clade') s = dietTurn(tacticsTurn(cladeTurn(s)));
     else s = buyInOrder(s, kind === 'plan' ? PLAN : STAR);
     s = E.simulateTurn(D, s, rng).state;
   }
@@ -294,9 +313,10 @@ function play(kind, init, seed) {
 function stepFor(kind, s) {
   if (kind === 'adaptive') return adaptiveTurn(s);
   if (kind === 'tactics') return tacticsTurn(radiate(adaptiveTurn(s)));
+  if (kind === 'trophic') return dietTurn(tacticsTurn(radiate(adaptiveTurn(s))));
   if (kind === 'tactics1') return tacticsTurn(adaptiveTurn(s));
   if (kind === 'crowd') return tacticsTurn(crowd(adaptiveTurn(s)));
-  if (kind === 'clade') return tacticsTurn(cladeTurn(s));
+  if (kind === 'clade') return dietTurn(tacticsTurn(cladeTurn(s)));
   return buyInOrder(s, kind === 'plan' ? PLAN : STAR);
 }
 

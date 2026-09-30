@@ -29,7 +29,7 @@
     scenarioCards: $('scenario-cards'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
     epAfford: $('ep-afford'), statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
-    statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'),
+    statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'), envRivals: $('env-rivals'), endEpilogue: $('end-epilogue'),
     endScoreTotal: $('end-score-total'), endScoreParts: $('end-score-parts'), endAch: $('end-ach'), btnPlaySame: $('btn-play-same'),
     modalOutlook: $('modal-outlook'), outlookReasons: $('outlook-reasons'), btnOutlookContinue: $('btn-outlook-continue'),
     btnOutlookUndo: $('btn-outlook-undo'), btnOutlookEnd: $('btn-outlook-end'),
@@ -46,7 +46,7 @@
     btnSettingsClose: $('btn-settings-close'), btnSettingsX: $('btn-settings-x'),
     sparkline: $('sparkline'), forecastBody: $('forecast-body'),
     choiceCard: $('choice-card'), resourceMeters: $('resource-meters'),
-    strategyButtons: $('strategy-buttons'), behaviorButtons: $('behavior-buttons'),
+    strategyButtons: $('strategy-buttons'), dietButtons: $('diet-buttons'), behaviorButtons: $('behavior-buttons'),
     selectionSelect: $('selection-select'), selectionText: $('selection-text'),
     statsList: $('stats-list'),
     envName: $('env-name'), envNote: $('env-note'), envCatastrophe: $('env-catastrophe'), envStats: $('env-stats'),
@@ -60,6 +60,11 @@
     speciateName: $('speciate-name'), speciateHint: $('speciate-hint'), btnSpeciateCancel: $('btn-speciate-cancel'),
     modalConfirm: $('modal-confirm'), confirmMessage: $('confirm-message'),
     btnConfirmYes: $('btn-confirm-yes'), btnConfirmNo: $('btn-confirm-no'),
+    screenPrologue: $('screen-prologue'), prologueToggle: $('prologue-toggle'), prologueStep: $('prologue-step'),
+    prologueWhen: $('prologue-when'), prologueDesc: $('prologue-desc'), prologueTitle: $('prologue-title'),
+    prologueOptions: $('prologue-options'), prologuePath: $('prologue-path'), btnPrologueSkip: $('btn-prologue-skip'),
+    screenAnthro: $('screen-anthropocene'), anthroStep: $('anthro-step'), anthroTitle: $('anthro-title'), anthroMeters: $('anthro-meters'),
+    anthroDesc: $('anthro-desc'), anthroOptions: $('anthro-options'), endAnthro: $('end-anthro'),
     endEmblem: $('end-emblem'), endTitle: $('end-title'), endSummary: $('end-summary'),
     endStats: $('end-stats'), btnPlayAgain: $('btn-play-again'), btnOpenCodexEnd: $('btn-open-codex-end'),
     btnSummary: $('btn-summary'),
@@ -82,7 +87,7 @@
   function loadSaved() {
     try {
       var s = JSON.parse(localStorage.getItem(SAVE_KEY));
-      return (s && s.version === 7 && s.status === 'playing') ? s : null;
+      return (s && s.version === 8 && s.status === 'playing') ? s : null;
     } catch (e) { return null; }
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -99,6 +104,8 @@
     el.screenStart.hidden = name !== 'start';
     el.screenGame.hidden = name !== 'game';
     el.screenEnd.hidden = name !== 'end';
+    if (el.screenPrologue) el.screenPrologue.hidden = name !== 'prologue';
+    if (el.screenAnthro) el.screenAnthro.hidden = name !== 'anthropocene';
   }
 
   function newGame(speciesName, opts) {
@@ -111,6 +118,106 @@
     showScreen('game');
     renderAll();
     maybeStartTutorial();
+  }
+
+  // ===================== Epilog grywalny: Antropocen =====================
+  function verdictOf(a) { return a && a.verdict ? DATA.ANTHROPOCENE.verdicts.filter(function (v) { return v.id === a.verdict; })[0] : null; }
+  function anthroMeters(a) {
+    return meter('energy', '🌍 Biosfera', 'Kondycja biosfery', a.bio, 100, 'Im wyższa, tym zdrowsze ekosystemy. Zaczyna się od wartości zależnej od przebiegu Twojej gry.') +
+      meter('gene', '⚙️ Rozwój', 'Rozwój cywilizacji', a.tech, 17, 'Technika, energia i wiedza rozumnego gatunku.');
+  }
+  function renderEndAnthro() {
+    if (!el.endAnthro) return;
+    var a = state.anthropocene;
+    if (state.status !== 'won') { el.endAnthro.hidden = true; el.endAnthro.innerHTML = ''; return; }
+    el.endAnthro.hidden = false;
+    if (!a || !a.done) {
+      el.endAnthro.innerHTML = '<h2>Epilog do rozegrania: Antropocen</h2>' +
+        '<p>Twój gatunek jest rozumny. Cztery decyzje — energia, żywność, miasta i ochrona przyrody — zdecydują, czy jego rozwój zniszczy biosferę. ' +
+        'Twoja gra już ją ukształtowała: startuje z wartością ' + (a ? a.startBio : Engine.startAnthropocene(DATA, state).state.anthropocene.bio) + ' / 100.</p>' +
+        '<button id="btn-anthro-play" class="btn btn-primary" type="button">' + (a ? 'Wróć do epilogu' : 'Zagraj epilog') + '</button>';
+      var pb = el.endAnthro.querySelector('#btn-anthro-play');
+      pb.addEventListener('click', playAnthropocene);
+      return;
+    }
+    var v = verdictOf(a), picks = a.picks.map(function (id, i) {
+      var o = DATA.ANTHROPOCENE.stages[i].options.filter(function (x) { return x.id === id; })[0];
+      return o ? o.label : id;
+    });
+    el.endAnthro.innerHTML = '<h2>' + escapeHtml(v.icon) + ' ' + escapeHtml(v.title) + '</h2><p>' + escapeHtml(v.text) + '</p>' +
+      '<p class="anthro-picks">Wybory: ' + escapeHtml(picks.join(' → ')) + '</p>' +
+      '<div class="resource-meters">' + anthroMeters(a) + '</div>' +
+      '<p class="anthro-note">' + escapeHtml(DATA.ANTHROPOCENE.outro) + '</p>';
+  }
+  function playAnthropocene() {
+    if (!state.anthropocene) { var r = Engine.startAnthropocene(DATA, state); if (!r.ok) { flash(r.error); return; } state = r.state; }
+    showScreen('anthropocene'); renderAnthropocene(); window.scrollTo(0, 0);
+  }
+  function renderAnthropocene() {
+    var a = state.anthropocene, stages = DATA.ANTHROPOCENE.stages, st = stages[a.round];
+    el.anthroStep.textContent = 'Epilog · Antropocen · decyzja ' + (a.round + 1) + ' z ' + stages.length;
+    el.anthroTitle.innerHTML = escapeHtml(st.icon) + ' ' + escapeHtml(st.title);
+    el.anthroMeters.innerHTML = anthroMeters(a);
+    el.anthroDesc.textContent = st.desc;
+    el.anthroOptions.innerHTML = '';
+    st.options.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice-option prologue-option';
+      b.innerHTML = '<strong><span aria-hidden="true">' + o.icon + '</span> ' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+        '<span class="prologue-trade">' + escapeHtml(o.tradeoff) + '</span>';
+      b.addEventListener('click', function () { chooseAnthropocene(o.id); });
+      el.anthroOptions.appendChild(b);
+    });
+  }
+  function chooseAnthropocene(id) {
+    var r = Engine.chooseAnthropocene(DATA, state, id);
+    if (!r.ok) { flash(r.error); return; }
+    state = r.state;
+    if (state.anthropocene.done) showEnd(); else renderAnthropocene();
+  }
+
+  // ===================== Prolog (prekambr) =====================
+  var prologueRun = null;
+  function beginPrologue(name, opts) {
+    prologueRun = { name: name, opts: opts, step: 0, picks: [] };
+    showScreen('prologue');
+    renderPrologue();
+    if (el.prologueTitle) el.prologueTitle.focus && el.prologueTitle.setAttribute('tabindex', '-1');
+    window.scrollTo(0, 0);
+  }
+  function renderPrologue() {
+    var run = prologueRun, stages = DATA.PROLOGUE, st = stages[run.step];
+    el.prologueStep.textContent = 'Prolog · prekambr · krok ' + (run.step + 1) + ' z ' + stages.length;
+    el.prologueTitle.innerHTML = escapeHtml(st.title);
+    el.prologueWhen.innerHTML = ico('ui:hourglass', st.icon) + ' ' + escapeHtml(st.when);
+    el.prologueDesc.textContent = st.desc;
+    el.prologueOptions.innerHTML = '';
+    st.options.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice-option prologue-option';
+      b.innerHTML = '<strong><span aria-hidden="true">' + o.icon + '</span> ' + escapeHtml(o.label) + '</strong><span>' + escapeHtml(o.desc) + '</span>' +
+        '<span class="prologue-trade">' + escapeHtml(o.tradeoff) + '</span>';
+      b.addEventListener('click', function () { pickPrologue(o.id); });
+      el.prologueOptions.appendChild(b);
+    });
+    var picked = run.picks.map(function (id) {
+      var lab = ''; stages.forEach(function (s) { s.options.forEach(function (x) { if (x.id === id) lab = x.label; }); });
+      return lab;
+    });
+    el.prologuePath.textContent = picked.length ? 'Dotąd: ' + picked.join(' → ') : '';
+  }
+  function pickPrologue(id) {
+    var run = prologueRun; if (!run) return;
+    run.picks.push(id); run.step += 1;
+    if (run.step >= DATA.PROLOGUE.length) finishPrologue(); else renderPrologue();
+  }
+  function finishPrologue() {
+    var run = prologueRun; prologueRun = null;
+    newGame(run.name, Object.assign({}, run.opts, { prologue: run.picks }));
+  }
+  function skipPrologue() {
+    var run = prologueRun; prologueRun = null;
+    if (run) newGame(run.name, run.opts);
   }
 
   function scenarioOpts(sc) {
@@ -134,7 +241,10 @@
         '<span class="scenario-intro">' + sc.intro + '</span>' +
         (sc.rules ? '<span class="scenario-rules">' + escapeHtml(sc.rules) + '</span>' : '');
       card.addEventListener('click', function () {
-        newGame((el.speciesInput.value || '').trim() || 'Prazwierzę', scenarioOpts(sc));
+        var name = (el.speciesInput.value || '').trim() || 'Prazwierzę', opts = scenarioOpts(sc);
+        // Prolog tylko dla scenariuszy od początku (paleozoik) i gdy gracz go nie wyłączył.
+        if (el.prologueToggle && el.prologueToggle.checked && !sc.startEra && DATA.PROLOGUE && DATA.PROLOGUE.length) beginPrologue(name, opts);
+        else newGame(name, opts);
       });
       el.scenarioCards.appendChild(card);
     });
@@ -448,8 +558,11 @@
     html += '<div class="forecast-row"><span>' + ENERGY + ' Rezerwy</span><span class="fc ' +
       (base.reservesAfter >= base.reserves ? 'pos' : 'neg') + '">' + num(base.reserves) + ' → ' + num(base.reservesAfter) + '</span></div>';
     var capWarn = base.nicheLoad >= base.capacity * DATA.CAPACITY.warnAt;
-    html += '<div class="forecast-row"><span>Pojemność niszy</span><span class="fc' + (capWarn ? ' neg' : '') + '">' +
-      base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    html += '<div class="forecast-row"><span>' + (base.diet === 'miesozerca' ? 'Zdobycz (drapieżniki / pojemność)' : 'Pojemność niszy') +
+      '</span><span class="fc' + (capWarn ? ' neg' : '') + '">' + base.nicheLoad + ' / ' + base.capacity + '</span></div>';
+    if (base.diet === 'miesozerca') html += '<div class="forecast-row"><span>Biomasa roślinożerców w niszy</span><span class="fc">' + base.preyBiomass + '</span></div>';
+    if (base.webPressure >= 0.1) html += '<div class="forecast-row"><span>Presja Twojej mięsożernej linii</span><span class="fc neg">+' + num(base.webPressure) + '</span></div>';
+    if (base.rivalLoad) html += '<div class="forecast-row"><span>w tym konkurenci</span><span class="fc">' + base.rivalLoad + '</span></div>';
     if (base.crowdDeaths) {
       html += '<div class="forecast-row"><span>Straty z przegęszczenia</span><span class="fc neg">−' + base.crowdDeaths + '</span></div>';
     }
@@ -545,6 +658,18 @@
       el.strategyButtons.appendChild(b);
     });
 
+    el.dietButtons.innerHTML = '';
+    Object.keys(DATA.DIETS).forEach(function (key) {
+      var dt = DATA.DIETS[key], can = Engine.canSetDiet(DATA, l, key), cur = key === Engine.dietOf(l);
+      var b = tacticButton(dt, cur, cur ? '' : DATA.TROPHIC.switchCost + ' ' + ENERGY, playing && can.ok);
+      b.title = dt.desc + (can.ok ? '' : ' — ' + can.error);
+      if (playing && can.ok && !cur) {
+        b.addEventListener('click', function () { onSetDiet(key); });
+        previewOn(b, { diet: key, label: dt.label });
+      }
+      el.dietButtons.appendChild(b);
+    });
+
     el.behaviorButtons.innerHTML = '';
     Object.keys(DATA.BEHAVIORS).forEach(function (key) {
       var bh = DATA.BEHAVIORS[key], can = Engine.canSetBehavior(DATA, l, key);
@@ -603,7 +728,10 @@
     var def = Engine.defaultOption(ev);
     el.choiceCard.hidden = false;
     el.choiceCard.innerHTML = '<div class="choice-head"><span class="choice-icon" aria-hidden="true">' + ico(ev.art, ev.icon) + '</span>' +
-      '<div><strong>' + escapeHtml(ev.name) + '</strong><div class="choice-target">Linia: ' + escapeHtml(l.name) + '</div></div></div>' +
+      '<div><strong>' + escapeHtml(ev.name) + '</strong><div class="choice-target">Linia: ' + escapeHtml(l.name) +
+      (pc.rivalName ? ' · Konkurent: ' + escapeHtml(pc.rivalName) : '') + '</div></div></div>' +
+      (pc.echoOf && pc.echoOf.name ? '<p class="choice-echo">' + ico('ui:hourglass', '🔔') + ' Skutek Twojej wcześniejszej decyzji: „' +
+        escapeHtml(pc.echoOf.option) + '” (' + escapeHtml(pc.echoOf.name) + ').</p>' : '') +
       '<p class="choice-desc">' + escapeHtml(ev.desc) + '</p><div class="choice-options"></div>' +
       '<p class="choice-default">Bez wyboru: „' + escapeHtml(def.label) + '”.</p>';
     var box = el.choiceCard.querySelector('.choice-options');
@@ -628,6 +756,10 @@
   function onSetStrategy(key) {
     if (turnBusy) return;
     if (applyAction(Engine.setStrategy(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
+  }
+  function onSetDiet(key) {
+    if (turnBusy) return;
+    if (applyAction(Engine.setDiet(DATA, state, state.activeLineageId, key))) { renderTactics(); renderForecast(); updateUndoButton(); }
   }
   function onSetBehavior(key) {
     if (turnBusy) return;
@@ -681,6 +813,19 @@
         (env.catastrophe.note ? ' <span class="env-cat-note">' + escapeHtml(env.catastrophe.note) + '</span>' : '');
     } else el.envCatastrophe.hidden = true;
     renderThreat(el.envThreat, Engine.upcomingThreat(DATA, state));
+    renderRivals();
+  }
+  // Konkurenci: inne gatunki tej ery w niszach gracza (rola drapieżnika podnosi presję w niszy).
+  function renderRivals() {
+    if (!el.envRivals) return;
+    var rs = (state.rivals || []).filter(function (r) { return r.alive; });
+    el.envRivals.hidden = !rs.length;
+    el.envRivals.innerHTML = !rs.length ? '' : '<strong>Konkurenci</strong>' + rs.map(function (r) {
+      var k = DATA.RIVALS.filter(function (x) { return x.id === r.kind; })[0] || {};
+      return '<div class="rival-row" title="' + escapeHtml(k.desc || '') + '">' + escapeHtml(r.icon) + ' ' + escapeHtml(r.name) +
+        ' — ' + escapeHtml(nicheLabel(r.niche).toLowerCase()) + ', ok. ' + r.pop + ' os.' +
+        (k.role === 'predator' ? ' <span class="rival-tag">drapieżnik</span>' : ' <span class="rival-tag">konkurent o pokarm</span>') + '</div>';
+    }).join('');
   }
   // Zapowiedź katastrofy w następnej turze — czas, by przenieść linię lub odłożyć zapasy.
   function threatHtml(th) {
@@ -946,6 +1091,17 @@
   }
 
   // ===================== Raport tury =====================
+  function renderRivalReport(report) {
+    var rows = [];
+    (report.rivalReports || []).forEach(function (r) {
+      rows.push(escapeHtml(r.icon) + ' ' + escapeHtml(r.name) + ': ' + r.popBefore + ' → ' + r.popAfter + (r.note ? ' — ' + escapeHtml(r.note) : ''));
+    });
+    if (report.rivalSpawn) rows.push(escapeHtml(report.rivalSpawn.icon) + ' ' + escapeHtml(report.rivalSpawn.text));
+    if (!rows.length) return;
+    var box = document.createElement('div'); box.className = 'report-rivals';
+    box.innerHTML = '<strong>Konkurenci</strong>' + rows.map(function (t) { return '<div class="report-event">' + t + '</div>'; }).join('');
+    el.reportBody.appendChild(box);
+  }
   function showReport(report) {
     // Baner zmiany ery.
     if (report.eraChanged) {
@@ -970,12 +1126,14 @@
     }
 
     el.reportBody.innerHTML = '';
+    renderRivalReport(report);
     var multi = report.lineReports.length > 1;
     report.lineReports.forEach(function (lr) {
       var block = document.createElement('div'); block.className = 'report-lineage';
       if (multi) {
         var head = document.createElement('div'); head.className = 'report-lineage-head';
-        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(lr.name);
+        head.innerHTML = (lr.alive ? nicheIcon(lr.niche) + ' ' : ico('ui:bone', '🦴') + ' ') + escapeHtml(lr.name) +
+          (lr.diet ? ' <span class="rival-tag">' + escapeHtml(DATA.DIETS[lr.diet].label.toLowerCase()) + '</span>' : '');
         block.appendChild(head);
       }
       lr.events.forEach(function (txt) {
@@ -990,8 +1148,10 @@
       if (lr.births > 0) block.appendChild(line('Narodziny', '+' + lr.births, 'pos', 'ui:sprout'));
       if (lr.diseaseDeaths > 0) block.appendChild(line('Straty z choroby', '-' + lr.diseaseDeaths, 'neg'));
       if (lr.crowdDeaths > 0) block.appendChild(line('Straty z przegęszczenia', '-' + lr.crowdDeaths, 'neg'));
-      if (lr.capacity) block.appendChild(line('Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
+      if (lr.capacity) block.appendChild(line(lr.diet === 'miesozerca' ? 'Zdobycz (drapieżniki / pojemność)' : 'Pojemność niszy (zajęta / całkowita)', lr.nicheLoad + ' / ' + lr.capacity,
         lr.nicheLoad >= lr.capacity * DATA.CAPACITY.warnAt ? 'neg' : 'plain'));
+      if (lr.rivalLoad) block.appendChild(line('w tym konkurenci', lr.rivalLoad, 'plain'));
+      if (lr.diet === 'miesozerca') block.appendChild(line('Biomasa roślinożerców (zdobycz)', lr.preyBiomass, 'plain'));
       if (lr.catDeaths > 0) block.appendChild(line('Straty w katastrofie', '-' + lr.catDeaths, 'neg', 'ui:meteor'));
       if (lr.reservesBefore != null) {
         block.appendChild(line(ENERGY + ' Rezerwy energii', num(lr.reservesBefore) + ' → ' + num(lr.reservesAfter),
@@ -1195,9 +1355,18 @@
         : state.endReason === 'nonviable'
         ? 'Na koniec gry żadna linia nie liczyła choćby ' + DATA.MIN_VIABLE_POP + ' osobników. Tak mała populacja jest skazana na wymarcie (słaby rozród, chów wsobny) — dbaj o bilans energii i liczebność, nie tylko o cechy.'
         : 'Wszystkie linie rozwojowe wymarły. W ewolucji większość linii wymiera — dywersyfikuj (specjacja, różne nisze) i lepiej dostosuj adaptacje do nadchodzących katastrof.';
+    renderEndAnthro();
+    var ep = Engine.epilogue(DATA, state);
+    if (el.endEpilogue) {
+      el.endEpilogue.hidden = !ep;
+      el.endEpilogue.innerHTML = ep ? '<h2>' + escapeHtml(ep.title) + '</h2>' +
+        ep.paragraphs.map(function (t) { return '<p>' + escapeHtml(t) + '</p>'; }).join('') : '';
+    }
     el.endStats.innerHTML = '';
+    if ((state.prologue || []).length) endStat('Prolog (prekambr)', escapeHtml(Engine.prologueLabels(DATA, state).join(' → ')));
     endStat('Status', s === 'won' ? 'Zwycięstwo' : (s === 'survived' ? 'Przetrwanie' : 'Wymarcie'));
     endStat('Liczba linii rozwojowych', state.lineages.length);
+    if (state.rivalsDisplaced) endStat('Wyparci konkurenci', state.rivalsDisplaced);
     endStat('Szczytowa łączna populacja', state.lineages.reduce(function (a, l) { return a + l.peakPopulation; }, 0));
     endStat('Najwyższa inteligencja', Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal);
     endStat('Odkryte pojęcia w Kodeksie', state.unlockedKnowledge.length);
@@ -1296,6 +1465,8 @@
       'Scenariusz: ' + (sc ? sc.name : state.scenario) + ' (trudność: ' + (diff ? diff.label : state.difficulty) + ')',
       'Wynik: ' + statusPl,
       'Kod świata: ' + (state.seed || '—'),
+      'Epilog Antropocen: ' + (state.anthropocene && state.anthropocene.done ? verdictOf(state.anthropocene).title + ' (rozwój ' + state.anthropocene.tech + ', biosfera ' + state.anthropocene.bio + ')' : 'nierozegrany'),
+      'Prolog (prekambr): ' + ((state.prologue || []).length ? Engine.prologueLabels(DATA, state).join(' → ') : 'pominięty'),
       'Punkty: ' + Engine.scoreGame(DATA, state).total,
       'Cele er: ' + (state.eraGoals || []).map(function (g) { var d = Engine.goalDef(DATA, g.id); return (d ? d.label : g.id) + ' (' + (g.status === 'done' ? 'spełniony' : g.status === 'failed' ? 'nie' : 'otwarty') + ')'; }).join('; '),
       'Osiągnięcia: ' + (Engine.earnedAchievements(DATA, state).map(function (id) { var a = DATA.ACHIEVEMENTS.filter(function (x) { return x.id === id; })[0]; return a ? a.label : id; }).join(', ') || 'brak'),
@@ -1305,7 +1476,7 @@
       'Odkryte pojęcia w Kodeksie: ' + state.unlockedKnowledge.length, '', 'Linie rozwojowe:'];
     state.lineages.forEach(function (l) {
       L.push('  • ' + l.name + ' — ' + (l.alive ? 'żywa' : 'wymarła') +
-        ', nisza: ' + DATA.NICHES[l.niche].label +
+        ', nisza: ' + DATA.NICHES[l.niche].label + ', dieta: ' + DATA.DIETS[Engine.dietOf(l)].label.toLowerCase() +
         ', inteligencja: ' + l.stats.intelligence +
         ', strategia: ' + (DATA.STRATEGIES[l.strategy] || DATA.STRATEGIES.zrownowazona).label +
         ', rezerwy: ' + num(l.reserves || 0) + ' ⚡, zmienność: ' + (l.variation || 0) + ' 🧬' +
@@ -1467,6 +1638,7 @@
       if (!state) return;
       var sc = DATA.SCENARIOS.filter(function (x) { return x.id === state.scenario; })[0] || DATA.SCENARIOS[0];
       var o = scenarioOpts(sc); o.seed = state.seed; o.difficulty = state.difficulty;
+      if ((state.prologue || []).length) o.prologue = state.prologue.slice();   // ten sam prolog — porównujesz tylko strategię
       newGame(Engine.getLineage(state, 'L0').name, o);
     });
     el.btnUndo.addEventListener('click', onUndo);
@@ -1496,8 +1668,9 @@
     el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
     el.btnTutorialNext.addEventListener('click', tutorialNext);
     el.btnTutorialSkip.addEventListener('click', endTutorial);
+    if (el.btnPrologueSkip) el.btnPrologueSkip.addEventListener('click', skipPrologue);
 
-    function doRestart() { clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
+    function doRestart() { prologueRun = null; clearSave(); state = null; undoStack = []; el.speciesInput.value = ''; showScreen('start'); }
     el.btnRestart.addEventListener('click', function () {
       if (state && state.status === 'playing') openConfirm('Rozpocząć nową grę? Bieżący postęp zostanie utracony.', doRestart);
       else doRestart();

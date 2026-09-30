@@ -49,7 +49,7 @@ Vite i sam z pliku nie zadziała.
    jeszcze nieco odchylić). Możesz też włączyć **ukierunkowany dobór** na wybraną
    cechę: kosztuje 🧬 i część potomstwa (koszt doboru), a daje szansę na +1 do tej
    cechy co turę. W większości tur pojawia się **karta decyzji**
-   (14 zdarzeń: wyspa, nowy drapieżnik, zakwit, łagodny sezon, epidemia,
+   (14 zdarzeń i 5 kart-ech — skutków wcześniejszych decyzji, które wracają po 2–3 turach: wyspa, nowy drapieżnik, zakwit, łagodny sezon, epidemia,
    nieznany pokarm, konkurent, wulkan, pokrewna populacja, wyścig godowy,
    padlina, symbioza, chudy sezon, niezwykły mutant). Karta nie powtarza się
    w partii, a opcja domyślna (brak decyzji) zwykle kosztuje. Tam, gdzie
@@ -115,6 +115,72 @@ cechy), gra mówi to od razu i proponuje: grać dalej o przetrwanie, cofnąć
 turę albo zakończyć partię. Ocena jest celowo hojna — w testach nie pomyliła
 się w żadnej wygranej partii.
 
+### Epilog do rozegrania: Antropocen
+
+Po zwycięstwie ekran końcowy oferuje **epilog**: cztery decyzje rozumnego
+gatunku — **energia** (węgiel i ropa / drewno / słońce i wiatr), **żywność**
+(karczowanie / chemia / płodozmian), **miasta** (bez ograniczeń / zwarte / rozproszone)
+i **ochrona przyrody** (ignorowanie / rezerwaty / banki genów). Każda zmienia
+**rozwój** i **biosferę**; żadna opcja nie jest darmowa. Biosfera startuje z wartości
+zależnej od Twojej gry (wyparci konkurenci i wymarłe linie ją obniżają, wiele
+zajętych nisz podnosi). Werdykt: *Zrównoważona cywilizacja*, *Cywilizacja na kredyt*,
+*Cisi opiekunowie* lub *Upadek ekosystemów*; punkty trafiają do wyniku, a za
+zrównoważoną cywilizację jest osiągnięcie. Epilog nie zmienia tego, że partia
+jest wygrana — to opcjonalna lekcja o konsekwencjach rozumu.
+
+### Prolog: prekambr
+
+Przed paleozoikiem możesz zagrać **prolog** (przełącznik na ekranie startowym,
+domyślnie włączony dla scenariuszy od początku): trzy wybory z historii życia
+zamiast tur — **skąd czerpać energię** (chemosynteza, fotosynteza, fagocytoza),
+**jak połączyć siły** (endosymbioza, wielokomórkowość, pojedyncze komórki)
+i **tlen** (oddychanie tlenowe, odporność na niedotlenienie, miękkie ciało
+ediakaru). Każda opcja to kompromis (np. +1 odżywiania, ale −1 mobilności) i daje
+drobną zmianę statystyk, rezerw lub zmienności na start oraz kartę wiedzy do
+Kodeksu. Prolog można pominąć, a „Ten sam świat jeszcze raz” powtarza też
+Twoje wybory. W testach żaden z 27 zestawów nie jest ślepą uliczką, a średni
+wynik bota jest zbliżony do gry bez prologu (69% vs 68%, normalny).
+
+### Dieta i sieć troficzna
+
+Każda linia ma **dietę** (panel „Decyzje linii”), która decyduje, z czego żyje
+i ile osobników wyżywi jej nisza:
+
+| Dieta | Wymaga | Pojemność niszy | Plusy i minusy |
+|---|---|---|---|
+| **Roślinożerca** (start) | — | największa; dzieli rośliny z konkurentami | najwięcej osobników; łatwo o tłok |
+| **Mięsożerca** | Szczęki | mniejsza: fauna „w tle” + zdobycz | mięso kaloryczne (×1,2 żerowania), mniej wrogów; ale mieści się mniej osobników (piramida troficzna) |
+| **Wszystkożerca** | Wszystkożerność | pośrednia | odporna na załamanie jednego źródła, ale nie najlepsza w żadnym |
+
+Zdobyczą mięsożercy są **roślinożercy w niszy**: rywale-konkurenci i **Twoje
+własne linie**. Drapieżni rywale konkurują z nim o tę zdobycz. Powstaje sieć: po
+specjacji możesz utrzymać roślinożerną i mięsożerną gałąź — druga żywi się
+pierwszą i podnosi jej presję drapieżników (kaskada troficzna). Zmiana diety
+kosztuje 4 ⚡ i osłabia żerowanie w tej turze; podgląd skutku pojawia się w
+prognozie po najechaniu na przycisk. Niektóre cechy zależą od diety
+(filtrowanie nie łowi zdobyczy, polowanie w grupie pomaga tylko mięsożercom).
+W testach wymuszone mięsożerstwo wygrywa tyle co roślinożerstwo na normalnym
+i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
+
+### Konkurenci, echa decyzji i epilog
+
+- **Konkurenci** — w nisze, w których żyjesz, wchodzą inne gatunki swojej ery
+  (skorpiony morskie, amonity, dinozaury, rekiny, kopytne…). Dzielą z Tobą
+  pojemność niszy, a **drapieżniki** (np. ryby pancerne, ichtiozaury) dodatkowo
+  podnoszą w niej presję. Konkurent rośnie do udziału zależnego od swojej siły,
+  ale słabnie, gdy zapełnisz niszę (wypieranie konkurencyjne — zasada Gausego),
+  a katastrofy uderzają też w niego. Lista jest w panelu środowiska, ruchy —
+  w raporcie tury. Karta „Konkurent w niszy” pada tylko przy realnym rywalu,
+  a udane wyparcie odbiera mu połowę populacji.
+- **Echa decyzji** — część wyborów na kartach ma następstwa: po 2–3 turach
+  wraca **karta-echo** dla tej samej linii (np. kolonia na wyspie zaczyna
+  się różnicować, drapieżniki doganiają Twoją obronę, choroba wraca do
+  populacji odpornej). Karta podaje, której decyzji jest skutkiem.
+- **Epilog** — zwycięstwo kończy się „Antropocenem”: co robi rozumny gatunek
+  ze światem (zależnie od przebiegu partii). Przetrwanie dostaje tytuł zależny
+  od stylu gry: *Władcy przestworzy*, *Wielka radiacja*, *Gatunek-legion*,
+  *Wąskie gardło i powrót* lub *Żywa skamielina*.
+
 ### Regrywalność: kod świata, kalendarz, cele er, wynik
 
 - **Kod świata** (np. `K7Q2MX`) — każda partia ma kod widoczny pod osią czasu.
@@ -165,6 +231,8 @@ Testy sprawdzają m.in. kupno cech i warunki wstępne, niemutowalność stanu,
 mechanikę mutacji, warunki zwycięstwa/porażki, to, że gra jest
 przechodnia świadomą strategią, oraz regresje naprawionych błędów
 (zob. [`ULEPSZENIA.md`](./ULEPSZENIA.md)).
+
+Tabelę zwycięstw botów pokaże `node scripts/boty-balans.js [liczba_gier]`.
 
 Testy balansu (`test/bots.js`) rozgrywają partie z ustalonymi ziarnami
 losowości botami: stałe plany („kup wszystko”, sama ścieżka ⭐), gracz czytający

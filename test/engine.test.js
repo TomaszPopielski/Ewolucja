@@ -978,6 +978,201 @@ group('Plan budowy (wygląd): z kodu świata, dziedziczony, tylko dla startu bez
   eq(r.state.lineages[1].bodyPlan, root.bodyPlan, 'gałąź dziedziczy plan budowy po rodzicu');
 });
 
+group('rywale — konkurenci w niszach', function () {
+  var s = withSeed('RYWAL'), l = active(s);
+  l.population = 100;
+  s.rivals = [{ id: 'R1', kind: 'dinosaur', name: 'Dinozaury', icon: '🦖', niche: l.niche, alive: true, pop: 40, strength: 4, bornTurn: 0 }];
+  var fWith = Engine.forecast(GameData, s, l), s0 = JSON.parse(JSON.stringify(s)); s0.rivals = [];
+  var fWithout = Engine.forecast(GameData, s0, active(s0));
+  eq(fWith.rivalLoad, 40, 'prognoza zna populację konkurenta w niszy');
+  ok(fWith.nicheLoad === fWithout.nicheLoad, 'rywal-drapieżnik nie zajmuje roślinożercy pojemności (nie je roślin)');
+  var sh = JSON.parse(JSON.stringify(s)); sh.rivals[0].kind = 'ammonite';
+  ok(Engine.forecast(GameData, sh, active(sh)).nicheLoad === fWithout.nicheLoad + 40, 'konkurent o pokarm zajmuje pojemność niszy');
+  ok(fWith.predationPressure > fWithout.predationPressure, 'rywal-drapieżnik zwiększa presję drapieżników');
+  var sc = JSON.parse(JSON.stringify(s)); sc.rivals[0].kind = 'ammonite';
+  ok(Engine.forecast(GameData, sc, active(sc)).predationPressure === fWithout.predationPressure, 'konkurent bez roli drapieżnika nie zmienia presji');
+  // Karta „Konkurent w niszy” pada tylko przy realnym rywalu w niszy linii.
+  var ev = Engine.choiceEvent(GameData, 'rival');
+  var ok1 = true; for (var i = 1; i <= 20; i++) { var t = withSeed('RYWAL' + i); t.rivals = []; if (Engine.simulateTurn(GameData, t, det).state.pendingChoice && Engine.simulateTurn(GameData, t, det).state.pendingChoice.eventId === 'rival') ok1 = false; }
+  ok(ev.needsRival && ok1, 'karta rywala nie pada bez rywala');
+  // Wypieranie: silna linia zapełniająca niszę wypiera słabego rywala; wynik wraca do raportu.
+  var d = withSeed('WYPARCIE'); active(d).population = 500;
+  d.rivals = [{ id: 'R1', kind: 'ammonite', name: 'Amonity', icon: '🐚', niche: active(d).niche, alive: true, pop: 12, strength: 1, bornTurn: 0 }];
+  var r = Engine.simulateTurn(GameData, d, det);
+  ok(r.report.rivalReports.length === 1 && r.report.rivalReports[0].popAfter <= 12, 'raport zawiera ruch rywala');
+  // Bez ziarna gry rywale mogą się pojawić, a z tym samym kodem świata dają tę samą historię.
+  function trace(seed) { var q = withSeed(seed), o = []; for (var k = 0; k < 8; k++) { q = Engine.simulateTurn(GameData, q).state; o.push((q.rivals || []).map(function (x) { return x.kind + x.pop; }).join(',')); } return o.join('|'); }
+  eq(trace('SWIAT7'), trace('SWIAT7'), 'ten sam kod świata — ta sama historia rywali');
+  var any = false; for (var z = 1; z <= 30 && !any; z++) { var u = withSeed('SP' + z); for (var k2 = 0; k2 < 10; k2++) u = Engine.simulateTurn(GameData, u).state; if ((u.rivals || []).length) any = true; }
+  ok(any, 'w typowej grze pojawiają się rywale');
+});
+
+group('echa decyzji — skutki po kilku turach', function () {
+  var s = withSeed('ECHO'), l = active(s); l.population = 100; l.variation = 20;
+  s.pendingChoice = { eventId: 'disease', lineageId: l.id, turn: 0 };
+  var res = Engine.resolveChoice(GameData, s, 'resist');
+  ok(res.ok && res.state.echoes.length === 1 && res.state.echoes[0].eventId === 'resist_echo', 'wybór z echem planuje kartę-następstwo');
+  var q = res.state, seen = null;
+  for (var i = 0; i < 6 && !seen; i++) { q = Engine.simulateTurn(GameData, q, det).state; if (q.pendingChoice && q.pendingChoice.eventId === 'resist_echo') seen = q.pendingChoice; if (q.pendingChoice && !seen) q.pendingChoice = null; }
+  ok(seen && seen.echoOf && seen.echoOf.option === 'Postaw na odporność', 'echo wraca jako karta z odniesieniem do wcześniejszej decyzji');
+  var again = Engine.resolveChoice(GameData, q, Engine.defaultOption(Engine.choiceEvent(GameData, 'resist_echo')).id);
+  ok(again.ok && again.state.echoes.length === 0, 'echo pada tylko raz');
+  ok(GameData.CHOICE_EVENTS.filter(function (e) { return e.chain; }).length >= 5, 'są karty-echa');
+  // Karty-echa nie losują się same.
+  var stray = 0; for (var k = 1; k <= 30; k++) { var t = withSeed('E' + k); for (var j = 0; j < 8; j++) { t = Engine.simulateTurn(GameData, t, det).state; if (t.pendingChoice && Engine.choiceEvent(GameData, t.pendingChoice.eventId).chain) stray++; t.pendingChoice = null; } }
+  eq(stray, 0, 'karty-echa nie wchodzą do losowej puli');
+  // Echo kolonii należy do kolonii, a martwa linia nie dostaje echa.
+  var isl = withSeed('WYSPA'); active(isl).population = 200; isl.pendingChoice = { eventId: 'island', lineageId: active(isl).id, turn: 0 };
+  // Przeprawa to ryzyko rozstrzygane w turze — tu udana (pierwsze losowanie 0,01).
+  var firstLow = (function () { var used = false; return function () { if (!used) { used = true; return 0.01; } return 0.99; }; })();
+  var col = Engine.simulateTurn(GameData, Engine.resolveChoice(GameData, isl, 'colonize').state, firstLow).state;
+  col.pendingChoice = null;
+  ok(col.echoes.length === 1 && col.echoes[0].lineageId !== active(isl).id && col.lineages.some(function (x) { return x.id === col.echoes[0].lineageId; }), 'echo wyprawy dotyczy kolonii');
+  col.lineages.forEach(function (x) { if (x.id === col.echoes[0].lineageId) { x.alive = false; x.population = 0; } });
+  for (var m = 0; m < 5; m++) { col = Engine.simulateTurn(GameData, col, det).state; if (col.pendingChoice && col.pendingChoice.eventId === 'island_echo') ok(false, 'martwa kolonia dostała echo'); col.pendingChoice = null; }
+});
+
+group('epilog i zakończenia', function () {
+  var w = withSeed('EPI'); w.status = 'won'; w.winPath = 'tools';
+  var e = Engine.epilogue(GameData, w);
+  ok(e && e.kind === 'anthropocene' && /Antropocen/.test(e.title) && e.paragraphs.length >= 3, 'zwycięstwo kończy się epilogiem Antropocenu');
+  var sv = withSeed('EPI'); sv.status = 'survived';
+  var e2 = Engine.epilogue(GameData, sv);
+  ok(e2 && e2.kind === 'legacy' && e2.title, 'przetrwanie dostaje tytuł zależny od stylu gry');
+  var lost = withSeed('EPI'); lost.status = 'lost';
+  eq(Engine.epilogue(GameData, lost), null, 'wymarcie nie ma epilogu');
+  var ids = GameData.ENDINGS.legacy.map(function (x) { return x.when; });
+  ok(ids[ids.length - 1] === 'default', 'ostatni tytuł to domyślny (zawsze coś pasuje)');
+  var ach = withSeed('EPI'); ach.rivalsDisplaced = 2; ach.echoesSeen = 2;
+  var got = Engine.earnedAchievements(GameData, ach);
+  ok(got.indexOf('gause') !== -1 && got.indexOf('echo') !== -1, 'osiągnięcia za wypieranie rywali i echa decyzji');
+});
+
+group('dieta i sieć troficzna', function () {
+  function withTraits(seed, traits, pop) {
+    var s = withSeed(seed), l = active(s); l.population = pop || 120; l.reserves = 10;
+    traits.forEach(function (id) { if (l.traits.indexOf(id) === -1) { l.traits.push(id); var t = byId(id); for (var k in t.effects) l.stats[k] += t.effects[k]; } });
+    return s;
+  }
+  var s0 = withSeed('DIETA');
+  eq(active(s0).diet, 'roslinozerca', 'linia startuje jako roślinożerca');
+  // Wymagania i koszt zmiany diety.
+  var noJaws = Engine.setDiet(GameData, withTraits('D1', []), 'L0', 'miesozerca');
+  ok(!noJaws.ok && /Szczęki/.test(noJaws.error), 'mięsożerca wymaga szczęk');
+  ok(!Engine.setDiet(GameData, withTraits('D1', ['jaws']), 'L0', 'wszystkozerca').ok, 'wszystkożerca wymaga wszystkożerności');
+  var poor = withTraits('D2', ['jaws']); active(poor).reserves = 1;
+  ok(!Engine.setDiet(GameData, poor, 'L0', 'miesozerca').ok, 'zmiana diety wymaga rezerw energii');
+  var sw = Engine.setDiet(GameData, withTraits('D3', ['jaws']), 'L0', 'miesozerca');
+  ok(sw.ok && active(sw.state).diet === 'miesozerca' && active(sw.state).reserves === 10 - GameData.TROPHIC.switchCost, 'zmiana diety kosztuje ⚡');
+  ok(sw.state.unlockedKnowledge.indexOf('diet') !== -1, 'zmiana diety odkrywa kartę wiedzy');
+  var same = Engine.setDiet(GameData, sw.state, 'L0', 'miesozerca');
+  ok(same.ok && active(same.state).reserves === active(sw.state).reserves, 'ta sama dieta nic nie kosztuje');
+  // Piramida: mięsożerca mieści mniej osobników niż roślinożerca, ale żeruje sprawniej.
+  var s = withTraits('D4', ['jaws', 'omnivory'], 100), l = active(s);
+  var fh = Engine.forecast(GameData, s, l), fc = Engine.forecastWithDiet(GameData, s, l, 'miesozerca');
+  ok(fc.capacity < fh.capacity, 'pojemność mięsożercy < roślinożercy (piramida troficzna): ' + fc.capacity + ' < ' + fh.capacity);
+  var lc = JSON.parse(JSON.stringify(l)); lc.diet = 'miesozerca';
+  var dh = Engine._internals.computeDynamics(GameData, Engine.currentTurnEnv(GameData, s), l, { web: Engine.webFor(GameData, s), nowTurn: 0, eraIndex: 0 });
+  var dc = Engine._internals.computeDynamics(GameData, Engine.currentTurnEnv(GameData, s), lc, { web: Engine.webFor(GameData, s, lc), nowTurn: 0, eraIndex: 0 });
+  ok(dc.energy > dh.energy, 'mięso jest kaloryczne: bilans energii mięsożercy > roślinożercy');
+  var fo = Engine.forecastWithDiet(GameData, s, l, 'wszystkozerca');
+  ok(fo.capacity > fc.capacity && fo.capacity < fh.capacity, 'wszystkożerca ma pojemność pośrednią');
+  ok(fc.dietSwitching && fc.energy < dc.energy, 'w turze zmiany diety żerowanie jest osłabione');
+  // Zdobycz: roślinożerni rywale zwiększają pojemność mięsożercy, drapieżniki-rywale konkurują o nią.
+  var sc = withTraits('D5', ['jaws']); active(sc).diet = 'miesozerca';
+  var base = Engine.forecast(GameData, sc, active(sc)).capacity;
+  var sp = JSON.parse(JSON.stringify(sc)); sp.rivals = [{ id: 'R1', kind: 'ammonite', niche: active(sp).niche, alive: true, pop: 150, strength: 3 }];
+  ok(Engine.forecast(GameData, sp, active(sp)).capacity > base, 'roślinożerni rywale to zdobycz — pojemność mięsożercy rośnie');
+  var sd = JSON.parse(JSON.stringify(sc)); sd.rivals = [{ id: 'R1', kind: 'placoderm', niche: active(sd).niche, alive: true, pop: 60, strength: 3 }];
+  ok(Engine.forecast(GameData, sd, active(sd)).nicheLoad > Engine.forecast(GameData, sc, active(sc)).nicheLoad, 'drapieżnik-rywal konkuruje o zdobycz');
+  // Sieć własnych linii: mięsożerna gałąź poluje na roślinożerną i jest jej zdobyczą.
+  var web = withTraits('D6', ['jaws'], 200); active(web).niche = 'woda'; active(web).variation = 60;
+  var sp2 = Engine.speciate(GameData, web); ok(sp2.ok, 'specjacja do testu sieci'); var wb = sp2.state;
+  var herbId = 'L0', carnId = wb.activeLineageId;
+  ok(active(wb).diet === 'roslinozerca', 'potomek dziedziczy dietę rodzica');
+  var noCarn = Engine.forecast(GameData, wb, Engine.getLineage(wb, herbId));
+  wb = Engine.setDiet(GameData, wb, carnId, 'miesozerca').state;
+  var withCarn = Engine.forecast(GameData, wb, Engine.getLineage(wb, herbId));
+  ok(withCarn.webPressure > 0 && withCarn.predationPressure > noCarn.predationPressure, 'mięsożerna gałąź zwiększa presję na roślinożerną');
+  ok(Engine.forecast(GameData, wb, Engine.getLineage(wb, carnId)).preyBiomass >= Engine.getLineage(wb, herbId).population, 'roślinożerna linia gracza jest zdobyczą mięsożernej');
+  // Cechy zależne od diety.
+  var ff = withTraits('D7', ['filter_feeding'], 100); var ef = Engine.effectiveStats(GameData, active(ff), Engine.currentTurnEnv(GameData, ff)).stats.feeding;
+  active(ff).diet = 'miesozerca'; var ec = Engine.effectiveStats(GameData, active(ff), Engine.currentTurnEnv(GameData, ff)).stats.feeding;
+  ok(ec === ef - byId('filter_feeding').effects.feeding, 'filtrowanie nie działa u mięsożercy');
+  // Raport i osiągnięcie.
+  var rep = Engine.simulateTurn(GameData, sw.state, det).report;
+  ok(rep.lineReports[0].diet === 'miesozerca' && rep.lineReports[0].events.some(function (e) { return /Zmiana diety/.test(e); }), 'raport zawiera dietę i zmianę diety');
+  var ach = withSeed('D8'); ach.history = [1, 2, 3].map(function () { return { lineReports: [{ alive: true, diet: 'roslinozerca', niche: 'woda', popBefore: 1, catDeaths: 0 }, { alive: true, diet: 'miesozerca', niche: 'woda', popBefore: 1, catDeaths: 0 }], totalPopulation: 10 }; });
+  ok(Engine.earnedAchievements(GameData, ach).indexOf('web') !== -1, 'osiągnięcie „Sieć troficzna” po 3 turach z obiema dietami');
+});
+
+group('prolog — prekambr', function () {
+  var P = GameData.PROLOGUE;
+  eq(P.length, 3, 'prolog ma trzy etapy');
+  ok(P.every(function (st) { return st.options.length === 3 && st.options.every(function (o) { return o.label && o.desc && o.tradeoff && o.knowledge && GameData.KNOWLEDGE[o.knowledge]; }); }),
+    'każda opcja ma opis, kompromis i istniejącą kartę wiedzy');
+  var base = withSeed('PROL'), pick = ['photo', 'endosymbiosis', 'anaerobic'];
+  var s = withSeed('PROL', { prologue: pick }), b = active(base), l = active(s);
+  eq(l.stats.feeding, b.stats.feeding + 1 + 1 - 1, 'skutki stat: fotosynteza +1, endosymbioza +1, niedotlenienie −1 odżywiania');
+  eq(l.stats.mobility, b.stats.mobility - 1 - 1, 'koszty stat: fotosynteza −1 i endosymbioza −1 mobilności');
+  eq(l.reserves, b.reserves + 2 + 3, 'rezerwy: +2 (fotosynteza) +3 (endosymbioza)');
+  eq(s.ep, base.ep, 'EP na start bez zmian dla tego zestawu');
+  eq(withSeed('PROL', { prologue: ['chemo', 'solitary'] }).ep, base.ep - 8, 'komórki pojedyncze kosztują 8 EP na start');
+  eq(s.prologue.join(','), pick.join(','), 'wybory zapisane w stanie');
+  ok(['photosynthesis', 'endosymbiosis', 'anoxia'].every(function (k) { return s.unlockedKnowledge.indexOf(k) !== -1; }), 'wybory odkrywają karty wiedzy');
+  eq(Engine.prologueLabels(GameData, s).length, 3, 'nazwy wyborów do ekranu końcowego');
+  // Bez prologu i z nieznanymi id gra startuje jak dotąd.
+  eq(base.prologue.length, 0, 'bez prologu nic się nie zmienia');
+  var bad = withSeed('PROL', { prologue: ['nie_ma', 'x', 'y'] });
+  ok(bad.prologue.length === 0 && active(bad).stats.feeding === b.stats.feeding && bad.ep === base.ep, 'nieznane id są pomijane');
+  var part = withSeed('PROL', { prologue: ['chemo'] });
+  ok(part.prologue.length === 1 && active(part).stats.metabolism === b.stats.metabolism - 1, 'częściowy prolog też działa');
+  eq(JSON.stringify(Engine.simulateTurn(GameData, s, det).state.prologue), JSON.stringify(pick), 'prolog przetrwał turę (w stanie)');
+  // Balans: żaden z 27 zestawów nie jest ślepą uliczką (start nie zagładza linii).
+  var dead = 0;
+  P[0].options.forEach(function (a) { P[1].options.forEach(function (c) { P[2].options.forEach(function (d) {
+    var t = withSeed('PB', { prologue: [a.id, c.id, d.id] }); var f = Engine.forecast(GameData, t, active(t));
+    if (f.projectedPop < active(t).population * 0.6) dead++;
+  }); }); });
+  eq(dead, 0, 'żaden zestaw prologu nie zaczyna od zapaści populacji');
+});
+
+group('epilog grywalny — Antropocen', function () {
+  var A = GameData.ANTHROPOCENE;
+  var pre = withSeed('ANTR'); ok(!Engine.startAnthropocene(GameData, pre).ok, 'epilog tylko po zwycięstwie');
+  var won = withSeed('ANTR'); won.status = 'won'; won.winPath = 'tools';
+  var st = Engine.startAnthropocene(GameData, won);
+  ok(st.ok && st.state.anthropocene.round === 0 && st.state.anthropocene.bio === 80, 'start epilogu: biosfera 80 przy czystej grze');
+  ok(!Engine.startAnthropocene(GameData, st.state).ok, 'epilog rozgrywa się raz');
+  // Skutki przebiegu partii: wyparci rywale, wymarłe linie i różnorodność zmieniają biosferę na starcie.
+  var rough = JSON.parse(JSON.stringify(won)); rough.rivalsDisplaced = 5;
+  rough.lineages.push({ id: 'L9', alive: false, population: 0 }, { id: 'L8', alive: false, population: 0 });
+  eq(Engine.startAnthropocene(GameData, rough).state.anthropocene.bio, 80 - 8 * 3 - 4 * 2, 'wyparcia i wymarcia obniżają biosferę (z limitami)');
+  var rich = JSON.parse(JSON.stringify(won)); active(rich).niche = 'lad';
+  rich.lineages.push({ id: 'L7', alive: true, population: 50, niche: 'woda' }, { id: 'L6', alive: true, population: 50, niche: 'powietrze' });
+  eq(Engine.startAnthropocene(GameData, rich).state.anthropocene.bio, 80 + 3 * 2, 'różnorodność nisz podnosi biosferę');
+  function play(picks) { var t = Engine.startAnthropocene(GameData, won).state; picks.forEach(function (p) { t = Engine.chooseAnthropocene(GameData, t, p).state; }); return t; }
+  ok(!Engine.chooseAnthropocene(GameData, st.state, 'nie_ma').ok, 'nieznana opcja jest odrzucana');
+  var mid = play(['coal']); ok(mid.anthropocene.round === 1 && !mid.anthropocene.done && mid.anthropocene.tech === 5 && mid.anthropocene.bio === 68, 'wybór zmienia rozwój i biosferę');
+  eq(play(['coal', 'chem', 'sprawl', 'ignore']).anthropocene.verdict, 'debt', 'rabunkowy rozwój = cywilizacja na kredyt');
+  eq(play(['renew', 'rotate', 'compact', 'genebank']).anthropocene.verdict, 'sustainable', 'rozsądne wybory = zrównoważona cywilizacja');
+  eq(play(['renew', 'rotate', 'villages', 'reserves']).anthropocene.verdict, 'guardians', 'ostrożność bez rozwoju = cisi opiekunowie');
+  var lowStart = withSeed('ANTR'); lowStart.status = 'won'; lowStart.rivalsDisplaced = 9; lowStart.lineages.push({ id: 'L9', alive: false }, { id: 'L8', alive: false }, { id: 'L7', alive: false }, { id: 'L6', alive: false });
+  var lt = Engine.startAnthropocene(GameData, lowStart).state; ['wood', 'clear', 'villages', 'reserves'].forEach(function (p) { lt = Engine.chooseAnthropocene(GameData, lt, p).state; });
+  eq(lt.anthropocene.verdict, 'collapse', 'zrujnowana biosfera i mało rozwoju = upadek ekosystemów');
+  ok(!Engine.chooseAnthropocene(GameData, play(['coal', 'chem', 'sprawl', 'ignore']), 'coal').ok, 'po zakończeniu epilogu nie ma kolejnych wyborów');
+  // Wszystkie 81 ścieżek kończy się werdyktem, a biosfera zostaje w granicach 0–100.
+  var bad = 0, tot = 0;
+  function walk(i, t) { if (i === A.stages.length) { tot++; if (!t.anthropocene.verdict || t.anthropocene.bio < 0 || t.anthropocene.bio > 100) bad++; return; } A.stages[i].options.forEach(function (o) { walk(i + 1, Engine.chooseAnthropocene(GameData, t, o.id).state); }); }
+  walk(0, st.state); eq(tot, 81, '81 ścieżek epilogu'); eq(bad, 0, 'każda ścieżka ma werdykt i biosferę 0–100');
+  // Punkty, osiągnięcie i eksport.
+  var good = play(['renew', 'rotate', 'compact', 'genebank']), greedy = play(['coal', 'chem', 'sprawl', 'ignore']);
+  ok(Engine.anthropocenePoints(GameData, good.anthropocene) > Engine.anthropocenePoints(GameData, greedy.anthropocene), 'zrównoważona ścieżka daje więcej punktów niż rabunkowa');
+  ok(Engine.scoreGame(GameData, good).total > Engine.scoreGame(GameData, won).total, 'epilog podnosi wynik punktowy');
+  ok(Engine.earnedAchievements(GameData, good).indexOf('steward') !== -1 && Engine.earnedAchievements(GameData, greedy).indexOf('steward') === -1, 'osiągnięcie tylko za zrównoważoną cywilizację');
+  eq(Engine.anthropocenePoints(GameData, mid.anthropocene), 0, 'niedokończony epilog nie daje punktów');
+});
+
 console.log('\n────────────────────────');
 console.log('Zaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 process.exit(failed === 0 ? 0 : 1);

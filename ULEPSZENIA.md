@@ -60,6 +60,27 @@ koewolucja, rozbicie EP, eksport) względem założeń z [`ZALOZENIA.md`](./ZALO
 > | taktyka + specjacja do wolnych nisz („tactics”) | 97 | 65 | 26 | 0 |
 > | taktyka + klony w tej samej niszy („crowd”) | 93 | 49 | 17 | 0 |
 
+> **Etap „konkurenci, echa i epilog”** — inne gatunki zajmują nisze gracza
+> (pojemność + presja drapieżników, wypieranie), pięć kart-ech wraca po 2–3
+> turach jako skutek wcześniejszych wyborów, a koniec gry ma epilog (Antropocen
+> lub tytuł przetrwania). Skrypt `scripts/boty-balans.js` używa teraz botów
+> z `test/bots.js` (stary, naiwny pokazywał 0% zwycięstw). Balans (60 gier):
+> normalny — prognoza 37%, taktyka 62%; trudny — 10–17%; łatwy — 97–100%.
+> **Etap „dieta i sieć troficzna”** (3.4) — trzy diety z własną pojemnością niszy
+> (roślinożerca / mięsożerca / wszystkożerca), zdobycz mięsożercy zależy od
+> roślinożerców (rywali i własnych linii), kaskada troficzna między liniami gracza,
+> cechy zależne od diety. Wymuszony wybór diety w botach (normalny, 60 gier):
+> roślinożerca 62%, mięsożerca 62%, wszystkożerca 52%; trudny: 17% / 5% / 18%.
+> **Etap „prolog”** (3.3, część) — opcjonalny prekambr: trzy wybory z kompromisami,
+> skutki na start, 9 nowych kart wiedzy. Wszystkie 27 zestawów dają średnio 69%
+> zwycięstw bota (bez prologu 68%; najsłabszy 48%, najsilniejszy 85%). To prolog
+> narracyjno-decyzyjny, a nie osobna era do rozegrania — pełna era wymagałaby
+> przesunięcia indeksów er (cechy, scenariusze, rywale, testy). **Etap „Antropocen”** —
+> grywalny epilog po zwycięstwie: cztery decyzje (81 ścieżek, 3 osiągalne werdykty
+> zależne od decyzji plus „upadek” przy zrujnowanej biosferze na starcie), punkty w wyniku,
+> osiągnięcie „Zrównoważona cywilizacja”. Lista z 3.3 jest tym samym domknięta (prolog
+> narracyjny, epilog grywalny).
+
 Każdy punkt ma priorytet: **P1** — błąd lub luka łamiąca założenia, do zrobienia
 najpierw; **P2** — wyraźnie poprawi grę lub naukę; **P3** — rozwój / dopracowanie.
 Pozycje oznaczone 🔬 zostały potwierdzone skryptem na obecnym silniku

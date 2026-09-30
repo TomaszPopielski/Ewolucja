@@ -46,11 +46,37 @@
           <label for="world-seed">Kod świata <span class="label-opt">(opcjonalnie)</span>:</label>
           <input id="world-seed" name="world-seed" type="text" maxlength="12" autocomplete="off"
                  placeholder="np. K7Q2MX — puste = nowy, losowy świat" aria-describedby="world-seed-hint" />
+          <label class="prologue-toggle"><input type="checkbox" id="prologue-toggle" checked />
+            <span><strong>Zacznij od prologu — prekambr</strong> (3 wybory, ok. minuty): jak życie zdobyło energię, złożoność i tlen. Twoje wybory dają drobne kompromisy na start. Dotyczy scenariuszy od paleozoiku.</span></label>
           <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go całej klasie, by porównać wyniki.</p>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
         <p class="edu-note" data-i18n="start.eduNote"></p>
+      </div>
+    </section>
+
+    <!-- Prolog: prekambr -->
+    <section id="screen-prologue" class="screen screen-prologue" hidden aria-labelledby="prologue-title">
+      <div class="card prologue-card">
+        <p class="prologue-step" id="prologue-step"></p>
+        <h1 id="prologue-title">Prolog</h1>
+        <p class="prologue-when" id="prologue-when"></p>
+        <p class="prologue-desc" id="prologue-desc"></p>
+        <div class="prologue-options" id="prologue-options"></div>
+        <div class="prologue-path" id="prologue-path" aria-live="polite"></div>
+        <button id="btn-prologue-skip" class="btn btn-ghost" type="button">Pomiń prolog — zacznij od kambru</button>
+      </div>
+    </section>
+
+    <!-- Epilog grywalny: Antropocen -->
+    <section id="screen-anthropocene" class="screen screen-prologue" hidden aria-labelledby="anthro-title">
+      <div class="card prologue-card">
+        <p class="prologue-step" id="anthro-step"></p>
+        <h1 id="anthro-title">Antropocen</h1>
+        <div class="resource-meters" id="anthro-meters"></div>
+        <p class="prologue-desc" id="anthro-desc"></p>
+        <div class="prologue-options" id="anthro-options"></div>
       </div>
     </section>
 
@@ -121,6 +147,10 @@
               <div id="strategy-buttons" class="tactic-buttons" role="group" aria-labelledby="strategy-label"></div>
             </div>
             <div class="tactic-group">
+              <span class="tactic-label" id="diet-label" data-i18n="tactics.diet">Dieta</span>
+              <div id="diet-buttons" class="tactic-buttons" role="group" aria-labelledby="diet-label"></div>
+            </div>
+            <div class="tactic-group">
               <span class="tactic-label" id="behavior-label" data-i18n="tactics.behavior">Zachowanie w tej turze</span>
               <div id="behavior-buttons" class="tactic-buttons" role="group" aria-labelledby="behavior-label"></div>
             </div>
@@ -144,6 +174,7 @@
             <p class="env-note" id="env-note">—</p>
             <div class="env-catastrophe" id="env-catastrophe" hidden></div>
             <div class="env-threat" id="env-threat" hidden></div>
+            <div class="env-rivals" id="env-rivals" hidden></div>
             <ul class="env-stats" id="env-stats"></ul>
           </div>
 
@@ -165,6 +196,8 @@
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
         <p class="end-summary" id="end-summary"></p>
+        <section class="end-epilogue" id="end-epilogue" hidden></section>
+        <section class="end-epilogue end-anthro" id="end-anthro" hidden></section>
         <figure class="creature-figure end-figure" id="end-figure">
           <div id="end-portrait" class="creature-portrait" data-height="210"></div>
           <figcaption class="creature-caption" id="end-caption"></figcaption>
