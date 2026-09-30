@@ -47,5 +47,16 @@ group('Generator losowy jest powtarzalny i w zakresie [0, 1)', () => {
   ok(inRange, 'wartości w [0, 1)');
 });
 
+group('Plany budowy: kręgowiec, stawonóg, głowonóg', () => {
+  const l = { id: 'L0', name: 'X', traits: ['eyes'], niche: 'woda' };
+  ok(buildSpec(l).bodyPlan === 'kregowiec', 'brak planu (stare zapisy) → kręgowiec');
+  ok(buildSpec({ ...l, bodyPlan: 'stawonog' }).bodyPlan === 'stawonog', 'stawonóg');
+  ok(buildSpec({ ...l, bodyPlan: 'glowonog' }).bodyPlan === 'glowonog', 'głowonóg');
+  ok(buildSpec({ ...l, bodyPlan: 'smok' }).bodyPlan === 'kregowiec', 'nieznany plan → kręgowiec');
+  const size = (plan, traits) => buildSpec({ ...l, traits, bodyPlan: plan }).sizeCm;
+  ok(size('stawonog', ['limbs']) > size('stawonog', []), 'stawonóg z odnóżami większy od małego');
+  ok(size('glowonog', ['fins']) > size('glowonog', []), 'głowonóg z płetwami większy');
+});
+
 console.log('\n────────────────────────\nZaliczone: ' + passed + ' | Niezaliczone: ' + failed);
 if (failed) process.exit(1);

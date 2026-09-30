@@ -27,6 +27,7 @@ npm run dev      # podgląd na żywo: http://localhost:5173
 npm run build    # sprawdzenie typów + budowa dist/index.html (jeden plik)
 npm test         # testy silnika
 npm run shots    # zrzuty ekranu zbudowanej gry (Chromium; katalog screenshots/)
+npm run visual   # test wizualnej regresji rysunku stworzeń (po npm run build; --update odświeża wzorce)
 ```
 
 Po zmianach w kodzie uruchom `npm run build` i zatwierdź też `dist/index.html`,

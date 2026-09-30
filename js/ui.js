@@ -717,9 +717,9 @@
     var cat = env && env.catastrophe && (env.catastrophe.niche === 'all' || env.catastrophe.niche === a.niche);
     ART.diorama.update(el.diorama, {
       era: era.id, niche: a.niche, climate: env ? env.climate : undefined,
-      food: ne.food, predators: ne.predators, catastrophe: !!cat,
+      food: ne.food, predators: ne.predators, catastrophe: !!cat, aftermath: aftermathFor(a.niche),
       lineages: state.lineages.filter(function (l) { return l.alive && l.niche === a.niche; }).map(function (l) {
-        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id, parentId: l.parentId };
+        return { id: l.id, name: l.name, traits: l.traits, niche: l.niche, population: l.population, active: l.id === a.id, parentId: l.parentId, bodyPlan: l.bodyPlan };
       })
     });
     var others = state.lineages.filter(function (l) { return l.alive && l.niche === a.niche && l.id !== a.id; }).length;
@@ -727,6 +727,28 @@
       escapeHtml(env ? env.title : era.name) + (env ? ' · ' + climateLabel(env.climate) : '') +
       (others ? ' · ' + ico('ui:branch', '') + ' +' + others + (others === 1 ? ' linia' : ' linie') : '') +
       (cat ? ' · <span class="diorama-warn">' + ico('ui:meteor', '☄️', 'ico-danger') + ' ' + escapeHtml(env.catastrophe.name) + '</span>' : '');
+  }
+  // Ślad po katastrofie: przez trzy tury po uderzeniu w niszę linii krajobraz jest szary i stopniowo się odradza.
+  function aftermathFor(niche) {
+    var h = state.history || [], fade = [0.9, 0.6, 0.3];
+    for (var i = 0; i < 3 && i < h.length; i++) {
+      var c = h[h.length - 1 - i].catastrophe;
+      if (c && (c.niche === 'all' || c.niche === niche)) return fade[i];
+    }
+    return 0;
+  }
+  // Zmiana ery jako scena: podpis „Koniec ery / Nowa era” wpływa na dioramę i znika.
+  var pendingEraReport = null;
+  function showEraInterlude(report) {
+    if (!el.diorama || el.diorama.hidden || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    var old = el.diorama.querySelector('.era-interlude'); if (old) old.remove();
+    var div = document.createElement('div');
+    div.className = 'era-interlude'; div.setAttribute('aria-hidden', 'true');
+    div.innerHTML = '<span class="era-interlude-end">Koniec ery: ' + escapeHtml(report.eraName) + '</span>' +
+      '<strong>' + escapeHtml(report.newEraName) + '</strong>' +
+      '<span class="era-interlude-sub">' + escapeHtml(eraMilestone(report.newEraName)) + '</span>';
+    el.diorama.appendChild(div);
+    setTimeout(function () { if (div.parentNode) div.remove(); }, 4200);
   }
   function chip(t) { return '<li>' + t + '</li>'; }
   function climateLabel(c) {
@@ -753,11 +775,16 @@
       el.traits.appendChild(section);
     });
   }
+  // Cecha kupiona przed chwilą dostaje animację „pieczątki” (raz).
+  var lastBoughtId = null;
   function renderTraitCard(trait, lineage) {
     var status = Engine.traitStatus(state, trait, DATA);
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'trait ' + status + (trait.path === 'intelligence' ? ' path-intel' : '');
+    var compact = status === 'locked' || status === 'era_locked';
+    btn.className = 'trait ' + status + (compact ? ' compact' : '') + (trait.path === 'intelligence' ? ' path-intel' : '') +
+      (trait.id === lastBoughtId ? ' just-bought' : '');
+    if (compact) btn.title = trait.name + ' — ' + trait.desc;
     btn.dataset.traitId = trait.id;
     btn.disabled = (status !== 'available') || state.status !== 'playing';
 
@@ -829,7 +856,8 @@
     var res = Engine.buyTrait(DATA, state, traitId);
     if (!res.ok) { flash(res.error); return; }
     pushUndo(); state = res.state; save();
-    renderStatus(); renderActiveLineage(); renderTraits(); renderLineageBar(); renderTactics(); renderForecast(); renderDiorama(); updateUndoButton();
+    lastBoughtId = traitId;
+    renderStatus(); renderActiveLineage(); renderTraits(); lastBoughtId = null; renderLineageBar(); renderTactics(); renderForecast(); renderDiorama(); updateUndoButton();
   }
   function onSpeciate() {
     if (turnBusy) return;
@@ -891,7 +919,16 @@
       var nm = report.catastrophe.name;
       cat = { name: nm, kind: /lodow|ordowick/i.test(nm) ? 'ice' : (/permsk/i.test(nm) ? 'volcano' : 'meteor') };
     }
+    var ext = null;
+    if (cat && lr.popBefore > 0 && lr.catDeaths / lr.popBefore >= 0.35) {
+      var pct = Math.round(100 * lr.catDeaths / lr.popBefore);
+      ext = {
+        kicker: 'Wielkie wymieranie', title: cat.name,
+        sub: lr.popAfter <= 0 ? 'Linia nie przetrwała.' : 'Zginęło ' + pct + '% populacji. Przetrwało ' + lr.popAfter + ' osobników — świat będzie się odradzał.'
+      };
+    }
     return {
+      extinction: ext,
       lineageId: a.id, popBefore: lr.popBefore, popAfter: lr.popAfter,
       births: lr.births, predationDeaths: lr.predationDeaths, starvationDeaths: lr.starvationDeaths, catDeaths: lr.catDeaths,
       mutation: mut, catastrophe: cat,
@@ -912,6 +949,7 @@
   function showReport(report) {
     // Baner zmiany ery.
     if (report.eraChanged) {
+      pendingEraReport = report;
       el.reportEra.hidden = false;
       el.reportEra.innerHTML = ico('ui:ammonite', '🏛️') + ' Nowa era: <strong>' + report.newEraName + '</strong><br>' +
         '<span class="report-era-milestone">' + eraMilestone(report.newEraName) + '</span>';
@@ -1031,7 +1069,9 @@
   }
   function onReportClose() {
     closeModal(el.modalReport);
+    var eraRep = pendingEraReport; pendingEraReport = null;
     if (state.status !== 'playing') { showEnd(); return; }
+    if (eraRep) showEraInterlude(eraRep);
     maybeShowOutlook();
   }
   // Uczciwy sygnał: gdy zwycięstwo jest już niemożliwe, gra mówi to od razu (raz na partię).

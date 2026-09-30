@@ -9,6 +9,7 @@ import { chromium } from 'playwright-core';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { CREATURES } from './specimens.mjs';
 
 const outDir = resolve(process.argv[2] || 'screenshots');
 const page_url = pathToFileURL(resolve('dist/index.html')).href;
@@ -20,23 +21,7 @@ const VIEWPORTS = {
   mobile: { width: 390, height: 844, isMobile: true, deviceScaleFactor: 2 }
 };
 
-// Okazy do galerii: [podpis, cechy, nisza].
-const CREATURES = [
-  ['Prazwierzę', [], 'woda'],
-  ['Filtrator', ['filter_feeding', 'eyes', 'lateral_line'], 'woda'],
-  ['Ryba pancerna', ['fins', 'shell', 'jaws', 'eyes'], 'woda'],
-  ['Szybka ryba', ['fins', 'fast_muscle', 'jaws', 'scales', 'eyes', 'lateral_line', 'many_eggs'], 'przybrzeze'],
-  ['Pierwszy czworonóg', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'ganglia'], 'przybrzeze'],
-  ['Czworonóg lądowy', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'amniotic_egg', 'camouflage'], 'lad'],
-  ['Stałocieplny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain'], 'lad'],
-  ['Ptak', ['fins', 'limbs', 'flight', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'many_eggs', 'parental_care'], 'powietrze'],
-  ['Pterozaur', ['fins', 'limbs', 'flight', 'jaws', 'eyes', 'scales', 'endothermy'], 'powietrze'],
-  ['Łowca w stadzie', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain', 'pack_hunting'], 'lad'],
-  ['Gatunek rozumny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain',
-    'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care', 'many_eggs'], 'lad'],
-  ['Wodny z mózgiem', ['fins', 'eyes', 'ganglia', 'brain', 'jaws', 'camouflage'], 'woda']
-];
-
+// Okazy do galerii: scripts/specimens.mjs.
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ executablePath, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
@@ -95,12 +80,12 @@ for (const scheme of ['light', 'dark']) {
       await page.evaluate((sets) => {
         document.body.innerHTML = '<main style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px"></main>';
         const m = document.querySelector('main');
-        sets.forEach(([name, traits, niche], i) => {
+        sets.forEach(([name, traits, niche, bodyPlan], i) => {
           const fig = document.createElement('figure'); fig.className = 'creature-figure'; fig.style.margin = '0';
           const host = document.createElement('div'); host.className = 'creature-portrait';
           const cap = document.createElement('figcaption'); cap.className = 'creature-caption'; cap.textContent = name;
           fig.append(host, cap); m.append(fig);
-          window.GameArt.portrait.update(host, { id: 'G' + i, name, traits, niche }, { climate: 'zimno' });
+          window.GameArt.portrait.update(host, { id: 'G' + i, name, traits, niche, bodyPlan }, { climate: 'zimno' });
         });
       }, CREATURES);
       await page.waitForTimeout(800);

@@ -203,3 +203,45 @@ grafiką ilustratora, bez zmian w logice gry:
 
 Obrazy dołączane do projektu (PNG/WebP) Vite wkleja do `dist/index.html`, więc
 gra nadal działa offline z jednego pliku; rozsądny budżet to łącznie kilka MB.
+
+## Etapy 7–11: ekran gry, świat, stworzenia, wydarzenia, dostępność
+
+- **Ekran gry** (`css/styles.css`, `js/ui.js`): diorama wyższa (300 px), karty cech dostępnych i zdobytych mają dużą odznakę z tonem kategorii, a zablokowane zwijają się do jednej linijki (pełny opis po najechaniu lub w `title`). Zakup odciska cechę „pieczątką”. Miarki mają podziałkę; spadek w chipach efektów jest przerywany (nie tylko kolor).
+- **Diorama** (`src/diorama/scenery.ts`): nowe elementy tła (łodzikowiec, ramienionóg, jeżowiec, paproć drzewiasta, drzewo iglaste, kwiaty, trawa morska), cienie pod roślinnością, mgła na dalekim planie, odcień ery i poświata nad horyzontem, piana na brzegu.
+- **Stworzenia** (`src/creature/`): szersza paleta barw z odcieniem niszy, barwa dodatkowa i wzór dziedziczny linii (pasy, plamy, siodło), większe skrzydła w barwie dodatkowej, uda i stopy zamiast patyczkowatych nóg.
+- **Wydarzenia**: zmiana ery pokazuje po raporcie planszę „Koniec ery / nowa era” na dioramie; po katastrofie w niszy linii krajobraz jest szary i odradza się przez trzy tury (`aftermath`).
+- **Dostępność**: `prefers-contrast: more` (grubsze ramki, pełne tło kart), zmiana ery pomijana przy `prefers-reduced-motion`.
+
+## Plany budowy (etap 9)
+
+Linia ma stały **plan budowy** (`bodyPlan` w silniku, tylko do rysunku): `kregowiec`,
+`stawonog` albo `glowonog`. Root gry startujący bez płetw, kończyn, lotu i
+stałocieplności dostaje plan z kodu świata (50% / 25% / 25%), a gałęzie go
+dziedziczą. Scenariusz z zaawansowanym startem i świat bez ziarna są kręgowcami;
+stare zapisy bez pola też.
+
+| Cecha | Stawonóg (`arthropod.ts`) | Głowonóg (`cephalopod.ts`) |
+|---|---|---|
+| Płetwy | odnóża pływne pod odwłokiem | płetwy płaszcza |
+| Kończyny | długie odnóża kroczne (chód) | ramiona opuszczone na dno |
+| Lot | owadzie skrzydła | szybowanie na rozłożonych płetwach |
+| Pancerz | karapaks nad tułowiem | zwinięta muszla (jak łodzik) |
+| Szczęki | żuwaczki | dziób i macki łowne |
+| Ręka chwytna / narzędzia | szczypce z kamieniem | wprawne ramię z kamieniem |
+| Oko | oko złożone z fasetek | oko kamerowe z poziomą źrenicą |
+| Układ nerwowy | brzuszny łańcuch zwojów | pierścień zwojów w głowie |
+
+Wspólne elementy (echolokacja, kultura akustyczna, kamień, mózg, wzór linii):
+`src/creature/extras.ts`. Rozmiary rysunku planów (`planExtents`) i stopy
+(`footDrop`) są liczone osobno, więc wypiekanie klatek i miniatury działają
+jak dla kręgowca. Drapieżniki dioramy w paleozoiku to głowonogi (woda) i wielkie
+stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
+
+## Sylwetki, wielkie wymierania, dostępność, test wizualny (etapy 10–11)
+
+- **Gadzia sylwetka** (`spec.form`): kręgowiec z kończynami ma z ziarna linii standardową albo „gadzią” sylwetkę (długa szyja unosząca głowę, ciężki, dłuższy ogon). Przejście jest płynne, bo działa przez ten sam współczynnik co kończyny.
+- **Wielkie wymieranie** (`turnplay.ts`): gdy katastrofa zabiera co najmniej 35% populacji linii, po uderzeniu scena szarzeje i pojawia się plansza z nazwą, odsetkiem strat i liczbą ocalałych. Przez kolejne trzy tury krajobraz jest szary i się odradza (`aftermath`). Przy „ograniczaniu ruchu” animacji tury nie ma, więc planszy też.
+- **Paleta dla zaburzeń widzenia barw**: Ustawienia grafiki → „Paleta barw”. Zamiast zieleń/czerwień: niebieski = zysk, cynober = strata (zmienne CSS przy `data-palette="cb"`); znaczenie niesie też znak +/− i kształt ramki.
+- **Telefon**: przycisk „Przeżyj turę” jest przyklejony do dołu ekranu.
+- **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
+- **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.

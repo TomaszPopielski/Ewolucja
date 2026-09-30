@@ -9,3 +9,4 @@ screenshots/
 *.log
 .vscode/
 .idea/
+test/visual/_actual/

@@ -70,6 +70,7 @@
       id: id, name: name, parentId: parentId,
       population: population, peakPopulation: population,
       stats: clone(stats), traits: traits.slice(), niche: niche || 'woda',
+      bodyPlan: 'kregowiec',              // plan budowy do rysunku: kregowiec | stawonog | glowonog
       alive: true, bornEra: bornEra, bornTurn: bornTurn, extinctGlobalTurn: null,
       popHistory: [population],
       reserves: res.reserves || 0,        // ⚡ rezerwy energii
@@ -127,6 +128,7 @@
     // Reguły scenariusza: dozwolone drogi do rozumu, mnożniki pojemności nisz,
     // cele er narzucone przez scenariusz.
     var rules = { winPaths: opts.winPaths || null, capMult: opts.capMult || null, forcedGoals: opts.forcedGoals || null };
+    root.bodyPlan = pickBodyPlan(seed, root);
     var st = {
       version: 7,
       rules: rules,
@@ -492,6 +494,16 @@
     unlockKnowledge(n, 'speciation');
     return { ok: true, state: n, error: null };
   }
+  /* Plan budowy (tylko wygląd — silnik go nie używa): linia startująca bez płetw, kończyn i
+     stałocieplności bywa kręgowcem, stawonogiem albo głowonogiem. Wynika z kodu świata, więc
+     ten sam kod = ten sam kształt życia; gałęzie dziedziczą plan po rodzicu. */
+  function pickBodyPlan(seed, root) {
+    if (!seed) return 'kregowiec';
+    var advanced = ['fins', 'limbs', 'flight', 'endothermy'].some(function (id) { return root.traits.indexOf(id) !== -1; });
+    if (advanced) return 'kregowiec';
+    var r = worldRngFor(seed, 'plan')();
+    return r < 0.5 ? 'kregowiec' : (r < 0.75 ? 'stawonog' : 'glowonog');
+  }
   // Oddziela `childPop` osobników rodzica jako nową linię (specjacja, kolonizacja).
   function splitLineage(data, n, parent, childPop, name, res) {
     // Zapasy energii dzielą się jak osobniki — nie powstają z niczego.
@@ -504,6 +516,7 @@
       n.eraIndex, n.turn, { reserves: childRes, variation: res.variation, strategy: parent.strategy });
     var NL = data.NEW_LINEAGE, now = nowTurn(data, n);
     for (var t = 0; NL && t < NL.turns; t++) child.mods.push({ turn: now + t, predMult: NL.predMult });
+    child.bodyPlan = parent.bodyPlan || 'kregowiec';
     n.lineages.push(child);
     return child;
   }
