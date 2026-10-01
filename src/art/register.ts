@@ -11,6 +11,7 @@ import type { TurnPlay } from '../diorama/turnplay.ts';
 import { getSettings, setSettings, onSettingsChange, applyPalette, qualityParams, type GraphicsSettings } from './settings.ts';
 import type { LineageLike } from '../creature/spec.ts';
 import { creatureThumb } from '../creature/thumb.ts';
+import { playSound, type SoundName } from './sound.ts';
 
 export interface GameArtApi {
   icon: (key: string, extraClass?: string) => string;
@@ -25,6 +26,8 @@ export interface GameArtApi {
   creature: {
     thumb: (lineage: LineageLike, width: number, height: number) => string;
   };
+  /** Dźwięki interfejsu (gdy włączone w ustawieniach). */
+  sound: { play: (name: SoundName) => void };
   /** Ustawienia grafiki (jakość, animacja tury) — zapisywane lokalnie. */
   settings: {
     get: () => GraphicsSettings;
@@ -103,6 +106,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', r
 
 const api: GameArtApi = {
   icon, hasIcon, iconKeys,
+  sound: { play: (name) => { try { playSound(name); } catch (e) { /* dźwięk niedostępny */ } } },
   portrait: {
     update: (host, lineage, opts) => { portraitFor(host)?.update(lineage, opts); },
     preview: (host, traitId) => { portraitFor(host)?.preview(traitId); }

@@ -244,4 +244,4 @@ stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
 - **Paleta dla zaburzeń widzenia barw**: Ustawienia grafiki → „Paleta barw”. Zamiast zieleń/czerwień: niebieski = zysk, cynober = strata (zmienne CSS przy `data-palette="cb"`); znaczenie niesie też znak +/− i kształt ramki.
 - **Telefon**: przycisk „Przeżyj turę” jest przyklejony do dołu ekranu.
 - **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
-- **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.
+- **Test wizualny**: `npm run visual` rysuje 27 okazów z `scripts/specimens.mjs` (w tym 6 z rzadkimi cechami) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.

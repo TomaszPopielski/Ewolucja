@@ -16,7 +16,8 @@
       <span class="brand-name" data-i18n="brand.name">Ewolucja</span>
     </div>
     <nav class="topbar-actions">
-      <button id="btn-settings" class="btn btn-ghost btn-icon" type="button" aria-label="Ustawienia grafiki" title="Ustawienia grafiki" data-icon="ui:settings" data-icon-only>⚙</button>
+      <button id="btn-settings" class="btn btn-ghost btn-icon" type="button" aria-label="Ustawienia" title="Ustawienia (grafika, animacja, dźwięk)" data-icon="ui:settings" data-icon-only>⚙</button>
+      <button id="btn-museum" class="btn btn-ghost" type="button" data-icon="ui:fossil">Muzeum</button>
       <button id="btn-codex" class="btn btn-ghost" type="button" data-i18n="nav.codex" data-icon="ui:book">Kodeks wiedzy</button>
       <button id="btn-restart" class="btn btn-ghost" type="button" data-i18n="nav.newgame">Nowa gra</button>
     </nav>
@@ -38,7 +39,11 @@
           zajmuj nisze, przetrwaj wymierania masowe i ucz się, jak działa
           <strong>dobór naturalny</strong>.
         </p>
-        <div class="intro-goal" id="intro-goal"></div>
+        <div class="start-hub" id="start-hub" hidden></div>
+        <details class="intro-goal-box" id="intro-goal-box" open>
+          <summary>Cel gry</summary>
+          <div class="intro-goal" id="intro-goal"></div>
+        </details>
         <form id="form-start" class="start-form">
           <label for="species-name" data-i18n="start.nameLabel">Nazwij swój gatunek:</label>
           <input id="species-name" name="species-name" type="text" maxlength="28"
@@ -48,10 +53,19 @@
                  placeholder="np. K7Q2MX — puste = nowy, losowy świat" aria-describedby="world-seed-hint" />
           <label class="prologue-toggle"><input type="checkbox" id="prologue-toggle" checked />
             <span><strong>Zacznij od prologu — prekambr</strong> (3 wybory, ok. minuty): jak życie zdobyło energię, złożoność i tlen. Twoje wybory dają drobne kompromisy na start. Dotyczy scenariuszy od paleozoiku.</span></label>
-          <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i cele er. Podaj go całej klasie, by porównać wyniki.</p>
+          <p class="field-hint" id="world-seed-hint">Ten sam kod to ten sam świat: te same warunki, katastrofy, karty i kontrakty er. Podaj go całej klasie, by porównać wyniki.</p>
+          <fieldset class="pick-group" id="plan-picker">
+            <legend>Plan budowy</legend>
+            <div class="pick-options" id="plan-options"></div>
+          </fieldset>
+          <fieldset class="pick-group" id="mods-picker">
+            <legend>Modyfikatory świata <span class="label-opt">(trudniej, ale więcej punktów)</span></legend>
+            <div class="pick-options" id="mods-options"></div>
+          </fieldset>
         </form>
         <h3 class="scenario-heading">Wybierz scenariusz:</h3>
         <div id="scenario-cards" class="scenario-cards"></div>
+        <p class="unlock-note"><button type="button" class="btn-link" id="btn-unlock-all">Odblokuj wszystko (np. dla nauczyciela)</button></p>
         <p class="edu-note" data-i18n="start.eduNote"></p>
       </div>
     </section>
@@ -103,12 +117,19 @@
           <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
         </div>
+        <div class="status-item status-chance" id="status-chance" title="Szacunek z symulacji reszty partii rozgrywanej przez ostrożnego gracza (kilkanaście przebiegów w różnych wariantach przyszłego świata). To przybliżenie, nie wyrocznia.">
+          <span class="status-label">Szansa na rozum</span>
+          <span class="status-value" id="chance-value">…</span>
+          <span class="status-sub" id="chance-sub">liczę…</span>
+        </div>
         <button type="button" class="status-alert" id="status-choice" hidden>Karta decyzji czeka</button>
         <button type="button" class="status-alert status-alert-lost" id="status-outlook" hidden>Zwycięstwo już nieosiągalne</button>
       </div>
 
       <div class="era-timeline" id="era-timeline" aria-label="Oś czasu ery"></div>
-      <div class="era-info" id="era-info" aria-label="Cele ery i kod świata"></div>
+      <div class="era-info" id="era-info" aria-label="Kontrakt ery i kod świata"></div>
+      <section class="contract-offer" id="contract-offer" hidden aria-labelledby="contract-title"></section>
+      <div class="legacy-panel" id="legacy-panel" hidden></div>
 
       <div class="lineage-bar" aria-label="Linie rozwojowe">
         <div class="lineage-chips" id="lineage-chips"></div>
@@ -141,6 +162,7 @@
           <section class="tactics-box" id="tactics-box" aria-labelledby="tactics-title">
             <h3 class="tactics-title" id="tactics-title" data-i18n="tactics.title">Decyzje linii</h3>
             <div id="choice-card" class="choice-card" hidden></div>
+            <div id="variant-card" class="choice-card variant-card" hidden></div>
             <div id="resource-meters" class="resource-meters"></div>
             <div class="tactic-group">
               <span class="tactic-label" id="strategy-label" data-i18n="tactics.strategy">Strategia rozrodu</span>
@@ -178,15 +200,21 @@
             <ul class="env-stats" id="env-stats"></ul>
           </div>
 
-          <button id="btn-simulate" class="btn btn-primary btn-block" type="button" data-i18n="species.simulate">Przeżyj turę →</button>
           <button id="btn-undo" class="btn btn-ghost btn-block" type="button" disabled data-i18n="species.undo">↶ Cofnij (tryb nauczyciela)</button>
         </aside>
 
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
           <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
           <p class="panel-hint" data-i18n="traits.hint"></p>
+          <div class="traits-toolbar" id="traits-toolbar"></div>
           <div id="traits-container" class="traits-container"></div>
         </div>
+      </div>
+
+      <!-- Pasek akcji: zawsze pod ręką (przyklejony do dołu ekranu) -->
+      <div class="action-bar" id="action-bar">
+        <div class="action-info" id="action-info" aria-live="polite"></div>
+        <button id="btn-simulate" class="btn btn-primary" type="button" data-i18n="species.simulate" aria-keyshortcuts="Space">Przeżyj turę →</button>
       </div>
     </section>
 
@@ -195,7 +223,9 @@
       <div class="card end-card">
         <div class="end-emblem" id="end-emblem" aria-hidden="true">🏆</div>
         <h1 id="end-title">Koniec gry</h1>
+        <p class="end-latin" id="end-latin"></p>
         <p class="end-summary" id="end-summary"></p>
+        <p class="end-trial" id="end-trial" hidden></p>
         <section class="end-epilogue" id="end-epilogue" hidden></section>
         <section class="end-epilogue end-anthro" id="end-anthro" hidden></section>
         <figure class="creature-figure end-figure" id="end-figure">
@@ -210,6 +240,12 @@
           <h2 class="end-section-title" id="end-chart-title">Populacja w czasie</h2>
           <div id="end-chart" class="popchart" role="img"></div>
         </section>
+        <section class="end-chronicle" aria-labelledby="end-chronicle-title">
+          <details>
+            <summary><h2 class="end-section-title" id="end-chronicle-title">Kronika gatunku</h2></summary>
+            <ol class="chronicle-list" id="end-chronicle"></ol>
+          </details>
+        </section>
         <ul class="end-stats" id="end-stats"></ul>
         <section class="end-score" id="end-score-box" aria-labelledby="end-score-title">
           <h2 class="end-section-title" id="end-score-title">Wynik partii</h2>
@@ -219,10 +255,14 @@
         <section class="end-ach" aria-labelledby="end-ach-title">
           <h2 class="end-section-title" id="end-ach-title">Osiągnięcia</h2>
           <ul class="ach-list" id="end-ach"></ul>
+          <div class="ach-next" id="end-ach-next"></div>
+          <details class="ach-all"><summary id="end-ach-all-title">Wszystkie osiągnięcia</summary><ul class="ach-list" id="end-ach-all"></ul></details>
         </section>
         <div class="end-actions">
           <button id="btn-play-again" class="btn btn-primary" type="button" data-i18n="end.playAgain">Zagraj ponownie</button>
           <button id="btn-play-same" class="btn btn-ghost" type="button">Ten sam świat jeszcze raz</button>
+          <button id="btn-download-plate" class="btn btn-ghost" type="button">Pobierz tablicę (PNG)</button>
+          <button id="btn-open-museum-end" class="btn btn-ghost" type="button">Muzeum</button>
           <button id="btn-summary" class="btn btn-ghost" type="button" data-icon="ui:document">Podsumowanie</button>
           <button id="btn-open-codex-end" class="btn btn-ghost" type="button" data-i18n="end.seeCodex">Zobacz Kodeks</button>
         </div>
@@ -235,6 +275,7 @@
     <div class="modal-box">
       <h2 id="report-title" class="modal-title" data-i18n="report.title">Wynik tury</h2>
       <div id="report-era" class="report-era" hidden></div>
+      <div id="report-headline" class="report-headline"></div>
       <div id="report-event" class="report-event-banner" hidden></div>
       <div id="report-body" class="report-body"></div>
       <div id="report-knowledge" class="report-knowledge"></div>
@@ -250,7 +291,20 @@
         <button id="btn-codex-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
       </div>
       <p class="panel-hint" data-i18n="codex.hint">Zbiór odblokowanych pojęć. Odkrywasz je, grając.</p>
+      <div id="codex-progress" class="codex-progress"></div>
       <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Muzeum gatunków -->
+  <div id="modal-museum" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="museum-title">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-head">
+        <h2 id="museum-title" class="modal-title" data-icon="ui:fossil">Muzeum gatunków</h2>
+        <button id="btn-museum-close" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
+      </div>
+      <p class="panel-hint">Każda rozegrana partia zostawia tu rycinę Twojego gatunku. Kliknij gatunek, by zobaczyć szczegóły, pobrać tablicę albo zagrać ten sam świat jeszcze raz.</p>
+      <div id="museum-body" class="museum-body"></div>
     </div>
   </div>
 
@@ -302,9 +356,10 @@
   <div id="modal-outlook" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="outlook-title">
     <div class="modal-box">
       <h2 id="outlook-title" class="modal-title">Tej partii nie da się już wygrać</h2>
-      <p class="outlook-text">Nawet przy najlepszym możliwym przebiegu do końca gry:</p>
+      <p class="outlook-text" id="outlook-lead">Nawet przy najlepszym możliwym przebiegu do końca gry:</p>
       <ul class="outlook-reasons" id="outlook-reasons"></ul>
-      <p class="outlook-text">Możesz grać dalej o przetrwanie gatunku (i wynik), cofnąć ostatnią turę albo zakończyć partię teraz.</p>
+      <div class="outlook-legacy" id="outlook-legacy"></div>
+      <p class="outlook-text" id="outlook-tail">Możesz grać dalej o przetrwanie gatunku (i wynik), cofnąć ostatnią turę albo zakończyć partię teraz.</p>
       <div class="modal-actions">
         <button id="btn-outlook-continue" class="btn btn-primary" type="button">Graj dalej o przetrwanie</button>
         <button id="btn-outlook-undo" class="btn btn-ghost" type="button">↶ Cofnij turę</button>
@@ -333,7 +388,7 @@
   <div id="modal-settings" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-box">
       <div class="modal-head">
-        <h2 id="settings-title" class="modal-title" data-icon="ui:settings">Ustawienia grafiki</h2>
+        <h2 id="settings-title" class="modal-title" data-icon="ui:settings">Ustawienia</h2>
         <button id="btn-settings-x" class="btn btn-ghost btn-icon" type="button" aria-label="Zamknij" data-icon="ui:close" data-icon-only>✕</button>
       </div>
       <fieldset class="settings-group">
@@ -345,8 +400,14 @@
       </fieldset>
       <fieldset class="settings-group">
         <legend>Animacja tury</legend>
-        <label class="settings-opt"><input type="radio" name="turnAnimation" value="show"><span><strong>Pokazuj</strong><small>Przed raportem krótki przebieg tury (można go pominąć).</small></span></label>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="important"><span><strong>Pełna tylko w ważnych turach</strong><small>Katastrofy, mutacje i duże zmiany — w pełni; spokojne tury — krótko (ok. 1,5 s).</small></span></label>
+        <label class="settings-opt"><input type="radio" name="turnAnimation" value="show"><span><strong>Zawsze pełna</strong><small>Przed raportem przebieg każdej tury (można go pominąć klawiszem lub kliknięciem).</small></span></label>
         <label class="settings-opt"><input type="radio" name="turnAnimation" value="skip"><span><strong>Pomijaj</strong><small>Raport od razu po kliknięciu „Przeżyj turę”.</small></span></label>
+      </fieldset>
+      <fieldset class="settings-group">
+        <legend>Dźwięk</legend>
+        <label class="settings-opt"><input type="radio" name="sound" value="off"><span><strong>Wyłączony</strong><small>Cisza — dobre w klasie.</small></span></label>
+        <label class="settings-opt"><input type="radio" name="sound" value="on"><span><strong>Włączony</strong><small>Krótkie, ciche dźwięki: zakup cechy, zapowiedź katastrofy, nowa era, zwycięstwo.</small></span></label>
       </fieldset>
       <fieldset class="settings-group">
         <legend>Paleta barw</legend>
@@ -372,6 +433,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
   <script type="module" src="./src/main.ts"></script>
 </body>

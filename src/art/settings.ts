@@ -4,14 +4,20 @@
  * Jakość: automatyczna (wysoka z samoczynnym obniżaniem przy spadku płynności),
  * niska (diorama nieruchoma, bez animacji tury), średnia (animacja bez filtrów,
  * mniej cząstek), wysoka (pełna gęstość pikseli i efekty).
- * Animacja tury: pokazuj / pomijaj.
+ * Animacja tury: pełna tylko w ważnych turach (domyślnie) / zawsze pełna / pomijaj.
+ * Dźwięk: wyłączony (domyślnie) / włączony.
  * Parametr adresu ?renderer=webgl|canvas wymusza renderer (do testów).
  */
 export type QualityLevel = 'auto' | 'low' | 'medium' | 'high';
 
 export interface GraphicsSettings {
   quality: QualityLevel;
-  turnAnimation: 'show' | 'skip';
+  /** important — pełna animacja tylko w turach z ważnymi zdarzeniami, w pozostałych krótka. */
+  turnAnimation: 'important' | 'show' | 'skip';
+  /** Dźwięki interfejsu (WebAudio, bez plików). */
+  sound: 'off' | 'on';
+  /** Znacznik zapisu po zmianie domyślnej animacji tury. */
+  v2?: boolean;
   /** Paleta znaczeniowa: standardowa albo bezpieczna dla osób z zaburzeniami widzenia barw. */
   palette: 'standard' | 'cb';
 }
@@ -35,14 +41,19 @@ export interface QualityParams {
 }
 
 const KEY = 'ewolucja.graphics';
-const DEFAULTS: GraphicsSettings = { quality: 'auto', turnAnimation: 'show', palette: 'standard' };
+const DEFAULTS: GraphicsSettings = { quality: 'auto', turnAnimation: 'important', palette: 'standard', sound: 'off' };
 type Listener = (s: GraphicsSettings) => void;
 const listeners: Listener[] = [];
 
 export function getSettings(): GraphicsSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw && typeof raw === 'object') return { ...DEFAULTS, ...raw };
+    if (raw && typeof raw === 'object') {
+      const s = { ...DEFAULTS, ...raw };
+      // Starsze zapisy miały „show” jako domyślne — przenosimy je na nowy, krótszy domyślny tryb.
+      if (!raw.v2 && s.turnAnimation === 'show') s.turnAnimation = 'important';
+      return s;
+    }
   } catch (e) { /* brak dostępu do localStorage */ }
   return { ...DEFAULTS };
 }
@@ -53,7 +64,7 @@ export function applyPalette(s: GraphicsSettings = getSettings()) {
 }
 
 export function setSettings(patch: Partial<GraphicsSettings>): GraphicsSettings {
-  const next = { ...getSettings(), ...patch };
+  const next: GraphicsSettings = { ...getSettings(), ...patch, v2: true };
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (e) { /* zapis niedostępny */ }
   applyPalette(next);
   listeners.forEach((fn) => fn(next));

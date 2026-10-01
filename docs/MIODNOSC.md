@@ -4,6 +4,9 @@
 echa, prolog, Antropocen). Testy przechodzą, a `npm run build` daje plik identyczny
 z `dist/index.html`.
 
+> **Stan wdrożenia:** wszystkie propozycje A1–D6 są już w grze. Co powstało i jak
+> wypadły mierniki, opisuje [sekcja 7](#7-stan-po-wdrożeniu).
+
 **O czym jest ten dokument.** Balans i sens mechanik opisuje już
 [`OCENA-MECHANIK.md`](./OCENA-MECHANIK.md). Tutaj pytam o coś innego: **jak się w to
 gra** (rytm tury, tarcie, nagroda, napięcie) i **czy chce się wrócić** (co zostaje po
@@ -490,6 +493,117 @@ etapie 2:
 
 Jeśli po etapach 1–2 odsetek „tak, jeszcze raz” wyraźnie rośnie, a czas partii
 spada, kierunek jest dobry i można przejść do etapu 3.
+
+---
+
+## 7. Stan po wdrożeniu
+
+Wdrożone są wszystkie propozycje z sekcji 3. Silnik pozostał czysty i deterministyczny:
+nowe losowania (warianty, rzadkie cechy, kontrakty, karty) idą przez `worldRngFor`,
+więc kod świata, Świat dnia i „ten sam świat jeszcze raz” działają jak wcześniej.
+Szacunek szans (C5) używa własnego strumienia i „przyszłych światów” z przyrostkiem,
+więc nie zdradza przyszłości.
+
+### 7.1. Co jest w grze
+
+| Prop. | Wdrożenie |
+|---|---|
+| A1 | Pasek akcji przyklejony do dołu na każdym ekranie: EP, karta czeka, szansa na rozum, „Przeżyj turę”. Skróty: spacja/Enter (tura), 1–4 (opcja karty, kontraktu lub wariantu), K (Kodeks), D (drzewo), Esc. |
+| A2 | Panel cech z przełącznikiem „Teraz / Wszystkie”. Widok „Teraz” to zwarta siatka cech do kupienia i „następny krok ⭐”. Reszta jest zwinięta. |
+| A3 | Nagłówek raportu: zdanie-historia tury, Δ populacji i Δ EP, wiersze „Twoje decyzje” (tylko zmienione) i „Los”. Pełny rachunek jest w `<details>`. |
+| A4 | Najwyżej jedna nowa karta wiedzy na raport (priorytet: katastrofa → głód → reszta). Pozostałe czekają w kolejce, a przycisk Kodeksu ma plakietkę. |
+| A5 | Animacja „tylko ważne tury” jest domyślna. Pełna zostaje przy katastrofie, nowej erze, specjacji i dużym spadku. Kliknięcie dioramy ją pomija. |
+| B1 | Kodeks zapisywany między partiami: 70 haseł, postęp „Odkryto x / 70”, zarysy nieodkrytych z podpowiedzią. |
+| B2 | Muzeum gatunków: rycina, łacińska nazwa, zakończenie, wynik, kod świata, plan budowy i modyfikatory każdej zakończonej partii. Ulubione nie wypadają z gabloty. |
+| B3 | Ekran startowy dla powracającego gracza: Świat dnia, wyzwanie tygodnia, rekordy, ostatni gatunek z Muzeum, postęp Kodeksu i to, co zostało do odblokowania. |
+| B4 | Świat dnia (kod `D` + data, passa dni) i wyzwanie tygodnia (stały świat i jeden modyfikator). |
+| B5 | Odznaki z postępem: komunikat przy zdobyciu w trakcie gry, na końcu trzy „spróbuj następnym razem” z postępem z tej partii i lista wszystkich 22. |
+| B6 | Tablica PNG z ryciną, nazwą i kodem świata do pobrania. |
+| C1 | Pula genów: w turach bez karty 2 warianty z 14. Utrwalenie kosztuje 2 🧬, ma podgląd w prognozie i kompromis. Opis mówi o doborze, nie o „projektowaniu”. |
+| C2 | Kontrakty er: 1 z 3 celów na erę, nagroda EP ×1,5, punkty i jeden z 10 trwałych atutów. |
+| C3 | Tytuły przetrwania z paskiem postępu od pierwszej tury, punktami i odznaką. |
+| C4 | Próba rozumu: karta-scena po osiągnięciu progu („Ogień” albo „Imiona”). Ryzyko, premia i odznaka. Porażka kosztuje, ale nie odbiera zwycięstwa. |
+| C5 | Szansa na rozum w pasku stanu: 12 symulacji reszty partii (`js/advisor.js`, liczone kawałkami w tle) z kalibracją. Po dwóch niskich odczytach (od tury 6) gra podpowiada zmianę kursu. Nie kończy partii. |
+| D1 | Talia 29 kart (było 14) + 8 ech + 2 próby rozumu. 10 kart okresowych (np. „Eksplozja różnorodności”, „Bagienne lasy”) i 2 rzadkie. |
+| D2 | 7 rzadkich cech (jad, bioluminescencja, elektrorecepcja, kolce, gigantyzm, karłowatość, sen zimowy), jedna na erę z kodu świata. Każda jest widoczna na rycinie (wzorce `test/visual/21–26`). |
+| D3 | Plany budowy: kręgowiec, stawonóg, głowonóg. Zmieniają koszty cech i statystyki startowe. Odblokowują się odznakami. |
+| D4 | 4 modyfikatory świata (mnożnik wyniku 1,15–1,25) i 3 nowe scenariusze: „Po K–Pg: radiacja ssaków”, „Wyspa”, tryb otwarty. |
+| D5 | Dźwięk WebAudio bez plików, domyślnie wyłączony. |
+| D6 | Łacińska nazwa z cech i niszy (np. *Miodetherium sapiens*), kronika partii (zdanie na turę) na ekranie końcowym i w eksporcie dla nauczyciela. |
+
+Przy okazji zrobione punkty z `ULEPSZENIA.md`: 3.6, 4.3 (karta „Ewolucja nie ma
+celu — cel ma gracz”), 4.6, 4.7, 5.4 (komunikaty jako toasty z `aria-live`) i 5.5.
+
+### 7.2. Mierniki: przed, cel, po
+
+Pomiary powtarza `npm run fun` (`scripts/fun-metrics.js` na silniku,
+`scripts/fun-ui.mjs` w Chromium).
+
+| Miernik | Przed | Cel | Po | |
+|---|---|---|---|---|
+| „Przeżyj turę” na desktopie | y ≈ 2030 px | widoczny bez przewijania | widoczny (pasek u dołu, 1366×768) | ✅ |
+| Wysokość ekranu gry | 3150–3480 px | < 1800 px | 2227 px | ❌ blisko |
+| Czas tury do raportu (z animacją) | 6,9 s | < 3 s | 2,9 s | ✅ |
+| Nagłówek raportu | 158 słów, bez nagłówka | ≤ 40 słów | średnio 57, najwyżej 74 | ❌ |
+| Nowe karty wiedzy na raport | do 6 | ≤ 1 | ≤ 1 | ✅ |
+| Tury bez decyzji do podjęcia | 30%¹ | < 10% | 1% | ✅ |
+| Unikalne karty po 6 partiach | 13 | ≥ 25 | 23 (`clade`), 19 (`tactics1`) | ❌ blisko |
+| Podobieństwo bohaterów (Jaccard) | 0,45 | < 0,35 | 0,43 / 0,41 | ❌ |
+| Zwycięstwa w turach 15–16 | 64–70% | < 40% | 24% / 16% | ✅ |
+| Sygnał „szansa < 5%” w przegranych | tura 17,9 | przed turą 14 | tura 9,3² | ✅ |
+| Cele er / kontrakty zaliczone | 33% | 50–70%, żaden na 0% | 64–67% | ⚠️ |
+| Rzeczy, które zostają po partii | rekord + odznaki | + Kodeks, Muzeum, świat dnia, odblokowania | wszystkie | ✅ |
+
+¹ Przed: tura bez zakupu i bez karty. Po: tura, w której nie ma karty, wariantów ani
+kontraktu (zakup cechy jest możliwy zawsze). Definicje się różnią, bo przed zmianą
+poza kartą nie było czego wybierać.
+
+² 40 partii, 12 symulacji na szacunek: sygnał dostały wszystkie 15 przegranych.
+Surowy szacunek spadł jednak poniżej 5% także w 5 z 25 wygranych partii. Dlatego gra
+kalibruje szacunek, czeka na dwa niskie odczyty i tylko podpowiada, a nie kończy
+partii. Kalibracja w skrajnych przedziałach jest dobra (szacunek 90–100% → 92% wygranych,
+0–10% → 12%), w środku jest szum (12 symulacji to mało).
+
+**Czego nie osiągnięto i dlaczego.**
+
+- **Nagłówek raportu (57 słów zamiast 40).** Zdanie-historia i dwa wiersze przyczyn
+  zostały, ale w turach z kartą, wariantem i katastrofą robi się ich sporo. Dalszy krok:
+  wiersz „Los” tylko przy dużym odchyleniu, a nazwa karty bez opisu skutku.
+- **Wysokość ekranu (2227 px).** Panel cech jest już krótki, a resztę zajmują dioramy,
+  panel linii, kontrakt i tytuły. Dalszy krok: zwijane panele boczne na desktopie.
+- **Podobieństwo bohaterów (0,41–0,43).** Plany budowy, rzadkie cechy i warianty
+  pomagają, ale boty i tak idą najkrótszą drogą do rozumu (zwoje, mózg, łuski,
+  stałocieplność). Ludzie prawdopodobnie grają bardziej różnorodnie. Trzeba to
+  sprawdzić na graczach (sekcja 6).
+- **Talia (23 z 29 kart po 6 partiach).** Karty okresowe padają tylko w swoim okresie,
+  a rzadkie (waga 0,2) — rzadko z założenia. To blisko celu.
+- **Kontrakty.** Średnio 64–67% (cel osiągnięty), ale boty prawie nie wypełniają
+  „Bogatej puli genów” (1 z 22), bo wydają 🧬 na warianty, a „Syta era” wychodzi
+  w 21%. Te kontrakty są do dostrojenia, gdy będą dane od graczy.
+
+### 7.3. Balans po zmianach
+
+Boty z `test/bots.js`, 100 partii na wiersz, % zwycięstw:
+
+| Wariant | `clade` | `tactics1` |
+|---|---|---|
+| Normalny (przed zmianami: 68 / 62³) | 67 | 59 |
+| Łatwy / trudny | 86 / 28 | — |
+| Ląd / woda | 69 / 64 | — |
+| Bez wariantów (C1 wyłączone) | 65 | 49 |
+| Kontrakt zawsze pierwszy z oferty (bez wyboru) | 61 | 56 |
+| Plany: kręgowiec / stawonóg / głowonóg | 68 / 78 / 72 | — |
+| Modyfikatory: Gorąca Ziemia / Ubogi tlen / Drapieżny świat | 50 / 52 / 40 | — |
+| Scenariusze: radiacja ssaków / Wyspa / Podbój lądu / Epoki lodowcowe | 67 / 63 / 97 / 63 | 67 / 53 / 90 / 63 |
+
+³ Przed zmianami w sekcji 1.2 był bot `tactics`. `tactics1` to ten sam gracz taktyczny
+z jedną linią, który dodatkowo wybiera kontrakty i warianty.
+
+Ogólny poziom trudności się nie zmienił, a nowe decyzje mają wagę: pula genów daje
++2–10 pkt proc. zwycięstw (w porównaniu z grą bez wariantów), a wybór kontraktu zamiast
+brania pierwszego z oferty +3–6 pkt proc.
+Modyfikatory są wyraźnie trudniejsze i dlatego podnoszą mnożnik wyniku. Sama ścieżka
+⭐ bez myślenia (`star`) dalej przegrywa: 0% na normalnym, 12% w epokach lodowcowych.
 
 <sub>Metodologia: partia w Chromium (Playwright, `dist/index.html` z commita `e421156`,
 1366×900, świat `MIOD01`, decyzje bota `tactics`, wygrana w 19. turze), pomiar położenia

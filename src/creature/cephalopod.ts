@@ -13,7 +13,7 @@ import {
   type Theme, type SceneOptions, type Presence, type Ctx, type V, type Style,
   feature, styles, inkLine, hexA, smoothPath, v, add, mul, lerp, polar, lerpV
 } from './draw.ts';
-import { drawEcho, drawVocal, drawStone, drawBrain, drawPattern } from './extras.ts';
+import { drawEcho, drawVocal, drawStone, drawBrain, drawPattern, drawRare } from './extras.ts';
 
 export interface CephShape {
   L: number; g: number;
@@ -342,6 +342,8 @@ export function drawCephalopod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sc
       ctx.beginPath(); ctx.arc(eyeC.x - r * 0.3, eyeC.y - r * 0.35, r * 0.16, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
     }
   });
+
+  drawRare(ctx, o, st, theme, spec, at, beak);
 
   // ---------- 5. dźwięk
   drawEcho(ctx, o, st, theme, add(headC, v(rh, -2)), 0);

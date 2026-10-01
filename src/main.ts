@@ -11,4 +11,5 @@ import './art/register.ts';
 import '../js/i18n.js';
 import '../js/data.js';
 import '../js/engine.js';
+import '../js/advisor.js';
 import '../js/ui.js';
