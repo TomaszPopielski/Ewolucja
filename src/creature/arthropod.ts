@@ -12,7 +12,7 @@ import {
   type Theme, type SceneOptions, type Presence, type Ctx, type V,
   feature, styles, inkLine, hexA, smoothPath, v, add, sub, mul, lerp, polar, lerpV
 } from './draw.ts';
-import { drawEcho, drawVocal, drawStone, drawBrain, drawPattern } from './extras.ts';
+import { drawEcho, drawVocal, drawStone, drawBrain, drawPattern, drawRare } from './extras.ts';
 
 export interface ArthroShape { L: number; k: number; ventral: number; ground: number; omega: number }
 
@@ -332,6 +332,7 @@ export function drawArthropod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sce
     });
   }
   antennae(false);
+  drawRare(ctx, o, st, theme, spec, at, at(0, -0.2));
 
   // ---------- 6. strona bliższa
   legSet(st.normal, pres.limbs, false);

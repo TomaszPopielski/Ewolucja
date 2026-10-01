@@ -819,20 +819,47 @@ group('kalendarz: wymierania w swoim oknie, katastrofa regionalna i zapowiedź',
   ok(tl[7].catastrophe && /permsk/.test(tl[7].catastrophe.name), 'stałe wymierania historyczne są widoczne');
 });
 
-group('cele ery: losowane, nagradzane EP, przepadają z końcem ery', function () {
+group('kontrakty ery: wybór 1 z 3, nagroda EP i przywilej, przepadają z końcem ery', function () {
   var s = withSeed('CEL1');
-  eq(s.eraGoals.length, GameData.ERA_GOALS_PER_ERA * GameData.ERAS.length, 'po ' + GameData.ERA_GOALS_PER_ERA + ' cele na erę');
-  ok(s.eraGoals.every(function (g) { var d = Engine.goalDef(GameData, g.id); return d.eras.indexOf(g.era) !== -1; }), 'cele pasują do swoich er');
-  // Wymuszony cel „liczna populacja”.
-  s.eraGoals = [{ era: 0, id: 'abundance', status: 'open' }, { era: 0, id: 'two_lines', status: 'open' }];
-  active(s).population = 400;
-  var r = Engine.simulateTurn(GameData, s, noMut);
-  var done = r.report.goals.filter(function (g) { return g.id === 'abundance' && g.status === 'done'; });
-  ok(done.length === 1, 'cel spełniony w trakcie ery zalicza się od razu');
-  ok(r.state.ep - s.ep >= Engine.goalDef(GameData, 'abundance').reward, 'nagroda EP trafia do puli');
+  eq(s.eraGoals.length, 0, 'bez scenariusza nie ma celów narzuconych z góry');
+  for (var e = 0; e < GameData.ERAS.length; e++) {
+    var off = Engine.contractOffer(GameData, s, e);
+    ok(off.length === GameData.CONTRACT.options && off.every(function (id) { return Engine.goalDef(GameData, id).eras.indexOf(e) !== -1; }),
+      'era ' + e + ': ' + GameData.CONTRACT.options + ' kontrakty pasujące do ery (' + off.join(', ') + ')');
+  }
+  ok(JSON.stringify(Engine.contractOffer(GameData, withSeed('CEL1'), 0)) === JSON.stringify(Engine.contractOffer(GameData, s, 0)), 'ten sam kod świata → ta sama oferta');
+  var p = Engine.contractPending(GameData, s);
+  ok(p && p.era === 0, 'na starcie ery czeka wybór kontraktu');
+  var c = Engine.chooseContract(GameData, s, p.options[1]);
+  ok(c.ok && c.state.eraGoals.length === 1 && c.state.eraGoals[0].id === p.options[1] && c.state.eraGoals[0].contract, 'wybrany kontrakt trafia do celów ery');
+  ok(!Engine.contractPending(GameData, c.state) && !Engine.chooseContract(GameData, c.state, p.options[0]).ok, 'jeden kontrakt na erę');
+  // Bez wyboru działa pierwszy z oferty.
+  var auto = Engine.simulateTurn(GameData, s, noMut);
+  eq(auto.state.eraGoals[0].id, p.options[0], 'bez wyboru: pierwszy kontrakt z oferty');
+  // Spełniony kontrakt: nagroda × CONTRACT.rewardMult i przywilej.
+  var t = withSeed('CEL1'); t.contracts = { 0: 'abundance' };
+  t.eraGoals = [{ era: 0, id: 'abundance', status: 'open', contract: true }, { era: 0, id: 'two_lines', status: 'open', contract: true }];
+  active(t).population = 400;
+  var r = Engine.simulateTurn(GameData, t, noMut);
+  var done = r.report.goals.filter(function (g) { return g.id === 'abundance' && g.status === 'done'; })[0];
+  ok(!!done, 'cel spełniony w trakcie ery zalicza się od razu');
+  eq(done.reward, Math.round(Engine.goalDef(GameData, 'abundance').reward * GameData.CONTRACT.rewardMult), 'kontrakt: nagroda × ' + GameData.CONTRACT.rewardMult);
+  ok(r.state.perks.indexOf(Engine.goalDef(GameData, 'abundance').perk) !== -1, 'kontrakt daje przywilej: ' + r.state.perks.join(', '));
+  ok(r.state.ep - t.ep >= done.reward, 'nagroda EP trafia do puli');
   var g = r.state;
   while (g.eraIndex === 0 && g.status === 'playing') g = Engine.simulateTurn(GameData, g, noMut).state;
   eq(g.eraGoals.filter(function (x) { return x.id === 'two_lines'; })[0].status, 'failed', 'cel „na koniec ery” bez spełnienia przepada');
+});
+
+group('przywileje kontraktów działają', function () {
+  var s = withSeed('PERK'), l = active(s);
+  var shell = byId('shell'), base = Engine.traitCost(GameData, s, shell, l);
+  s.perks = ['cheap_defense', 'big_store', 'wanderers', 'lucky'];
+  ok(Engine.traitCost(GameData, s, shell, l) < base, 'tańsza obrona: pancerz taniej (' + Engine.traitCost(GameData, s, shell, l) + ' < ' + base + ')');
+  eq(Engine.reservesCap(GameData, l, s.perks), Engine.reservesCap(GameData, l) + 4, 'większe spiżarnie: magazyn +4');
+  ok(Engine.migrationCost(GameData, l, s) < Engine.migrationCost(GameData, l), 'wędrowcy: tańsza migracja');
+  var g = { chance: 0.5 };
+  ok(Engine.gambleChance(GameData, l, g, s) > Engine.gambleChance(GameData, l, g), 'doświadczenie: wyższa szansa ryzyka');
 });
 
 group('dwie drogi do rozumu: narzędzia na lądzie, kultura akustyczna w wodzie', function () {
@@ -961,17 +988,23 @@ group('wynik i osiągnięcia', function () {
   ok(Engine.scoreGame(GameData, hard).total > sw.total, 'trudny poziom mnoży wynik');
 });
 
-group('Plan budowy (wygląd): z kodu świata, dziedziczony, tylko dla startu bez zaawansowanych cech', function () {
+group('Plan budowy: wybór gracza (albo losowy z kodu świata), dziedziczony, tylko dla startu bez zaawansowanych cech', function () {
+  eq(withSeed('PLAN1').lineages[0].bodyPlan, 'kregowiec', 'domyślnie kręgowiec');
   var plans = {};
-  for (var i = 0; i < 40; i++) plans[withSeed('PLAN' + i).lineages[0].bodyPlan] = 1;
-  ok(plans.kregowiec && plans.stawonog && plans.glowonog, 'wszystkie trzy plany zdarzają się w różnych światach: ' + Object.keys(plans).join(', '));
-  eq(withSeed('PLAN7').lineages[0].bodyPlan, withSeed('PLAN7').lineages[0].bodyPlan, 'ten sam kod świata → ten sam plan');
-  eq(Engine.createInitialState(GameData, 'X').lineages[0].bodyPlan, 'kregowiec', 'świat bez ziarna → kręgowiec');
-  var ice = withSeed('PLAN3', { startTraits: ['fins', 'limbs', 'endothermy'] });
+  for (var i = 0; i < 40; i++) plans[withSeed('PLAN' + i, { bodyPlan: 'random' }).lineages[0].bodyPlan] = 1;
+  ok(plans.kregowiec && plans.stawonog && plans.glowonog, 'losowy plan: wszystkie trzy zdarzają się w różnych światach: ' + Object.keys(plans).join(', '));
+  eq(withSeed('PLAN7', { bodyPlan: 'random' }).lineages[0].bodyPlan, withSeed('PLAN7', { bodyPlan: 'random' }).lineages[0].bodyPlan, 'ten sam kod świata → ten sam losowy plan');
+  var ceph = withSeed('PLAN1', { bodyPlan: 'glowonog' }), cl = ceph.lineages[0];
+  eq(cl.bodyPlan, 'glowonog', 'wybrany plan: głowonóg');
+  eq(cl.stats.intelligence, GameData.BASE_STATS.intelligence + 1, 'głowonóg: inteligencja +1 na starcie');
+  ok(Engine.traitCost(GameData, ceph, byId('brain'), cl) < byId('brain').cost && Engine.traitCost(GameData, ceph, byId('limbs'), cl) > byId('limbs').cost,
+    'głowonóg: mózg taniej, kończyny drożej');
+  var art = withSeed('PLAN1', { bodyPlan: 'stawonog' });
+  ok(Engine.traitCost(GameData, art, byId('shell'), art.lineages[0]) < byId('shell').cost, 'stawonóg: pancerz taniej');
+  ok(art.unlockedKnowledge.indexOf('arthropods') !== -1, 'stawonóg: karta wiedzy o stawonogach');
+  var ice = withSeed('PLAN3', { startTraits: ['fins', 'limbs', 'endothermy'], bodyPlan: 'glowonog' });
   eq(ice.lineages[0].bodyPlan, 'kregowiec', 'start z płetwami/kończynami/stałocieplnością → kręgowiec');
-  var seedNon = null;
-  for (var k = 0; k < 40 && !seedNon; k++) if (withSeed('PLAN' + k).lineages[0].bodyPlan !== 'kregowiec') seedNon = 'PLAN' + k;
-  var s = withSeed(seedNon), root = s.lineages[0];
+  var s = withSeed('PLAN1', { bodyPlan: 'stawonog' }), root = s.lineages[0];
   root.variation = 99;
   var r = Engine.speciate(GameData, s, 'Gałąź');
   ok(r.ok, 'specjacja się udała');
@@ -1171,6 +1204,163 @@ group('epilog grywalny — Antropocen', function () {
   ok(Engine.scoreGame(GameData, good).total > Engine.scoreGame(GameData, won).total, 'epilog podnosi wynik punktowy');
   ok(Engine.earnedAchievements(GameData, good).indexOf('steward') !== -1 && Engine.earnedAchievements(GameData, greedy).indexOf('steward') === -1, 'osiągnięcie tylko za zrównoważoną cywilizację');
   eq(Engine.anthropocenePoints(GameData, mid.anthropocene), 0, 'niedokończony epilog nie daje punktów');
+});
+
+// ---------- Miodność: warianty, próba rozumu, rzadkie cechy, karty okresów, modyfikatory ----------
+group('warianty w puli genów: tylko w turach bez karty, utrwalenie kosztuje 🧬', function () {
+  var withCard = 0, withVar = 0, both = 0, neither = 0, turns = 0;
+  for (var k = 1; k <= 20; k++) {
+    var g = withSeed('WAR' + k), r = Bots.seededRng(k);
+    while (g.status === 'playing') {
+      g = Engine.simulateTurn(GameData, Bots.stepFor('tactics1', g), r).state; turns++;
+      if (g.status !== 'playing') break;
+      if (g.pendingChoice && g.pendingVariants) both++;
+      else if (g.pendingChoice) withCard++; else if (g.pendingVariants) withVar++; else neither++;
+    }
+  }
+  eq(both, 0, 'karta i warianty nigdy naraz');
+  ok(withVar > withCard, 'warianty w większości tur bez karty (' + withVar + ' tur z wariantami, ' + withCard + ' z kartą)');
+  ok(neither / turns < 0.1, 'tur bez żadnego wyboru poniżej 10% (' + neither + ' z ' + turns + ')');
+  var s = withSeed('WAR1'); active(s).variation = 10;
+  s.pendingVariants = { lineageId: 'L0', options: ['thick_skin', 'gut'], turn: 0, chosen: null };
+  var f0 = Engine.forecast(GameData, s, active(s)), fv = Engine.forecastWithVariant(GameData, s, active(s), 'gut');
+  ok(fv.energy > f0.energy, 'podgląd wariantu w prognozie (dłuższe jelito → więcej energii)');
+  var r1 = Engine.promoteVariant(GameData, s, 'gut');
+  ok(r1.ok && active(r1.state).stats.feeding === active(s).stats.feeding + 1 && active(r1.state).stats.mobility === active(s).stats.mobility - 1, 'utrwalony wariant zmienia statystyki (+ i −)');
+  eq(active(r1.state).variation, 10 - Engine.variantCost(GameData, Engine.variantDef(GameData, 'gut')), 'koszt w zmienności');
+  ok(!Engine.promoteVariant(GameData, r1.state, 'thick_skin').ok, 'jeden wariant na turę');
+  ok(r1.state.unlockedKnowledge.indexOf('variants') !== -1, 'karta wiedzy „Dobór działa na istniejące warianty”');
+  var t = Engine.simulateTurn(GameData, r1.state, noMut);
+  ok(t.report.variant && t.report.variant.id === 'gut', 'raport podaje utrwalony wariant');
+  ok(t.report.actions.some(function (a) { return a.type === 'variant'; }), 'dziennik działań tury');
+  var poor = JSON.parse(JSON.stringify(s)); active(poor).variation = 0;
+  ok(!Engine.canPromoteVariant(GameData, poor, 'gut').ok, 'bez zmienności nie da się utrwalić wariantu (dryf)');
+  ok(GameData.VARIANTS.every(function (v) { var plus = 0, minus = 0; for (var k2 in v.effects) { var x = k2 === 'metabolism' ? -v.effects[k2] : v.effects[k2]; if (x > 0) plus++; if (x < 0) minus++; } return plus && minus; }),
+    'każdy wariant to kompromis (zysk i koszt)');
+});
+
+group('próba rozumu: zwycięstwo po rozstrzygnięciu karty, na koniec gry bez próby', function () {
+  var s = withSeed('PROBA'), l = active(s);
+  l.stats.intelligence = 99; l.population = 200; l.traits.push('limbs', 'tool_use'); l.niche = 'lad';
+  s.eraIndex = 2; s.turn = 1;
+  var r = Engine.simulateTurn(GameData, s, noMut);
+  eq(r.state.status, 'playing', 'pierwsze spełnienie warunków: gra trwa');
+  ok(r.state.pendingChoice && Engine.choiceEvent(GameData, r.state.pendingChoice.eventId).trial, 'czeka karta próby rozumu');
+  ok(r.report.trialStarted && r.report.trialStarted.path === 'tools', 'raport zapowiada próbę (narzędzia)');
+  var ch = Engine.resolveChoice(GameData, r.state, 'teach');
+  var w = Engine.simulateTurn(GameData, ch.state, noMut);
+  eq(w.state.status, 'won', 'po rozstrzygniętej próbie — zwycięstwo');
+  ok(w.state.trialDone && w.state.trial.option, 'próba zapisana w stanie');
+  // Ostatnia tura gry: zwycięstwo od razu.
+  var last = withSeed('PROBA'), ll = active(last);
+  ll.stats.intelligence = 99; ll.population = 200; ll.traits.push('limbs', 'tool_use'); ll.niche = 'lad';
+  last.eraIndex = 2; last.turn = GameData.ERAS[2].turns.length - 1;
+  eq(Engine.simulateTurn(GameData, last, noMut).state.status, 'won', 'w ostatniej turze zwycięstwo bez próby');
+  // Ryzyko próby wygrane → odznaka i punkty.
+  var g = Engine.resolveChoice(GameData, r.state, 'tame').state;
+  var won = Engine.simulateTurn(GameData, g, function () { return 0; }).state;
+  ok(won.status === 'won' && won.trial.won, 'wygrane ryzyko próby');
+  ok(Engine.earnedAchievements(GameData, won).indexOf('trial') !== -1, 'odznaka „Ogień i słowo”');
+  ok(Engine.scoreGame(GameData, won).parts.some(function (p) { return p.label === 'Próba rozumu'; }), 'punkty za próbę');
+});
+
+group('rzadkie cechy: pojawiają się po jednej na erę, wcześniej zablokowane', function () {
+  var s = withSeed('RZADKA');
+  eq(s.rareUnlocked.length, 1, 'na starcie jedna rzadka cecha w puli genów');
+  var locked = GameData.TRAITS.filter(function (t) { return t.rare && s.rareUnlocked.indexOf(t.id) === -1; })[0];
+  s.ep = 999;
+  eq(Engine.traitStatus(s, locked, GameData), 'rare_locked', 'pozostałe rzadkie cechy zablokowane');
+  ok(!Engine.buyTrait(GameData, s, locked.id).ok, 'nie da się ich kupić');
+  ok(Engine.buyTrait(GameData, s, s.rareUnlocked[0]).ok, 'odblokowaną można kupić');
+  var g = s, rare = null; while (g.eraIndex === 0) { var rr = Engine.simulateTurn(GameData, g, noMut); g = rr.state; if (rr.report.rareTrait) rare = rr.report.rareTrait; }
+  ok(rare && g.rareUnlocked.length === 2, 'nowa era — nowy rzadki wariant (' + rare + ')');
+  eq(JSON.stringify(withSeed('RZADKA').rareUnlocked), JSON.stringify(s.rareUnlocked), 'ten sam kod świata → ta sama cecha');
+  var isl = withSeed('RZADKA', Bots.scenarioInit('island'));
+  ok(isl.rareUnlocked.indexOf('dwarfism') !== -1 && isl.rareUnlocked.indexOf('gigantism') !== -1, 'scenariusz „Wyspa”: karłowatość i gigantyzm od początku');
+  ok(GameData.TRAITS.filter(function (t) { return t.rare; }).length >= 6, 'co najmniej 6 rzadkich cech');
+});
+
+group('karty okresów, rzadkie karty i nowe łańcuchy', function () {
+  ok(GameData.CHOICE_EVENTS.filter(function (e) { return !e.chain; }).length >= 28, 'talia co najmniej 28 kart (' + GameData.CHOICE_EVENTS.filter(function (e) { return !e.chain; }).length + ')');
+  var seen = {}, wrongPeriod = 0;
+  for (var k = 1; k <= 40; k++) {
+    var g = withSeed('OKRES' + k, { pref: 'mix' }), r = Bots.seededRng(k);
+    g.botPref = k % 2 ? 'land' : 'sea';
+    while (g.status === 'playing') {
+      g = Engine.simulateTurn(GameData, Bots.stepFor('tactics', g), r).state;
+      if (!g.pendingChoice) continue;
+      var ev = Engine.choiceEvent(GameData, g.pendingChoice.eventId); seen[ev.id] = 1;
+      if (ev.periods && !ev.periods.some(function (p) { return g.env.conditions.title.indexOf(p) === 0; })) wrongPeriod++;
+    }
+  }
+  eq(wrongPeriod, 0, 'karty okresów padają tylko w swoich okresach');
+  ok(seen.cambrian && seen.giants && seen.flowers, 'karty kambru, karbonu i kredy pojawiają się w grze');
+  ok(Object.keys(seen).length >= 25, 'w 40 partiach pada co najmniej 25 różnych kart (' + Object.keys(seen).length + ')');
+  // Rozpad Pangei: kolonia i echo dla kolonii.
+  var s = withSeed('PANG'); active(s).population = 200;
+  s.pendingChoice = { eventId: 'pangaea', lineageId: 'L0', turn: Engine.nowTurn(GameData, s) };
+  var c = Engine.resolveChoice(GameData, s, 'split').state;
+  ok(c.lineages.length === 2 && /drugi brzeg/.test(c.lineages[1].name), 'wikariancja zakłada nową linię');
+  ok(c.echoes.some(function (e) { return e.eventId === 'vicariance_echo' && e.lineageId === c.lineages[1].id; }), 'echo należy do nowej linii');
+});
+
+group('modyfikatory świata i tryb otwarty', function () {
+  var base = withSeed('MOD'), low = withSeed('MOD', { mods: ['low_o2'] }), hot = withSeed('MOD', { mods: ['hot'] });
+  eq(Engine.turnBase(GameData, low, 0, 0).oxygen, Engine.turnBase(GameData, base, 0, 0).oxygen - 2, 'ubogi tlen: −2 w każdej turze');
+  var coldIdx = GameData.ERAS[2].turns.map(function (t) { return t.climate; }).indexOf('zimno');
+  var cs = withSeed('MOD', { mods: ['hot'], startEra: 2 }), cb = withSeed('MOD', { startEra: 2 });
+  var tb = Engine.turnBase(GameData, cs, 2, coldIdx), tb0 = Engine.turnBase(GameData, cb, 2, coldIdx);
+  ok(tb0.catastrophe || tb.climate !== 'zimno', 'gorąca Ziemia ociepla chłodne tury');
+  ok(Engine.turnBase(GameData, hot, 0, 0).food === Engine.turnBase(GameData, base, 0, 0).food - 1, 'gorąca Ziemia: susze (pokarm −1)');
+  var pr = withSeed('MOD', { mods: ['predators'] }); active(pr).stats.defense = 0; active(base).stats.defense = 0;
+  ok(Engine.forecast(GameData, pr, active(pr)).predationPressure > Engine.forecast(GameData, base, active(base)).predationPressure, 'drapieżny świat: większa presja');
+  var w = withSeed('MOD', { mods: ['predators', 'low_o2'] }); w.status = 'won';
+  ok(Engine.scoreGame(GameData, w).mult > 1.3, 'modyfikatory mnożą wynik (' + Engine.scoreGame(GameData, w).mult + ')');
+  var sb = withSeed('SAND', { sandbox: true }), sl = active(sb);
+  sl.stats.intelligence = 99; sl.population = 200; sl.traits.push('limbs', 'tool_use'); sl.niche = 'lad';
+  eq(Engine.evaluateStatus(sb, GameData), 'playing', 'tryb otwarty: bez zwycięstwa');
+});
+
+group('tytuły przetrwania, nowe odznaki, postęp odznak', function () {
+  var s = withSeed('TYTUL'); s.status = 'survived';
+  s.lineages.push(JSON.parse(JSON.stringify(active(s)))); s.lineages[1].id = 'L1'; s.lineages[1].niche = 'powietrze';
+  ok(Engine.legacyTitle(GameData, s) && Engine.legacyTitle(GameData, s).id === 'sky', 'linia w powietrzu → „Władcy przestworzy”');
+  ok(Engine.scoreGame(GameData, s).parts.some(function (p) { return /Tytuł/.test(p.label); }), 'tytuł przetrwania daje punkty');
+  ok(Engine.earnedAchievements(GameData, s).indexOf('legacy') !== -1, 'odznaka za przetrwanie z tytułem');
+  var lp = Engine.legacyProgress(GameData, withSeed('TYTUL'));
+  ok(lp.length === GameData.LEGACY.length && lp.every(function (x) { return x.title && x.max > 0; }), 'postęp wszystkich tytułów');
+  var b = withSeed('ODZ'); active(b).variantsTaken = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  ok(Engine.earnedAchievements(GameData, b).indexOf('breeder') !== -1, '8 wariantów → „Hodowca zmienności”');
+  var c = withSeed('ODZ', { codexKnown: Object.keys(GameData.KNOWLEDGE).slice(0, 40) });
+  ok(Engine.earnedAchievements(GameData, c).indexOf('codex') !== -1, 'Kodeks liczy pojęcia z poprzednich partii');
+  var d = withSeed('ODZ', { daily: true }); d.status = 'lost';
+  ok(Engine.earnedAchievements(GameData, d).indexOf('daily') !== -1, 'ukończony świat dnia → odznaka');
+  var pg = Engine.achievementProgress(GameData, b).filter(function (x) { return x.id === 'breeder'; })[0];
+  ok(pg && pg.cur === 8 && pg.max === 8, 'postęp odznaki z licznikiem');
+});
+
+group('nowe scenariusze i plany budowy są grywalne (boty)', function () {
+  var N = 30, mam = Bots.scenarioInit('mammals'), isl = Bots.scenarioInit('island');
+  var m1 = Bots.winRate('tactics1', Object.assign({ pref: 'mix' }, mam), N), ms = Bots.winRate('star', Object.assign({ pref: 'mix' }, mam), N);
+  ok(m1 >= 30 && m1 <= 95 && m1 >= ms, 'Po K–Pg: wygrywalny, rozwaga ≥ ślepy plan (' + m1 + '% vs ' + ms + '%)');
+  var i1 = Bots.winRate('clade', Object.assign({ pref: 'mix' }, isl), N);
+  ok(i1 >= 25 && i1 <= 90, 'Wyspa: wygrywalna mimo mniejszej pojemności (' + i1 + '%)');
+  var plans = ['kregowiec', 'stawonog', 'glowonog'].map(function (p) { return Bots.winRate('clade', { difficulty: 'normalny', pref: 'mix', bodyPlan: p }, N); });
+  ok(Math.max.apply(null, plans) - Math.min.apply(null, plans) <= 25, 'plany budowy w podobnym przedziale (' + plans.join(' / ') + '%)');
+});
+
+group('nazwa łacińska i kronika gatunku', function () {
+  var s = withSeed('LACINA'), l = active(s);
+  ok(/^[A-Z][a-z]+ [a-z]+$/.test(Engine.latinName(GameData, l, s)), 'dwuczłonowa nazwa: ' + Engine.latinName(GameData, l, s));
+  l.traits.push('fins'); var fish = Engine.latinName(GameData, l, s);
+  ok(/ichthys/.test(fish), 'ryba: ' + fish);
+  l.stats.intelligence = 99; ok(/ sapiens$/.test(Engine.latinName(GameData, l, s)), 'rozumny gatunek: sapiens');
+  var g = withSeed('KRONIKA'), r = Bots.seededRng(3);
+  for (var i = 0; i < 8 && g.status === 'playing'; i++) g = Engine.simulateTurn(GameData, Bots.stepFor('tactics', g), r).state;
+  var ch = Engine.chronicle(GameData, g);
+  eq(ch.length, g.history.length + 1, 'po jednym wpisie na turę (+ początek)');
+  ok(ch.every(function (x) { return x.text && x.text.length > 5; }), 'każdy wpis ma treść');
+  ok(ch.some(function (x) { return /Wymieranie|Katastrofa|zginęło/.test(x.text); }), 'kronika odnotowuje katastrofy');
 });
 
 console.log('\n────────────────────────');

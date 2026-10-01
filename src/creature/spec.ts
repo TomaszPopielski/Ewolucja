@@ -24,7 +24,9 @@ export const FEATURES = [
   'eyes', 'lateral_line', 'echolocation',
   'many_eggs', 'amniotic_egg', 'parental_care',
   'endothermy', 'insulation',
-  'ganglia', 'brain', 'pack_hunting', 'big_brain', 'social', 'tool_use', 'vocal_culture'
+  'ganglia', 'brain', 'pack_hunting', 'big_brain', 'social', 'tool_use', 'vocal_culture',
+  // rzadkie warianty
+  'venom', 'bioluminescence', 'electroreception', 'spines', 'gigantism', 'dwarfism', 'hibernation'
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -132,7 +134,16 @@ export function buildSpec(lineage: LineageLike): CreatureSpec {
   const pattern: Pattern = pr < 0.3 ? 'none' : pr < 0.55 ? 'stripes' : pr < 0.8 ? 'spots' : 'saddle';
   const bodyPlan: BodyPlan = lineage.bodyPlan === 'stawonog' || lineage.bodyPlan === 'glowonog' ? lineage.bodyPlan : 'kregowiec';
   const form: Form = r() < 0.5 ? 'saur' : 'standard';
-  return { owned, niche, bodyPlan, seed, bodyColor: body, accentColor, pattern, form, proportions, sizeCm: bodySizeCm(owned, bodyPlan) };
+  // Reguła wyspowa: karzeł ma krótsze ciało i większą głowę, olbrzym — masywniejszy tułów.
+  let sizeCm = bodySizeCm(owned, bodyPlan);
+  if (owned.has('dwarfism')) {
+    proportions.head *= 1.15; proportions.length *= 0.88; proportions.girth *= 0.95;
+    sizeCm = Math.max(1, Math.round(sizeCm * 0.4));
+  } else if (owned.has('gigantism')) {
+    proportions.girth *= 1.12; proportions.head *= 0.95;
+    sizeCm = Math.round(sizeCm * 3);
+  }
+  return { owned, niche, bodyPlan, seed, bodyColor: body, accentColor, pattern, form, proportions, sizeCm };
 }
 
 /** Czytelna etykieta podziałki (np. „3 cm”, „1 m”). */

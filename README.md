@@ -28,6 +28,7 @@ npm run build    # sprawdzenie typów + budowa dist/index.html (jeden plik)
 npm test         # testy silnika
 npm run shots    # zrzuty ekranu zbudowanej gry (Chromium; katalog screenshots/)
 npm run visual   # test wizualnej regresji rysunku stworzeń (po npm run build; --update odświeża wzorce)
+npm run fun      # mierniki „miodności”: silnik (boty) + partia w Chromium (po npm run build)
 ```
 
 Po zmianach w kodzie uruchom `npm run build` i zatwierdź też `dist/index.html`,
@@ -36,12 +37,18 @@ Vite i sam z pliku nie zadziała.
 
 ## Jak grać
 
-1. Nazwij swój gatunek i rozpocznij grę.
-2. W **panelu adaptacji** wydawaj punkty ewolucji (EP) na cechy. Każda cecha
+1. Nazwij swój gatunek i rozpocznij grę. Ekran startowy pokazuje **Świat dnia**,
+   **wyzwanie tygodnia**, rekordy i to, co zostało do odblokowania. Przed
+   partią możesz wybrać **plan budowy** (kręgowiec, stawonóg, głowonóg)
+   i **modyfikatory świata** (patrz niżej).
+2. Na początku każdej ery wybierz **kontrakt ery**: jeden z trzech celów
+   pobocznych. Za jego wypełnienie dostajesz punkty i **trwały atut** do końca
+   partii (np. tańsza migracja, większe spiżarnie, +2 EP na turę).
+3. W **panelu adaptacji** wydawaj punkty ewolucji (EP) na cechy. Każda cecha
    ma koszt, efekty i **kompromis** — nic nie jest darmowe. Część kompromisów
    zależy od warunków (np. płetwy nie pomagają na lądzie, łuski utrudniają
    oddychanie przy niskim tlenie).
-3. W panelu **„Decyzje linii”** gospodaruj dwiema walutami każdej linii
+4. W panelu **„Decyzje linii”** gospodaruj dwiema walutami każdej linii
    (patrz niżej): wybierz **strategię rozrodu** (r — dużo potomstwa,
    K — mało, ale dobrze chronionego) i **zachowanie w turze** (gromadzenie
    zapasów, ukrywanie się, intensywne żerowanie). Najedź na przycisk, by
@@ -49,18 +56,24 @@ Vite i sam z pliku nie zadziała.
    jeszcze nieco odchylić). Możesz też włączyć **ukierunkowany dobór** na wybraną
    cechę: kosztuje 🧬 i część potomstwa (koszt doboru), a daje szansę na +1 do tej
    cechy co turę. W większości tur pojawia się **karta decyzji**
-   (14 zdarzeń i 5 kart-ech — skutków wcześniejszych decyzji, które wracają po 2–3 turach: wyspa, nowy drapieżnik, zakwit, łagodny sezon, epidemia,
-   nieznany pokarm, konkurent, wulkan, pokrewna populacja, wyścig godowy,
-   padlina, symbioza, chudy sezon, niezwykły mutant). Karta nie powtarza się
+   (29 zdarzeń, część tylko w swoim okresie geologicznym, np. „Eksplozja
+   różnorodności” w kambrze czy „Bagienne lasy” w dewonie i karbonie, oraz 8 kart-ech — skutków wcześniejszych
+   decyzji, które wracają po 2–3 turach). Karta nie powtarza się
    w partii, a opcja domyślna (brak decyzji) zwykle kosztuje. Tam, gdzie
    sukces daje trwałą cechę, porażka też bywa trwała. Część
    opcji to **ryzyko**: wynik losuje się w turze, a szansa powodzenia (widoczna
    na przycisku) zależy od cech linii. Wybierz odpowiedź przed turą, inaczej
    zadziała opcja domyślna. Gdy karta czeka, sygnalizuje to przyklejony pasek
    stanu u góry ekranu.
-4. Kliknij **„Przeżyj turę"** — symulacja rozliczy żerowanie, drapieżnictwo,
-   rozród i mutacje, a raport wyjaśni, *co się stało i dlaczego*.
-5. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
+   W turach bez karty **pula genów** podsuwa dwa **warianty** (np. „drobniejsze
+   ciało”, „czujniejsze”, „dłuższe dzieciństwo”). Utrwalenie jednego kosztuje
+   2 🧬 i daje małą, trwałą zmianę cech, z kompromisem i podglądem w prognozie.
+5. Kliknij **„Przeżyj turę"** (pasek akcji u dołu ekranu albo spacja) —
+   symulacja rozliczy żerowanie, drapieżnictwo, rozród i mutacje. Raport zaczyna
+   się od nagłówka „co się stało i dlaczego”, a szczegóły są pod spodem.
+   Pasek stanu pokazuje **szansę na rozum**: szacunek z kilkunastu symulacji
+   reszty partii (w innych „przyszłych światach”, więc nie zdradza przyszłości).
+6. Powtarzaj przez kolejne tury (20 w pełnej grze; scenariusze mogą startować
    w późniejszej erze). Warunki każdej tury są losowane wokół historycznych —
    sprawdzaj panel środowiska i prognozę przed decyzją.
    **Cel:** doprowadzić linię do progu inteligencji **i kultury** (możliwe
@@ -74,6 +87,13 @@ Vite i sam z pliku nie zadziała.
    **układ nerwowy** (zwoje → mózg → rozbudowany mózg). Mózg jest jednak
    kosztowny: kupiony bez zaplecza pokarmowego zagłodzi populację, a garstka
    osobników to nie gatunek rozumny.
+   Tuż przed metą czeka **próba rozumu** — karta „Ogień” (droga narzędzi)
+   albo „Imiona” (droga akustyczna). Udana daje premię
+   i odznakę, nieudana kosztuje, ale nie odbiera zwycięstwa.
+
+**Skróty klawiszowe** (w trakcie gry): spacja lub Enter — „Przeżyj turę”,
+1–4 — opcja karty, kontraktu lub wariantu, K — Kodeks, D — drzewo życia,
+Esc — zamknięcie okna.
 
 ### Nisze, pojemność i specjacja
 
@@ -177,9 +197,14 @@ i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
   się różnicować, drapieżniki doganiają Twoją obronę, choroba wraca do
   populacji odpornej). Karta podaje, której decyzji jest skutkiem.
 - **Epilog** — zwycięstwo kończy się „Antropocenem”: co robi rozumny gatunek
-  ze światem (zależnie od przebiegu partii). Przetrwanie dostaje tytuł zależny
-  od stylu gry: *Władcy przestworzy*, *Wielka radiacja*, *Gatunek-legion*,
-  *Wąskie gardło i powrót* lub *Żywa skamielina*.
+  ze światem (zależnie od przebiegu partii).
+- **Tytuły przetrwania** — przegrana o włos nie jest pustą porażką. Od początku
+  partii widać postęp czterech tytułów (*Władcy przestworzy*, *Wielka radiacja*,
+  *Gatunek-legion*, *Wąskie gardło i powrót*), a zdobyty tytuł daje punkty
+  i odznakę. Bez tytułu zostaje *Żywa skamielina*.
+- **Rzadkie cechy** — na początku każdej ery w puli genów pojawia się jedna
+  z 7 osobliwości (jad, bioluminescencja, elektrorecepcja, kolce, gigantyzm,
+  karłowatość, sen zimowy). Każda jest widoczna na rycinie zwierzęcia.
 
 ### Regrywalność: kod świata, kalendarz, cele er, wynik
 
@@ -193,15 +218,32 @@ i gorzej na trudnym, więc dieta jest kompromisem, nie „ulepszeniem”.
   w niszę, w której żyje najwięcej osobników. Każdą katastrofę gra **zapowiada
   do 2 tur wcześniej** i podaje przewidywaną siłę w każdej niszy (przedział —
   dokładną siłę zna się dopiero w turze katastrofy).
-- **Cele ery** — w każdej erze dwa losowe cele poboczne (np. „Wyjdź na ląd”,
-  „Przetrwać kataklizm”, „Radiacja”) nagradzane punktami ewolucji.
+- **Kontrakty er** — w każdej erze wybierasz jeden z trzech celów (np. „Wyjdź
+  na ląd”, „Radiacja”, „Tłuste lata”). Nagroda to EP, punkty i trwały atut.
 - **Radiacja się opłaca** — każda zajęta nisza ponad pierwszą daje +8 EP na turę.
 - **Wynik punktowy i osiągnięcia** — na końcu gry wynik (status, inteligencja,
-  populacja, cele er, nisze, tury zapasu, osiągnięcia × mnożnik trudności),
-  rekord scenariusza i 13 osiągnięć zapisywanych w przeglądarce.
+  populacja, kontrakty, nisze, tury zapasu, warianty, próba rozumu, osiągnięcia
+  × mnożnik trudności i modyfikatorów), rekord scenariusza i 22 osiągnięcia
+  zapisywane w przeglądarce. Ekran końcowy podpowiada 3 odznaki „na następny
+  raz” z postępem w tej partii.
+- **Świat dnia i wyzwanie tygodnia** — wszyscy grają tego dnia w tym samym
+  świecie (kod `D` + data), a passa dni jest zapisywana. Wyzwanie tygodnia to
+  stały świat z jednym modyfikatorem.
+- **Odblokowania** — kolejne scenariusze, plany budowy i modyfikatory odblokowują
+  się odznakami (np. pierwsza wygrana otwiera „Po K–Pg: radiacja ssaków”).
+  Nauczyciel może odblokować wszystko jednym przyciskiem na ekranie startowym.
+- **Plany budowy** — *kręgowiec* (bez premii), *stawonóg* (tani pancerz i jaja,
+  droższa stałocieplność i duży mózg), *głowonóg* (tani mózg i kamuflaż, słaba
+  obrona i trudne wyjście na ląd). Koszty cech zmieniają się zależnie od planu.
+- **Modyfikatory świata** — „Gorąca Ziemia”, „Ubogi tlen”, „Drapieżny świat”,
+  „Bez prognozy”. Każdy utrudnia grę i podnosi mnożnik wyniku.
+- **Muzeum gatunków** — każdy gatunek z zakończonej partii trafia do muzeum
+  z ryciną, łacińską nazwą (np. *Miodetherium sapiens*), zakończeniem, wynikiem
+  i kodem świata. Rycinę można pobrać jako tablicę PNG.
 
-Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (biologia,
-paleontologia, ekologia).
+Po drodze odblokowujesz karty wiedzy zbierane w **Kodeksie** (70 haseł: biologia,
+paleontologia, ekologia). Kodeks jest zapisywany między partiami, a nieodkryte
+hasła mają podpowiedź, jak je zdobyć.
 
 ## Struktura projektu
 
@@ -211,6 +253,7 @@ css/styles.css     — warstwa prezentacji (tryb jasny/ciemny, responsywność, 
 js/data.js         — dane gry: cechy, ery, scenariusze, karty wiedzy (konfiguracja)
 js/engine.js       — silnik symulacji: czysta, testowalna logika (bez DOM)
 js/ui.js           — kontroler interfejsu: render, zdarzenia, zapis lokalny
+js/advisor.js      — „szansa na rozum”: szacunek z symulacji reszty partii (bez DOM)
 test/engine.test.js — testy silnika
 test/bots.js        — gracze-boty do testów balansu
 ```
@@ -240,16 +283,21 @@ prognozę, gracz taktyczny (jedna linia) i gracz prowadzący **klad** (gałęzie
 w wolnych niszach, każda ewoluuje). Połowa botów obiera drogę lądową, połowa
 wodną. Testy pilnują krzywej trudności, rozkładu tur zwycięstwa, grywalności
 obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
-[`docs/OCENA-MECHANIK.md`](./docs/OCENA-MECHANIK.md).
+[`docs/OCENA-MECHANIK.md`](./docs/OCENA-MECHANIK.md). Analiza tempa rozgrywki,
+nagrody i powodów do powrotu (z propozycjami zmian):
+[`docs/MIODNOSC.md`](./docs/MIODNOSC.md).
 
 ## Funkcje
 
-- **Scenariusze i poziomy trudności** — trzy scenariusze z własnymi regułami:
+- **Scenariusze i poziomy trudności** — sześć scenariuszy z własnymi regułami:
   pełna ewolucja; podbój lądu (start na przybrzeżu, rozum tylko na lądzie, ląd
-  wyżywi o 25% więcej); epoki lodowcowe (sprint przez kenozoik, tylko narzędzia).
+  wyżywi o 25% więcej); epoki lodowcowe (sprint przez kenozoik, tylko narzędzia);
+  odblokowywane „Po K–Pg: radiacja ssaków” (6 tur w kenozoiku) i „Wyspa” (nisze
+  o 25% ciaśniejsze, karłowatość i gigantyzm od startu) oraz **tryb otwarty**
+  bez celu i bez zapisu wyniku.
 - **Trzy ery** (paleozoik → mezozoik → kenozoik, 20 tur) z realnymi datami
   geologicznymi i **kamieniami milowymi cech** dostępnymi dopiero w kolejnych erach.
-- **26 cech** (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka
+- **33 cechy**, w tym 7 rzadkich (z ilustrowanymi ikonami SVG) w drzewie zależności z kosztami i kompromisami; ścieżka
   do inteligencji oznaczona ⭐.
 - **Cztery nisze ekologiczne** (woda, przybrzeże, ląd, powietrze) z migracją
   (koszt EP malejący z mobilnością, tura aklimatyzacji) — każda ma inny pokarm
@@ -269,13 +317,19 @@ obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
   lub stado, pokarm, drapieżniki i klimat tury wynikają wprost z symulacji.
 - **Tura jako wydarzenie** — przed raportem krótka animacja: żerowanie, ataki
   drapieżników, głód, narodziny, mutacja i katastrofy (meteoryt, zlodowacenie,
-  wulkanizm); można ją pominąć.
+  wulkanizm). Domyślnie pełna tylko w ważnych turach (katastrofa, nowa era,
+  specjacja, duży spadek); kliknięcie ją pomija.
+- **Dźwięk** (domyślnie wyłączony) — krótkie sygnały syntezowane w przeglądarce
+  (WebAudio, bez plików).
+- **Kronika partii** — po jednym zdaniu na turę, na ekranie końcowym
+  i w eksporcie dla nauczyciela.
 - **Ekran końcowy z historią** — rycina gatunku, „droga ewolucji” w miniaturach
   i wykres populacji na osi er.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
   widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
-- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
+- **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela),
+  z kroniką partii.
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.
 - **i18n** — stringi interfejsu w `js/i18n.js` (domyślnie `pl`); treść gry w `data.js`.
 - Zapis lokalny (`localStorage`), tryb jasny/ciemny, responsywność, dostępność
@@ -284,7 +338,8 @@ obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
 ## Grafika i wydajność
 
 Przycisk z suwakami w nagłówku otwiera **Ustawienia grafiki**: jakość
-(automatyczna / wysoka / średnia / niska) i animację tury (pokazuj / pomijaj).
+(automatyczna / wysoka / średnia / niska), animację tury (zawsze / tylko
+ważne tury / pomijaj) i dźwięk.
 Tryb automatyczny sam obniża jakość na słabszym sprzęcie; poziom niski
 zamienia dioramę w nieruchomą ilustrację. Szczegóły, pomiary i instrukcja
 podmiany grafiki proceduralnej na ręcznie rysowaną: [`docs/STYL.md`](./docs/STYL.md).
@@ -297,10 +352,11 @@ src/main.ts      — punkt wejścia Vite; ładuje moduły js/ i nową warstwę g
 src/art/         — warstwa graficzna (TypeScript): ikony SVG, paleta
 src/creature/    — żywy portret zwierzęcia składanego z cech (Canvas 2D)
 src/diorama/     — diorama środowiska nad panelami (PixiJS) i animacja tury
-src/art/settings.ts — ustawienia grafiki (jakość, animacja tury)
+src/art/settings.ts — ustawienia grafiki (jakość, animacja tury, dźwięk)
+src/art/sound.ts — sygnały dźwiękowe (WebAudio)
 src/fonts.css    — krój szeryfowy (Source Serif 4, OFL), wklejany offline
 docs/STYL.md     — zasady stylu „ilustracja naukowa”
-scripts/         — narzędzia (zrzuty ekranu)
+scripts/         — narzędzia (zrzuty ekranu, mierniki „miodności”: fun-metrics.js, fun-ui.mjs)
 vite.config.mts  — budowa do jednego pliku dist/index.html
 dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 ```
@@ -308,5 +364,7 @@ dist/index.html  — zbudowana gra (zatwierdzana w repozytorium)
 ## Status
 
 Działający **MVP+** obejmujący trzy ery, specjację z drzewem życia, nisze,
-katastrofy, samouczek i tryb nauczyciela. Dalsze możliwe kroki: quizy po erze,
+katastrofy, samouczek i tryb nauczyciela, a także warstwę „powrotu”: kontrakty er,
+pulę genów, próbę rozumu, Świat dnia, Muzeum i odblokowania (zob.
+[`docs/MIODNOSC.md`](./docs/MIODNOSC.md), sekcja 7). Dalsze możliwe kroki: quizy po erze,
 tryb offline (PWA), tryb wieloosobowy, kolejne języki.

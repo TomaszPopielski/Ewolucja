@@ -258,6 +258,36 @@ const ICONS: Record<string, string> = {
   'cat:rozrod': EGG,
   'cat:termoregulacja': THERMO,
   'cat:uklad_nerwowy': NEURON,
+  'cat:rzadkie':
+    '<path class="w" d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z"/>' +
+    '<path class="t" d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+  // ---------- Rzadkie warianty ----------
+  'trait:venom':
+    '<path class="w" d="M6 4c4 0 7 2.5 7 6.5 0 2.2-1 4-2.5 5.5L8 20 7.2 14C5.5 12.6 4 10.8 4 8.5 4 6 4.8 4 6 4z"/>' +
+    '<path d="M8 20l.6-5"/><path class="w" d="M16.5 13.5c1.4 2 2.5 3.4 2.5 4.8a2.5 2.5 0 0 1-5 0c0-1.4 1.1-2.8 2.5-4.8z"/>',
+  'trait:bioluminescence':
+    '<path class="w" d="M3 13c3-4.5 11-5.5 16.5-1.5-5.5 4-13.5 3-16.5 1.5z"/><path d="M19.5 11.5l2-2.2M19.5 11.5l2 2.2"/>' +
+    '<circle class="f" cx="8" cy="13.6" r=".9"/><circle class="f" cx="11" cy="14" r=".9"/><circle class="f" cx="14" cy="13.6" r=".9"/>' +
+    '<path class="t" d="M8 16.5v1.5M11 17v1.8M14 16.5v1.5M6 4.5l1 2M12 3.5v2.2M18 4.5l-1 2"/>',
+  'trait:electroreception':
+    '<path class="w" d="M3 12c3.5-4.5 10-4.5 13 0-3 4.5-9.5 4.5-13 0z"/>' +
+    '<circle class="f" cx="13" cy="11" r=".7"/><circle class="f" cx="14" cy="12.8" r=".7"/><circle class="f" cx="12.2" cy="13" r=".7"/>' +
+    '<path d="M18 8.5c1.5 1 1.5 6 0 7M20.5 6.5c2.5 2 2.5 9 0 11"/>',
+  'trait:spines':
+    '<path class="w" d="M3 18c1-5 5-8 9-8s8 3 9 8z"/>' +
+    '<path d="M5 15.5 3.5 9.5 7.5 13M9 12.2 8.5 5.5l3 6M13 11.5l2-6 .2 6.5M16.8 12.8l4-4.5-1.8 6"/>',
+  'trait:gigantism':
+    '<path class="w" d="M4 19v-6c0-4 3.5-7 8-7s8 3 8 7v6z"/><path d="M7 19v-3M17 19v-3M12 6V3.5"/>' +
+    '<path class="t" d="M2 21h20M9 3.5h6M2.5 10.5l-1-1M21.5 10.5l1-1"/>',
+  'trait:dwarfism':
+    '<path class="w" d="M9 17v-2.5c0-1.7 1.3-3 3-3s3 1.3 3 3V17z"/>' +
+    '<path d="M3.5 12h3M20.5 12h-3M5 10.5 6.5 12 5 13.5M19 10.5 17.5 12 19 13.5"/><path class="t" d="M4 19h16"/>',
+  'trait:hibernation':
+    '<path class="w" d="M4 17c0-4.5 3.6-8 8-8s8 3.5 8 8z"/><path class="t" d="M4 17h16M8 13.5c1.2.6 2.6.6 3.8 0"/>' +
+    '<path d="M14 4.5h3l-3 3.5h3M18.5 2h2l-2 2.3h2"/>',
+  'know:variants': HELIX,
+  'know:no_goal': BRAIN,
+  'know:venom': '<path class="w" d="M16.5 9.5c1.4 2 2.5 3.4 2.5 4.8a2.5 2.5 0 0 1-5 0c0-1.4 1.1-2.8 2.5-4.8z"/><path d="M5 4c4 0 7 2.5 7 6.5L9 20"/>',
 
   // ---------- Nisze ----------
   'niche:woda': WAVES,

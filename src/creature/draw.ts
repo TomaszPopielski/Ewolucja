@@ -13,6 +13,7 @@
 import { drawArthropod, arthroFootDrop, arthroShape, arthroExtents } from './arthropod.ts';
 import { drawCephalopod, cephFootDrop, cephShape, cephExtents } from './cephalopod.ts';
 import { type CreatureSpec, type Feature, type Niche, FEATURES, rng, mixHex, scaleLabel } from './spec.ts';
+import { drawRare } from './extras.ts';
 
 export interface Theme {
   ink: string;
@@ -764,6 +765,9 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
       ctx.fillStyle = s.fill(theme.horn, 0.45); ctx.fill(); inkLine(ctx, s, 1); ctx.stroke();
     }
   });
+
+  // --- 5b. rzadkie warianty (kolce, jad, świecenie, elektrorecepcja, sen zimowy, rozmiar)
+  drawRare(ctx, o, st, theme, spec, (t, m) => { const a = at(body, t); return add(a.p, mul(a.n, a.w * m)); }, body.P[0]);
 
   // --- 6. głowa: oko, pysk, skrzela
   drawHead(ctx, body, spec, theme, o, st);

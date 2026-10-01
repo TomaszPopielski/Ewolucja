@@ -24,5 +24,12 @@ export const CREATURES = [
   ['Łodzikowiec', ['shell', 'eyes'], 'woda', 'glowonog'],
   ['Kałamarnica', ['fins', 'jaws', 'eyes', 'fast_muscle', 'lateral_line'], 'woda', 'glowonog'],
   ['Ośmiornica', ['limbs', 'jaws', 'eyes', 'camouflage', 'ganglia', 'brain', 'grasping_hand', 'tool_use'], 'przybrzeze', 'glowonog'],
-  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog']
+  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog'],
+  // Rzadkie warianty
+  ['Jadowity kolczasty', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'venom', 'spines'], 'lad'],
+  ['Świecąca ryba głębin', ['fins', 'jaws', 'eyes', 'bioluminescence', 'electroreception'], 'woda'],
+  ['Olbrzym śpiący zimą', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'gigantism', 'hibernation'], 'lad'],
+  ['Karzeł wyspowy', ['fins', 'limbs', 'jaws', 'eyes', 'scales', 'dwarfism'], 'lad'],
+  ['Kolczasty stawonóg', ['shell', 'eyes', 'spines', 'venom'], 'woda', 'stawonog'],
+  ['Świecący głowonóg', ['fins', 'jaws', 'eyes', 'bioluminescence', 'electroreception'], 'woda', 'glowonog']
 ];

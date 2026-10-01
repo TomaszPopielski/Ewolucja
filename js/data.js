@@ -57,6 +57,100 @@
   // Ewolucja równoległa: cecha, którą ma już żywa linia pokrewna, jest tańsza o ten ułamek.
   var PARALLEL_DISCOUNT = 0.4;
 
+  /*
+   * Warianty w puli genów (tury bez karty decyzji). Mutacje powstają losowo — gracz ich
+   * nie tworzy. W populacji krąży kilka wariantów; gracz wskazuje, który dobór ma
+   * utrwalić (płacąc 🧬 zmiennością — paliwem doboru). Pozostałe przepadają w dryfie.
+   * Każdy wariant to kompromis (+ i −); `favors` mówi, jakie środowisko go premiuje.
+   * `requires` — cecha potrzebna, by wariant mógł się pojawić; `cost` nadpisuje koszt.
+   */
+  var VARIANT = { cost: 2, options: 2, minPop: 10 };
+  var VARIANTS = [
+    { id: 'small', label: 'Drobniejsze ciało', effects: { metabolism: -1, defense: -1 }, favors: 'mało pokarmu, niski tlen',
+      desc: 'Mniejsze osobniki potrzebują mniej energii, ale łatwiej padają ofiarą.' },
+    { id: 'large', label: 'Większe ciało', effects: { defense: 1, metabolism: 1 }, favors: 'wielu drapieżników, dość pokarmu',
+      desc: 'Większy rozmiar zniechęca łowców, ale kosztuje energię.' },
+    { id: 'thick_skin', label: 'Grubsza skóra', effects: { defense: 1, mobility: -1 }, favors: 'drapieżniki, gdy nie trzeba wędrować',
+      desc: 'Trudniej ją przebić, ale ciało jest cięższe.' },
+    { id: 'slender', label: 'Smuklejsza sylwetka', effects: { mobility: 1, defense: -1 }, favors: 'migracje i ucieczka',
+      desc: 'Szybszy ruch kosztem odporności na ataki.' },
+    { id: 'fast_mature', label: 'Szybsze dojrzewanie', effects: { reproduction: 1, defense: -1 }, favors: 'obfity pokarm, mało drapieżników',
+      desc: 'Młode wcześniej się rozmnażają, ale są drobniejsze i bardziej bezbronne.' },
+    { id: 'big_young', label: 'Większe młode', effects: { reproduction: -1, defense: 1 }, favors: 'tłok w niszy, silni drapieżcy',
+      desc: 'Mniej potomstwa, ale lepiej przygotowanego do życia.' },
+    { id: 'gut', label: 'Dłuższe jelito', effects: { feeding: 1, mobility: -1 }, favors: 'ubogi, twardy pokarm',
+      desc: 'Lepsze trawienie, ale cięższe ciało.' },
+    { id: 'keen', label: 'Czulsze zmysły', effects: { feeding: 1, metabolism: 1 }, favors: 'obfity pokarm',
+      desc: 'Łatwiej znaleźć pożywienie, ale narządy zmysłów kosztują energię.' },
+    { id: 'thrifty', label: 'Oszczędna przemiana materii', effects: { metabolism: -1, reproduction: -1 }, favors: 'głód i chłód',
+      desc: 'Organizm zużywa mniej energii, ale wolniej się rozmnaża.' },
+    { id: 'fertile', label: 'Wyższa płodność', effects: { reproduction: 2, metabolism: 1 }, favors: 'pusta nisza po katastrofie',
+      desc: 'Więcej potomstwa — jeśli wystarczy pokarmu.' },
+    { id: 'vigilant', label: 'Większa czujność', effects: { defense: 1, feeding: -1 }, favors: 'wielu drapieżników',
+      desc: 'Częste rozglądanie się chroni przed łowcą, ale zostaje mniej czasu na jedzenie.' },
+    { id: 'bold', label: 'Śmiałe żerowanie', effects: { feeding: 1, defense: -1 }, favors: 'mało drapieżników',
+      desc: 'Więcej pokarmu dla odważnych — i więcej okazji dla łowców.' },
+    { id: 'curious', label: 'Ciekawość', requires: 'brain', cost: 3, effects: { intelligence: 1, metabolism: 1 }, favors: 'zmienne środowisko',
+      desc: 'Osobniki, które badają otoczenie, uczą się szybciej, ale ryzykują i zużywają więcej energii.' },
+    { id: 'long_childhood', label: 'Dłuższe dzieciństwo', requires: 'brain', cost: 3, effects: { intelligence: 1, reproduction: -1 }, favors: 'stabilne środowisko',
+      desc: 'Młode dłużej się uczą od dorosłych, więc rzadziej przychodzą na świat.' }
+  ];
+
+  /*
+   * Kontrakty ery: na początku ery gracz wybiera 1 z `options` celów (bez wyboru — pierwszy).
+   * Nagroda: EP × `rewardMult` oraz przywilej (`perk`) na resztę gry.
+   */
+  var CONTRACT = { options: 3, rewardMult: 1.5 };
+  var PERKS = {
+    wanderers: { label: 'Wędrowcy', desc: 'Migracja kosztuje o 2 ⚡ mniej.', migration: 2 },
+    gene_pool: { label: 'Bogatsza pula genów', desc: 'W turach bez karty jeden wariant więcej do wyboru.', extraVariant: 1 },
+    steady: { label: 'Stały dopływ', desc: '+2 EP w każdej turze.', ep: 2 },
+    cheap_defense: { label: 'Tańsza obrona', desc: 'Cechy obronne kosztują o 20% mniej EP.', costCat: { obrona: 0.8 } },
+    big_store: { label: 'Większe spiżarnie', desc: 'Magazyn rezerw każdej linii +4 ⚡.', reservesCap: 4 },
+    lucky: { label: 'Doświadczenie', desc: 'Ryzykowne opcje kart: szansa +8 punktów procentowych.', gamble: 0.08 },
+    cheap_move: { label: 'Tańszy ruch', desc: 'Cechy lokomocji kosztują o 15% mniej EP.', costCat: { lokomocja: 0.85 } },
+    cheap_senses: { label: 'Tańsze zmysły', desc: 'Cechy zmysłów i rozrodu kosztują o 15% mniej EP.', costCat: { zmysly: 0.85, rozrod: 0.85 } },
+    cheap_nerves: { label: 'Tańszy układ nerwowy', desc: 'Cechy układu nerwowego kosztują o 10% mniej EP.', costCat: { uklad_nerwowy: 0.9 } },
+    hardy: { label: 'Zahartowani', desc: 'Katastrofy uderzają w Twoje linie o 10% słabiej.', catMult: 0.9 }
+  };
+
+  /*
+   * Rzadkie cechy: w każdej erze w puli genów pojawia się jedna z nich (z kodu świata) i odtąd
+   * można ją kupić. Scenariusz może je udostępnić od razu (`rareTraits`).
+   */
+  var RARE = { perEra: 1 };
+
+  /*
+   * Plany budowy: wybierane na starcie (kręgowiec od razu, pozostałe odblokowują odznaki).
+   * `stats` — zmiana statystyk na starcie, `costMult` — mnożnik kosztu wybranych cech.
+   */
+  var BODY_PLANS = {
+    kregowiec: { label: 'Kręgowiec', icon: '🐟', unlock: 0, knowledge: null,
+      desc: 'Szkielet wewnętrzny: droga od ryby do czworonoga, ptaka i ssaka. Bez premii i kar.' },
+    stawonog: { label: 'Stawonóg', icon: '🦂', unlock: 2, knowledge: 'arthropods', stats: { defense: 1, intelligence: 0 },
+      costMult: { shell: 0.6, many_eggs: 0.85, endothermy: 1.5, big_brain: 1.25 },
+      desc: 'Pancerz zewnętrzny i odnóża: tani pancerz i liczne jaja, ale stałocieplność i duży mózg przychodzą trudniej.' },
+    glowonog: { label: 'Głowonóg', icon: '🐙', unlock: 4, knowledge: 'cephalopods', stats: { intelligence: 1, defense: -1, mobility: 1 },
+      costMult: { brain: 0.8, big_brain: 0.85, camouflage: 0.6, limbs: 1.2, shell: 1.3 },
+      desc: 'Miękkie ciało i duży mózg: tani mózg i kamuflaż, ale słaba obrona i trudne wyjście na ląd.' }
+  };
+
+  /*
+   * Modyfikatory świata — włączane na starcie (odblokowują je odznaki), mnożą wynik.
+   * `climate` +1 ociepla chłodne tury, `food`/`oxygen` — zmiana w każdej turze,
+   * `predMult` — mnożnik drapieżników, `noForecast` — prognoza bez liczb (tylko UI).
+   */
+  var WORLD_MODS = {
+    hot: { label: 'Gorąca Ziemia', icon: '🔥', scoreMult: 1.15, climate: 1, food: -1, unlock: { ach: ['first_win'] },
+      desc: 'Cieplejszy klimat: chłodne tury są umiarkowane, ale susze zabierają 1 pokarmu w każdej turze.' },
+    low_o2: { label: 'Ubogi tlen', icon: '🫁', scoreMult: 1.2, oxygen: -2, unlock: { ach: ['perm'] },
+      desc: 'Tlen −2 w każdej turze: utrzymanie ciała kosztuje więcej energii.' },
+    predators: { label: 'Drapieżny świat', icon: '🦈', scoreMult: 1.25, predMult: 1.15, unlock: { ach: ['tools_win', 'sound_win'] },
+      desc: 'Drapieżniki ×1,15 — trzeba lepiej się bronić.' },
+    blind: { label: 'Bez prognozy', icon: '🌫️', scoreMult: 1.15, noForecast: true, unlock: { ach: ['early_win'] },
+      desc: 'Prognoza pokazuje tylko kierunek zmian (↑ / ↓), bez liczb. Dla doświadczonych.' }
+  };
+
   // Szeroki zasięg gatunku: mnożnik siły katastrofy przy liczbie zajętych nisz.
   var RANGE = { 2: 0.55, 3: 0.42, 4: 0.33 };
 
@@ -159,14 +253,18 @@
    * Karta: `minPop`, `minEra`, `niches` — kiedy może paść. Karty nie powtarzają się,
    * dopóki pula się nie wyczerpie.
    */
-  var CHOICE_CHANCE = 0.55;
+  var CHOICE_CHANCE = 0.6;
+  // Rzadkie karty (`rare: true`) trafiają do losowania z taką wagą względem zwykłych,
+  // a karty okresu (`periods`) — z dużą wagą: to „wydarzenie” swojej tury.
+  var RARE_CARD_WEIGHT = 0.2;
+  var PERIOD_CARD_WEIGHT = 6;
   var CHOICE_EVENTS = [
     { id: 'island', name: 'Wynurza się wyspa', icon: '🏝️', art: 'choice:island', minPop: 60,
       desc: 'Nowy ląd lub rafa w zasięgu linii. Grupa osobników mogłaby się tam przedostać i żyć w izolacji.',
       options: [
         { id: 'colonize', label: 'Wyślij kolonistów',
           gamble: { chance: 0.55, stat: 'mobility', per: 0.05, from: 3,
-            win: { effects: { found: 0.25 }, knowledge: 'founder', echo: { id: 'island_echo', after: 3 },
+            win: { effects: { found: 0.25 }, knowledge: 'founder', echo: { id: 'island_echo', after: 3, colony: true },
               text: 'Koloniści dotarli — ¼ populacji zakłada nową linię z małą zmiennością (efekt założyciela).' },
             lose: { effects: { popLoss: 0.1 }, knowledge: 'founder', text: 'Przeprawa się nie udała — zginęło 10% populacji.' } },
           desc: 'Ryzyko (szansa rośnie z mobilnością). Sukces: ¼ populacji zakłada nową linię (bez kosztu 🧬, ale z małą zmiennością). Porażka: ginie 10% populacji.' },
@@ -323,6 +421,122 @@
           desc: 'Kosztuje 3 🧬. Ryzyko 50/50. Sukces: +15 EP. Porażka: rozród ×0,6 w tej turze.' },
         { id: 'ignore', label: 'Zostaw to doborowi', default: true, desc: 'Nic się nie zmienia.' }
       ] },
+    /* Karty okresów geologicznych: `periods` — tylko w turach o tym tytule (np. „Karbon”),
+       `maxEra` — najpóźniejsza era, `maxPop` — tylko dla małej populacji, `rare` — rzadkie. */
+    { id: 'cambrian', name: 'Eksplozja różnorodności', icon: '🦐', art: 'know:mutation_good', periods: ['Kambr', 'Ordowik'],
+      desc: 'Po eksplozji kambryjskiej przychodzi wielka radiacja ordowicka: w morzach pojawiają się wciąż nowe plany budowy. Linia może eksperymentować z budową ciała.',
+      options: [
+        { id: 'experiment', label: 'Eksperymentuj z budową',
+          gamble: { chance: 0.55,
+            win: { effects: { stats: { defense: 1, mobility: 1 } }, knowledge: 'cambrian', text: 'Nowy plan budowy się sprawdził — obrona +1 i mobilność +1 na stałe.' },
+            lose: { effects: { stats: { metabolism: 1 } }, knowledge: 'cambrian', text: 'Nowy kształt okazał się kosztowny — metabolizm +1 na stałe.' } },
+          desc: 'Ryzyko (55%). Sukces: obrona +1 i mobilność +1 na stałe. Porażka: metabolizm +1 na stałe.' },
+        { id: 'keep', label: 'Zostań przy sprawdzonym', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'reef', name: 'Rafy dają schronienie', icon: '🪸', art: 'niche:przybrzeze', periods: ['Ordowik', 'Sylur'], niches: ['woda', 'przybrzeze'],
+      desc: 'Pierwsze wielkie rafy tworzą labirynt kryjówek. Życie w rafie chroni, ale pokarmu jest tam mniej.',
+      options: [
+        { id: 'shelter', label: 'Zamieszkaj w rafie', cost: { reserves: 2 }, turnMod: { predBonus: -4, foodBonus: -1 }, nextMod: { predBonus: -2 }, knowledge: 'reefs',
+          desc: 'Kosztuje 2 ⚡: presja drapieżników −4 w tej turze i −2 w następnej, ale pokarm −1.' },
+        { id: 'open', label: 'Zostań na otwartej wodzie', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'giants', name: 'Tlen 35% — czas olbrzymów', icon: '🦟', art: 'ui:sprout', periods: ['Karbon'],
+      desc: 'Powietrze karbonu zawiera najwięcej tlenu w historii. Zwierzęta mogą urosnąć do niespotykanych rozmiarów — dopóki tlenu starcza.',
+      options: [
+        { id: 'grow', label: 'Rośnij', effects: { stats: { defense: 2, metabolism: 1 } }, knowledge: 'oxygen_size', echo: { id: 'giant_echo', after: 2 },
+          desc: 'Obrona +2 i metabolizm +1 na stałe. Gdy tlenu ubędzie, olbrzymy będą miały kłopot.' },
+        { id: 'stay', label: 'Zachowaj rozmiar', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'coal_swamp', name: 'Bagienne lasy', icon: '🌿', art: 'ui:sprout', periods: ['Dewon', 'Karbon'], niches: ['lad', 'przybrzeze'],
+      desc: 'Paprocie drzewiaste i skrzypy tworzą bujne, bagniste lasy. Pokarmu jest dużo, ale w gęstwinie czają się łowcy.',
+      options: [
+        { id: 'forage', label: 'Żeruj w lasach', turnMod: { foodBonus: 3, predBonus: 1 }, knowledge: 'coal',
+          desc: 'Pokarm +3, presja drapieżników +1 w tej turze.' },
+        { id: 'skip', label: 'Trzymaj się brzegu', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'pangaea', name: 'Rozpad Pangei', icon: '🗺️', art: 'choice:island', periods: ['Trias', 'Jura'], minPop: 80,
+      desc: 'Superkontynent pęka, a między populacjami otwiera się ocean. Rozdzielone grupy zaczną ewoluować osobno.',
+      options: [
+        { id: 'split', label: 'Pozwól się rozdzielić', effects: { found: 0.3 }, knowledge: 'vicariance', echo: { id: 'vicariance_echo', after: 3, colony: true },
+          desc: '30% populacji zostaje po drugiej stronie oceanu i tworzy nową linię (wikariancja).' },
+        { id: 'together', label: 'Trzymaj się razem', default: true, cost: { reserves: 1 }, desc: 'Kosztuje 1 ⚡ — populacja przenosi się na jeden brzeg.' }
+      ] },
+    { id: 'flowers', name: 'Kwitnące rośliny', icon: '🌸', art: 'ui:sprout', periods: ['Kreda'],
+      desc: 'Rośliny okrytonasienne wabią zwierzęta nektarem i owocami. Kto się do nich dopasuje, zyska nowe źródło pokarmu.',
+      options: [
+        { id: 'coevolve', label: 'Dopasuj się do roślin', cost: { variation: 3 }, effects: { stats: { feeding: 1 } }, knowledge: 'coevolution_plants', echo: { id: 'pollinator_echo', after: 2 },
+          desc: 'Kosztuje 3 🧬: odżywianie +1 na stałe — i nowe zależności.' },
+        { id: 'ignore', label: 'Zostań przy dawnym pokarmie', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'nests', name: 'Gniazda dinozaurów', icon: '🥚', art: 'trait:amniotic_egg', periods: ['Jura', 'Kreda'], niches: ['lad'],
+      desc: 'Wielkie gady składają jaja we wspólnych gniazdach. To uczta — o ile nie wrócą rodzice.',
+      options: [
+        { id: 'raid', label: 'Podkradaj jaja',
+          gamble: { chance: 0.4, stat: 'mobility', per: 0.05, from: 3,
+            win: { effects: { reserves: 5 }, turnMod: { foodBonus: 2 }, text: 'Udana kradzież — +5 ⚡ i pokarm +2 w tej turze.' },
+            lose: { effects: { popLoss: 0.1 }, turnMod: { predBonus: 3 }, text: 'Rodzice wrócili — zginęło 10% populacji, presja drapieżników +3.' } },
+          desc: 'Ryzyko (szansa rośnie z mobilnością). Sukces: +5 ⚡ i pokarm +2. Porażka: ginie 10% populacji.' },
+        { id: 'skip', label: 'Omijaj gniazda', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'grassland', name: 'Trawy zastępują lasy', icon: '🌾', art: 'ui:sprout', periods: ['Neogen'], niches: ['lad', 'przybrzeze'],
+      desc: 'Klimat wysycha, lasy się kurczą, a w ich miejsce rozlewają się trawiaste równiny.',
+      options: [
+        { id: 'savanna', label: 'Wyjdź na sawannę', effects: { stats: { mobility: 1 } }, turnMod: { foodBonus: -1 }, knowledge: 'grassland',
+          desc: 'Mobilność +1 na stałe; w tej turze pokarm −1 (nauka nowego terenu).' },
+        { id: 'forest', label: 'Zostań w lesie', default: true, nextMod: { foodBonus: -3 }, desc: 'Las się kurczy: w następnej turze pokarm −3.' }
+      ] },
+    { id: 'land_bridge', name: 'Most lądowy', icon: '🌉', art: 'niche:lad', periods: ['Neogen', 'Plejstocen'], niches: ['lad'],
+      desc: 'Opadający poziom morza odsłania pomost między kontynentami. Za nim nowe tereny — i nowe choroby.',
+      options: [
+        { id: 'cross', label: 'Wędruj przez most',
+          gamble: { chance: 0.55, stat: 'mobility', per: 0.03, from: 3,
+            win: { effects: { variation: 5, popGain: 0.1 }, knowledge: 'biotic_interchange', text: 'Nowe tereny — +5 🧬 i +10% populacji.' },
+            lose: { turnMod: { diseaseLoss: 0.15 }, knowledge: 'biotic_interchange', text: 'Obce patogeny — choroba zabije ok. 15% populacji.' } },
+          desc: 'Ryzyko (szansa rośnie z mobilnością). Sukces: +5 🧬 i +10% populacji. Porażka: choroba zabija ok. 15%.' },
+        { id: 'stay', label: 'Zostań', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'refugium', name: 'Refugium', icon: '🏔️', art: 'ui:snow', periods: ['Neogen', 'Plejstocen'],
+      desc: 'Lodowce zajmują coraz więcej terenu. W osłoniętych dolinach zostały wyspy łagodnego klimatu.',
+      options: [
+        { id: 'shelter', label: 'Schroń się w refugium', cost: { reserves: 3 }, turnMod: { foodBonus: 3, predBonus: -2 }, knowledge: 'refugium',
+          desc: 'Kosztuje 3 ⚡: pokarm +3 i presja drapieżników −2 w tej turze.' },
+        { id: 'roam', label: 'Wędruj po zimnych równinach', default: true, turnMod: { foodBonus: -2 }, desc: 'Pokarm −2 w tej turze.' }
+      ] },
+    { id: 'deep_sea', name: 'Głębiny', icon: '🌑', art: 'niche:woda', niches: ['woda'],
+      desc: 'Pod strefą światła zaczyna się zimny, ciemny świat. Mniej łowców — i mniej pokarmu.',
+      options: [
+        { id: 'descend', label: 'Zejdź w głąb', effects: { stats: { defense: 1, feeding: -1 } }, knowledge: 'deep_sea',
+          desc: 'Obrona +1, ale odżywianie −1 na stałe.' },
+        { id: 'shallows', label: 'Zostań w płytkich wodach', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'red_queen', name: 'Pasożyty i Czerwona Królowa', icon: '♟️', art: 'choice:disease', minPop: 40,
+      desc: 'Pasożyty szybko dopasowują się do żywiciela. Ratunkiem jest ciągłe tasowanie genów.',
+      options: [
+        { id: 'shuffle', label: 'Tasuj geny', cost: { reserves: 2 }, effects: { variation: 5 }, knowledge: 'red_queen',
+          desc: 'Kosztuje 2 ⚡: +5 🧬 — zmienność utrudnia pasożytom adaptację.' },
+        { id: 'ignore', label: 'Zignoruj pasożyty', default: true, turnMod: { diseaseLoss: 0.08 }, desc: 'Choroba zabije ok. 8% populacji.' }
+      ] },
+    { id: 'seasonal', name: 'Wędrówki sezonowe', icon: '🦌', art: 'trait:limbs', minEra: 1,
+      desc: 'Pokarm pojawia się w różnych miejscach o różnych porach roku. Można za nim podążać.',
+      options: [
+        { id: 'migrate', label: 'Wędruj za pokarmem', cost: { reserves: 2 }, turnMod: { foodBonus: 4 }, knowledge: 'migration_season',
+          desc: 'Kosztuje 2 ⚡: pokarm +4 w tej turze.' },
+        { id: 'stay', label: 'Zostań na miejscu', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'lazarus', name: 'Takson Łazarza', icon: '🕯️', art: 'ui:bone', rare: true, maxPop: 90,
+      desc: 'W odległym zakątku przetrwała zapomniana grupa Twojej linii, uznana już za straconą.',
+      options: [
+        { id: 'welcome', label: 'Połącz się z ocalałymi', effects: { popGain: 0.25 }, knowledge: 'lazarus',
+          desc: '+25% populacji.' },
+        { id: 'apart', label: 'Niech żyją osobno', default: true, effects: { variation: 4 }, knowledge: 'lazarus', desc: '+4 🧬 — odrębna pula genów.' }
+      ] },
+    { id: 'convergence', name: 'Ewolucja zbieżna', icon: '🔁', art: 'know:parallel', rare: true, minEra: 1,
+      desc: 'Odległy gatunek rozwiązał ten sam problem co Twoja linia — zupełnie innymi genami. Podobne środowisko, podobne rozwiązania.',
+      options: [
+        { id: 'learn', label: 'Idź tą samą drogą', cost: { variation: 2 }, effects: { ep: 12 }, knowledge: 'convergence',
+          desc: 'Kosztuje 2 🧬: +12 EP.' },
+        { id: 'skip', label: 'Szukaj własnej drogi', default: true, effects: { variation: 2 }, desc: '+2 🧬.' }
+      ] },
     /* Echa decyzji: karty `chain` nie wchodzą do losowej puli. Wracają po `echo.after`
        turach jako skutek wcześniejszego wyboru, dla tej samej linii (lub jej kolonii). */
     { id: 'island_echo', chain: true, name: 'Wyspiarze się zmieniają', icon: '🏝️', art: 'choice:island',
@@ -365,8 +579,60 @@
         { id: 'bloom', label: 'Wykorzystaj obfitość', default: true, turnMod: { foodBonus: 3, birthMult: 1.3 }, nextMod: { foodBonus: -1 },
           desc: 'Pokarm +3 i rozród ×1,3 w tej turze, w następnej pokarm −1.' },
         { id: 'store', label: 'Odłóż zapasy', effects: { reserves: 5 }, desc: '+5 ⚡ od razu.' }
+      ] },
+    { id: 'giant_echo', chain: true, name: 'Tlen spada', icon: '🫁', art: 'know:extinction',
+      desc: 'Poziom tlenu wraca do normy. Olbrzymie ciała, które wyrosły w karbonie, nagle trudno wykarmić i dotlenić.',
+      options: [
+        { id: 'shrink', label: 'Niech dobór zmniejszy rozmiar', default: true, effects: { stats: { defense: -1, metabolism: -1 } }, knowledge: 'oxygen_size',
+          desc: 'Obrona −1 i metabolizm −1 na stałe — mniejsze ciało znów się opłaca.' },
+        { id: 'endure', label: 'Utrzymaj rozmiar', turnMod: { foodBonus: -4 }, nextMod: { foodBonus: -2 },
+          desc: 'Pokarm −4 w tej turze i −2 w następnej.' }
+      ] },
+    { id: 'vicariance_echo', chain: true, name: 'Dwa brzegi, dwie drogi', icon: '🗺️', art: 'choice:island',
+      desc: 'Populacja odcięta oceanem żyje osobno od wielu pokoleń. Dryf i dobór zrobiły swoje — to już prawie inny gatunek.',
+      options: [
+        { id: 'diverge', label: 'Utrwal odrębność', default: true, effects: { stats: { reproduction: 1 }, variation: 3 }, knowledge: 'vicariance',
+          desc: 'Rozród +1 na stałe i +3 🧬 — specjacja allopatryczna dobiega końca.' },
+        { id: 'adapt', label: 'Dopasuj się do nowego brzegu', effects: { stats: { feeding: 1, defense: -1 } },
+          desc: 'Odżywianie +1, obrona −1 na stałe.' }
+      ] },
+    { id: 'pollinator_echo', chain: true, name: 'Partnerzy roślin', icon: '🐝', art: 'ui:sprout',
+      desc: 'Rośliny i Twoja linia coraz bardziej od siebie zależą: rośliny potrzebują Twoich usług, Ty — ich owoców.',
+      options: [
+        { id: 'mutualism', label: 'Pogłęb współpracę', default: true, turnMod: { foodBonus: 3 }, knowledge: 'coevolution_plants',
+          desc: 'Pokarm +3 w tej turze.' },
+        { id: 'specialize', label: 'Wyspecjalizuj się', effects: { stats: { feeding: 1, mobility: -1 } },
+          desc: 'Odżywianie +1, mobilność −1 na stałe — specjalista zależy od swoich roślin.' }
+      ] },
+    /* Próba rozumu: gdy linia pierwszy raz spełni warunki zwycięstwa, w następnej turze
+       czeka ją ta karta; zwycięstwo zapada po jej rozstrzygnięciu (`trial` — nie do losowania). */
+    { id: 'trial_tools', chain: true, trial: true, name: 'Próba rozumu: ogień', icon: '🔥', art: 'trait:tool_use',
+      desc: 'Twoja rozumna linia stoi u progu kultury. Ogień daje ciepło, ochronę i gotowane jedzenie — ale trzeba go okiełznać.',
+      options: [
+        { id: 'tame', label: 'Okiełznaj ogień',
+          gamble: { chance: 0.5, stat: 'intelligence', per: 0.04, from: 14,
+            win: { effects: { stats: { feeding: 1 }, ep: 10 }, knowledge: 'fire', text: 'Ogień okiełznany — gotowane jedzenie (odżywianie +1) i +10 EP.' },
+            lose: { effects: { popLoss: 0.12 }, knowledge: 'fire', text: 'Pożar wymknął się spod kontroli — zginęło 12% populacji.' } },
+          desc: 'Ryzyko (szansa rośnie z inteligencją). Sukces: odżywianie +1 i +10 EP. Porażka: ginie 12% populacji.' },
+        { id: 'teach', label: 'Ucz młodych krok po kroku', cost: { reserves: 3 }, effects: { variation: 2 }, knowledge: 'fire',
+          desc: 'Kosztuje 3 ⚡: bezpiecznie, +2 🧬.' },
+        { id: 'stone', label: 'Zostań przy kamiennych narzędziach', default: true, desc: 'Nic się nie zmienia.' }
+      ] },
+    { id: 'trial_sound', chain: true, trial: true, name: 'Próba rozumu: imiona', icon: '🎶', art: 'trait:vocal_culture',
+      desc: 'Pieśni Twojej linii stają się językiem: każdy osobnik ma imię, a wiedza wędruje z pokolenia na pokolenie. Czy grupy zrozumieją się nawzajem?',
+      options: [
+        { id: 'names', label: 'Wspólny język całej populacji',
+          gamble: { chance: 0.5, stat: 'intelligence', per: 0.04, from: 14,
+            win: { effects: { stats: { defense: 1 }, ep: 10 }, knowledge: 'language', text: 'Grupy się porozumiały — wspólne polowania i obrona (obrona +1) i +10 EP.' },
+            lose: { effects: { popLoss: 0.1 }, knowledge: 'language', text: 'Dialekty podzieliły populację — 10% odłączyło się i zginęło.' } },
+          desc: 'Ryzyko (szansa rośnie z inteligencją). Sukces: obrona +1 i +10 EP. Porażka: ginie 10% populacji.' },
+        { id: 'chorus', label: 'Wspólne pieśni w małych grupach', cost: { reserves: 3 }, effects: { variation: 2 }, knowledge: 'language',
+          desc: 'Kosztuje 3 ⚡: bezpiecznie, +2 🧬.' },
+        { id: 'quiet', label: 'Każda grupa śpiewa po swojemu', default: true, desc: 'Nic się nie zmienia.' }
       ] }
   ];
+  // Karty próby rozumu dla dróg do zwycięstwa.
+  var TRIAL = { tools: 'trial_tools', sound: 'trial_sound' };
 
 
   /*
@@ -435,6 +701,18 @@
     ]
   };
 
+
+  /*
+   * Tytuły przetrwania (zwycięstwa alternatywne): jawne cele widoczne od mezozoiku z paskiem
+   * postępu. Przetrwanie z tytułem jest warte więcej punktów (`points`) niż samo przetrwanie.
+   * Kolejność = pierwszeństwo, gdy spełnionych jest kilka. Teksty: ENDINGS.legacy (te same id).
+   */
+  var LEGACY = [
+    { id: 'sky', type: 'niche', niche: 'powietrze', max: 1, points: 150, desc: 'Któraś linia zajmie niszę powietrzną.' },
+    { id: 'radiation', type: 'niches', max: 3, points: 120, desc: 'Linie zajmą jednocześnie co najmniej 3 nisze.' },
+    { id: 'legion', type: 'maxPop', max: 450, points: 120, desc: 'Łączna populacja gatunku sięgnie 450 osobników.' },
+    { id: 'phoenix', type: 'phoenix', max: 30, points: 80, desc: 'Populacja spadnie poniżej 30, a gatunek mimo to przetrwa.' }
+  ];
 
   /*
    * Prolog: prekambr (4,5 mld – 541 mln lat temu), zanim ruszy właściwa gra. Trzy wybory
@@ -597,7 +875,7 @@
   // Poziomy trudności (ZALOZENIA — dopasowanie wyzwania).
   var DIFFICULTIES = {
     latwy:    { label: 'Łatwy',    startEp: 34, goal: 15, catMult: 0.9, predMult: 0.95, coevo: 0.8 },
-    normalny: { label: 'Normalny', startEp: 28, goal: 16, catMult: 1.15, predMult: 1.05, coevo: 1.0 },
+    normalny: { label: 'Normalny', startEp: 26, goal: 16, catMult: 1.2, predMult: 1.05, coevo: 1.0 },
     trudny:   { label: 'Trudny',   startEp: 26, goal: 17, catMult: 1.3, predMult: 1.2, coevo: 1.2 }
   };
 
@@ -628,11 +906,11 @@
 
   var CATEGORIES = {
     pokarm: 'Pokarm', lokomocja: 'Lokomocja', obrona: 'Obrona', zmysly: 'Zmysły',
-    rozrod: 'Rozród', termoregulacja: 'Termoregulacja', uklad_nerwowy: 'Układ nerwowy'
+    rozrod: 'Rozród', termoregulacja: 'Termoregulacja', uklad_nerwowy: 'Układ nerwowy', rzadkie: 'Rzadkie warianty'
   };
   var CATEGORY_ICONS = {
     pokarm: '🍽️', lokomocja: '🦿', obrona: '🛡️', zmysly: '👁️',
-    rozrod: '🥚', termoregulacja: '🌡️', uklad_nerwowy: '🧠'
+    rozrod: '🥚', termoregulacja: '🌡️', uklad_nerwowy: '🧠', rzadkie: '✨'
   };
 
   /*
@@ -745,7 +1023,34 @@
       desc: 'Złożone sygnały dźwiękowe, imiona i tradycje łowieckie przekazywane przez naukę — kultura bez rąk.' },
     { id: 'tool_use', name: 'Używanie narzędzi', icon: '🪓', category: 'uklad_nerwowy', cost: 34, requires: ['big_brain', 'social', 'grasping_hand'], path: 'intelligence', minEra: 2,
       effects: { intelligence: 3, feeding: 2, metabolism: 1 }, tradeoff: 'Kulminacja: wymaga mózgu, życia społecznego i ręki chwytnej.',
-      desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' }
+      desc: 'Wytwarzanie i używanie narzędzi to próg kultury i technologii.' },
+
+    // --- Rzadkie warianty (`rare`): kupić można dopiero, gdy pojawią się w puli genów (jeden na erę) ---
+    { id: 'venom', name: 'Jad', icon: '🐍', category: 'rzadkie', cost: 18, requires: [], rare: true,
+      effects: { defense: 2, feeding: 1, metabolism: 1 }, tradeoff: 'Wytwarzanie jadu kosztuje energię.',
+      desc: 'Toksyny obezwładniają zdobycz i zniechęcają drapieżniki.' },
+    { id: 'bioluminescence', name: 'Bioluminescencja', icon: '✨', category: 'rzadkie', cost: 14, requires: [], rare: true,
+      effects: { defense: 1, reproduction: 1, metabolism: 1 }, tradeoff: 'Wytwarzanie światła kosztuje energię; działa w mroku wody, na lądzie i w powietrzu niewiele daje.',
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { defense: -1, reproduction: -1 }, note: 'poza wodą światło ginie w dziennym blasku' }],
+      desc: 'Własne światło wabi partnerów i myli drapieżniki.' },
+    { id: 'electroreception', name: 'Elektrorecepcja', icon: '⚡', category: 'rzadkie', cost: 16, requires: [], rare: true,
+      effects: { feeding: 1, defense: 1, metabolism: 1 }, tradeoff: 'Pola elektryczne wyczuwa się tylko w wodzie.',
+      conditions: [{ niches: ['lad', 'powietrze'], effects: { feeding: -1, defense: -1 }, note: 'w powietrzu nie ma pól elektrycznych do wyczucia' }],
+      desc: 'Narządy wyczuwające słabe pola elektryczne zdobyczy — nawet ukrytej w mule.' },
+    { id: 'spines', name: 'Kolce', icon: '🦔', category: 'rzadkie', cost: 14, requires: [], rare: true,
+      effects: { defense: 3, mobility: -2 }, tradeoff: 'Kolce chronią, ale utrudniają ruch i ucieczkę.',
+      desc: 'Ostre kolce sprawiają, że mało który łowca odważy się zaatakować.' },
+    { id: 'gigantism', name: 'Gigantyzm', icon: '🦣', category: 'rzadkie', cost: 18, requires: [], rare: true, excludes: ['dwarfism'],
+      effects: { defense: 3, metabolism: 2, reproduction: -1 }, tradeoff: 'Olbrzym jest bezpieczny, ale potrzebuje dużo pokarmu i rzadziej się rozmnaża. Wyklucza karłowatość.',
+      desc: 'Ogromne rozmiary — jak u olbrzymich żółwi czy mamutów.' },
+    { id: 'dwarfism', name: 'Karłowatość', icon: '🐁', category: 'rzadkie', cost: 18, requires: [], rare: true, excludes: ['gigantism'],
+      effects: { metabolism: -1, defense: -2, mobility: -1 }, tradeoff: 'Mały organizm zjada mało, ale łatwo pada ofiarą i daleko nie ucieknie. Wyklucza gigantyzm.',
+      desc: 'Zmniejszenie rozmiarów, typowe dla zwierząt na małych wyspach.' },
+    { id: 'hibernation', name: 'Sen zimowy', icon: '💤', category: 'rzadkie', cost: 16, requires: [], rare: true,
+      effects: {}, tradeoff: 'Pomaga tylko w chłodzie; w ciepłym klimacie śpiący traci czas na jedzenie.',
+      conditions: [{ climate: 'zimno', effects: { metabolism: -1, reproduction: -1 }, note: 'w chłodzie zapada w odrętwienie: oszczędza energię, ale rzadziej się rozmnaża' },
+        { climate: 'cieplo', effects: { feeding: -1 }, note: 'w cieple sen zabiera czas na żerowanie' }],
+      desc: 'W chłodne miesiące linia zapada w odrętwienie i przeczekuje głód.' }
   ];
 
   function land(food, predators) { return { food: food, predators: predators }; }
@@ -874,24 +1179,26 @@
   ];
 
   /*
-   * Cele ery: w każdej erze losowane `ERA_GOALS_PER_ERA` celów pobocznych. Cel
-   * spełniony w dowolnej turze ery daje nagrodę EP od razu; `atEnd` — sprawdzany
-   * dopiero na koniec ery. Typy: niche, lineages, population, stat, reserves,
-   * variation, niches, catLoss (straty w katastrofie ery ≤ max), noStarvation.
+   * Cele ery jako kontrakty: na początku ery gracz wybiera jeden z `CONTRACT.options`
+   * celów (bez wyboru — pierwszy). Cel spełniony w dowolnej turze ery daje nagrodę EP
+   * (× CONTRACT.rewardMult) i przywilej `perk` na resztę gry; `atEnd` — sprawdzany
+   * dopiero na koniec ery. Scenariusz może narzucić cel (`forcedGoals`). Typy: niche,
+   * lineages, population, stat, reserves, variation, niches, catLoss (straty w
+   * katastrofie ery ≤ max), noStarvation.
    */
-  var ERA_GOALS_PER_ERA = 2;
+  var ERA_GOALS_PER_ERA = 1;
   var ERA_GOALS = [
-    { id: 'land', label: 'Wyjdź na ląd', desc: 'Któraś linia zajmuje niszę lądową.', type: 'niche', niche: 'lad', eras: [0, 1], reward: 10 },
-    { id: 'two_lines', label: 'Dwie gałęzie', desc: 'Na koniec ery żyją co najmniej 2 linie.', type: 'lineages', min: 2, atEnd: true, eras: [0, 1, 2], reward: 8 },
-    { id: 'abundance', label: 'Liczna populacja', desc: 'Łączna populacja sięga 300 osobników.', type: 'population', min: 300, eras: [0, 1, 2], reward: 8 },
-    { id: 'armor', label: 'Twierdza', desc: 'Któraś linia ma obronę co najmniej 8.', type: 'stat', stat: 'defense', min: 8, eras: [0, 1], reward: 8 },
-    { id: 'fat', label: 'Tłuste lata', desc: 'Któraś linia gromadzi co najmniej 10 ⚡ rezerw.', type: 'reserves', min: 10, eras: [0, 1, 2], reward: 6 },
-    { id: 'variation', label: 'Bogata pula genów', desc: 'Któraś linia ma co najmniej 20 🧬 zmienności.', type: 'variation', min: 20, eras: [0, 1, 2], reward: 8 },
-    { id: 'radiation', label: 'Radiacja', desc: 'Linie zajmują jednocześnie co najmniej 3 nisze.', type: 'niches', min: 3, eras: [1, 2], reward: 12 },
-    { id: 'sky', label: 'Podbój przestworzy', desc: 'Któraś linia zajmuje niszę powietrzną.', type: 'niche', niche: 'powietrze', eras: [1, 2], reward: 12 },
-    { id: 'smart', label: 'Spryt', desc: 'Któraś linia osiąga inteligencję 8.', type: 'stat', stat: 'intelligence', min: 8, eras: [1], reward: 10 },
-    { id: 'weather', label: 'Przetrwać kataklizm', desc: 'W katastrofie tej ery gatunek traci najwyżej 25% populacji.', type: 'catLoss', max: 0.25, eras: [0, 1, 2], reward: 10 },
-    { id: 'fed', label: 'Syta era', desc: 'Przez całą erę żadna linia nie traci osobników z głodu.', type: 'noStarvation', atEnd: true, eras: [0, 1, 2], reward: 8 }
+    { id: 'land', label: 'Wyjdź na ląd', desc: 'Któraś linia zajmuje niszę lądową.', type: 'niche', niche: 'lad', eras: [0, 1], reward: 10, perk: 'wanderers' },
+    { id: 'two_lines', label: 'Dwie gałęzie', desc: 'Na koniec ery żyją co najmniej 2 linie.', type: 'lineages', min: 2, atEnd: true, eras: [0, 1, 2], reward: 8, perk: 'gene_pool' },
+    { id: 'abundance', label: 'Liczna populacja', desc: 'Łączna populacja sięga 220 osobników.', type: 'population', min: 220, eras: [0, 1, 2], reward: 8, perk: 'steady' },
+    { id: 'armor', label: 'Twierdza', desc: 'Któraś linia ma obronę co najmniej 8.', type: 'stat', stat: 'defense', min: 8, eras: [0, 1], reward: 8, perk: 'cheap_defense' },
+    { id: 'fat', label: 'Tłuste lata', desc: 'Któraś linia gromadzi co najmniej 10 ⚡ rezerw.', type: 'reserves', min: 10, eras: [0, 1, 2], reward: 6, perk: 'big_store' },
+    { id: 'variation', label: 'Bogata pula genów', desc: 'Któraś linia ma co najmniej 14 🧬 zmienności.', type: 'variation', min: 14, eras: [0, 1, 2], reward: 8, perk: 'lucky' },
+    { id: 'radiation', label: 'Radiacja', desc: 'Linie zajmują jednocześnie co najmniej 3 nisze.', type: 'niches', min: 3, eras: [1, 2], reward: 12, perk: 'cheap_move' },
+    { id: 'sky', label: 'Podbój przestworzy', desc: 'Któraś linia zajmuje niszę powietrzną.', type: 'niche', niche: 'powietrze', eras: [1, 2], reward: 12, perk: 'cheap_senses' },
+    { id: 'smart', label: 'Spryt', desc: 'Któraś linia osiąga inteligencję 8.', type: 'stat', stat: 'intelligence', min: 8, eras: [1], reward: 10, perk: 'cheap_nerves' },
+    { id: 'weather', label: 'Przetrwać kataklizm', desc: 'W katastrofie tej ery gatunek traci najwyżej 25% populacji.', type: 'catLoss', max: 0.25, eras: [0, 1, 2], reward: 10, perk: 'hardy' },
+    { id: 'fed', label: 'Syta era', desc: 'Przez całą erę żadna linia nie traci osobników z głodu.', type: 'noStarvation', atEnd: true, eras: [0, 1, 2], reward: 8, perk: 'steady' }
   ];
 
   /* Ocena „czy zwycięstwo jest jeszcze możliwe” — celowo hojna, by nie ogłosić
@@ -900,28 +1207,33 @@
   var OUTLOOK = { growth: 0.45, epPerTurn: 40 };
 
   // Wynik partii (do porównywania udanych gier) i mnożnik trudności.
-  var SCORE = { won: 500, survived: 200, perIntelligence: 10, popDiv: 3, popMax: 200, perGoal: 25,
-    perNiche: 20, perTurnLeft: 40, perAchievement: 15, diffMult: { latwy: 0.75, normalny: 1, trudny: 1.3 } };
+  var SCORE = { won: 500, survived: 200, perIntelligence: 10, popDiv: 3, popMax: 200, perGoal: 40,
+    perNiche: 20, perTurnLeft: 40, perAchievement: 15, perVariant: 5, trialWin: 40, diffMult: { latwy: 0.75, normalny: 1, trudny: 1.3 } };
 
   // Osiągnięcia (zapisywane między partiami w przeglądarce).
   var ACHIEVEMENTS = [
     { id: 'steward', icon: '🌍', label: 'Zrównoważona cywilizacja', desc: 'Zakończ epilog „Antropocen” zrównoważoną cywilizacją: rozwój bez zniszczenia biosfery.' },
-    { id: 'web', icon: '🔺', label: 'Sieć troficzna', desc: 'Utrzymaj jednocześnie linię roślinożerną i mięsożerną przez trzy tury.' },
-    { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.' },
-    { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.' },
+    { id: 'web', icon: '🔺', label: 'Sieć troficzna', desc: 'Utrzymaj jednocześnie linię roślinożerną i mięsożerną przez dwie tury.', progress: { stat: 'webTurns', max: 2 } },
+    { id: 'gause', icon: '⚔️', label: 'Zasada Gausego', desc: 'Doprowadź do wyparcia dwóch konkurentów z ich nisz.', progress: { stat: 'rivalsDisplaced', max: 2 } },
+    { id: 'echo', icon: '🔔', label: 'Skutki decyzji', desc: 'Doczekaj się dwóch kart-ech, czyli następstw własnych wyborów.', progress: { stat: 'echoes', max: 2 } },
     { id: 'first_win', icon: '🏆', label: 'Iskra rozumu', desc: 'Wygraj partię.' },
     { id: 'tools_win', icon: '🪓', label: 'Kultura narzędziowa', desc: 'Wygraj drogą narzędzi.' },
     { id: 'sound_win', icon: '🐬', label: 'Pieśń oceanu', desc: 'Wygraj drogą kultury akustycznej.' },
     { id: 'hard_win', icon: '⛰️', label: 'Twarda szkoła', desc: 'Wygraj na poziomie trudnym.' },
     { id: 'early_win', icon: '⏩', label: 'Przyspieszona ewolucja', desc: 'Wygraj co najmniej 2 tury przed końcem.' },
     { id: 'phoenix', icon: '🔥', label: 'Z popiołów', desc: 'Wygraj, choć populacja spadła kiedyś poniżej 30.' },
-    { id: 'radiation', icon: '🌳', label: 'Radiacja adaptacyjna', desc: 'Miej linie jednocześnie we wszystkich 4 niszach.' },
+    { id: 'radiation', icon: '🌳', label: 'Radiacja adaptacyjna', desc: 'Miej linie jednocześnie we wszystkich 4 niszach.', progress: { stat: 'maxNiches', max: 4 } },
     { id: 'sky', icon: '🕊️', label: 'Przestworza', desc: 'Zajmij niszę powietrzną.' },
     { id: 'perm', icon: '🌋', label: 'Wielkie Umieranie', desc: 'Przejdź wymieranie permskie, tracąc mniej niż 30% populacji.' },
-    { id: 'gambler', icon: '🎲', label: 'Szczęście sprzyja odważnym', desc: 'Wygraj 3 ryzyka w jednej partii.' },
-    { id: 'goals', icon: '📜', label: 'Kronikarz er', desc: 'Spełnij wszystkie cele er w partii.' },
-    { id: 'abundance', icon: '🐟', label: 'Obfitość', desc: 'Łączna populacja sięga 600 osobników.' },
-    { id: 'codex', icon: '📚', label: 'Encyklopedysta', desc: 'Odkryj co najmniej 25 pojęć w Kodeksie.' }
+    { id: 'gambler', icon: '🎲', label: 'Szczęście sprzyja odważnym', desc: 'Wygraj 3 ryzyka w jednej partii.', progress: { stat: 'gamblesWon', max: 3 } },
+    { id: 'goals', icon: '📜', label: 'Kronikarz er', desc: 'Wypełnij wszystkie kontrakty er w partii.' },
+    { id: 'abundance', icon: '🐟', label: 'Obfitość', desc: 'Łączna populacja sięga 500 osobników.', progress: { stat: 'maxPop', max: 500 } },
+    { id: 'codex', icon: '📚', label: 'Encyklopedysta', desc: 'Odkryj co najmniej 40 pojęć w Kodeksie (licząc wszystkie partie).', progress: { stat: 'codexKnown', max: 40 } },
+    { id: 'trial', icon: '🔥', label: 'Ogień i słowo', desc: 'Przejdź próbę rozumu, wygrywając jej ryzyko.' },
+    { id: 'breeder', icon: '🧪', label: 'Hodowca zmienności', desc: 'Utrwal 8 wariantów z puli genów w jednej partii.', progress: { stat: 'variants', max: 8 } },
+    { id: 'oddity', icon: '✨', label: 'Osobliwość', desc: 'Zdobądź rzadki wariant (np. jad lub bioluminescencję).' },
+    { id: 'legacy', icon: '🏅', label: 'Inna droga do sukcesu', desc: 'Zakończ partię przetrwaniem z tytułem (np. „Władcy przestworzy”).' },
+    { id: 'daily', icon: '📅', label: 'Świat dnia', desc: 'Ukończ partię w świecie dnia.' }
   ];
 
   // Scenariusze lekcyjne (ZALOZENIA sekcja 8/6).
@@ -938,7 +1250,22 @@
       startTraits: ['fins', 'scales', 'jaws', 'omnivory', 'endothermy', 'insulation', 'ganglia', 'limbs', 'amniotic_egg'],
       rules: 'Start w kenozoiku na lądzie. Wygrać można tylko narzędziami.',
       intro: 'Start w kenozoiku jako zaawansowany, stałocieplny gatunek. Chłodny świat i tylko sześć tur, ' +
-        'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' }
+        'by z rozwiniętego mózgu wykuć rozumność. Twardy sprint końcowy.' },
+    // Scenariusze do odblokowania (`unlock`: ach — dowolna z odznak; count — liczba odznak).
+    { id: 'mammals', name: 'Po K–Pg: radiacja ssaków', icon: '🐭', difficulty: 'normalny', startEra: 2,
+      startEp: 66, goal: 15, startNiche: 'lad', forcedGoals: [{ era: 2, id: 'radiation' }],
+      startTraits: ['fins', 'scales', 'jaws', 'limbs', 'amniotic_egg', 'endothermy', 'insulation', 'ganglia', 'brain', 'many_eggs'],
+      unlock: { ach: ['first_win'] },
+      rules: 'Start w kenozoiku jako mały ssak na lądzie. Obie drogi do rozumu; kontrakt ery: radiacja w 3 nisze.',
+      intro: 'Dinozaury zniknęły, świat stoi otworem. Rozdziel się na nowe nisze i wykuj rozum w sześć tur.' },
+    { id: 'island', name: 'Wyspa', icon: '🏝️', difficulty: 'normalny', startEra: 0,
+      capMult: { woda: 0.75, przybrzeze: 0.75, lad: 0.75, powietrze: 0.75 }, rareTraits: ['dwarfism', 'gigantism'],
+      unlock: { count: 3 },
+      rules: 'Każda nisza wyżywi o 25% mniej osobników. Karłowatość i gigantyzm wyspowy dostępne od początku.',
+      intro: 'Mała, odizolowana wyspa: ciasno, mało zasobów, ale osobliwe drogi ewolucji.' },
+    { id: 'sandbox', name: 'Tryb otwarty', icon: '🧪', difficulty: 'latwy', startEra: 0, startEp: 80, sandbox: true,
+      rules: 'Bez celu: eksperymentuj z ewolucją przez wszystkie ery. Wynik i odznaki nie są zapisywane.',
+      intro: 'Laboratorium ewolucji — sprawdź, co się stanie, gdy…' }
   ];
 
   var KNOWLEDGE = {
@@ -1115,7 +1442,130 @@
       fossil: 'David Jablonski wykazał, że szeroki zasięg geograficzny chronił mięczaki podczas wymierania K–Pg.' },
     milestone: { icon: '🏛️', title: 'Kamienie milowe ewolucji',
       body: 'Każda era premiuje inne adaptacje: szkielet i kończyny w paleozoiku, jaja lądowe i ' +
-        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' }
+        'stałocieplność w mezozoiku, mózg i narzędzia w kenozoiku.' },
+    variants: { icon: '🧪', title: 'Dobór działa na istniejące warianty',
+      body: 'Mutacje powstają losowo i nikt ich nie „zamawia”. W populacji zawsze krąży wiele wariantów; środowisko ' +
+        'sprawia, że niektóre częściej przeżywają i się rozmnażają — i to one się upowszechniają. Reszta znika w dryfie.',
+      fossil: 'U ćmy krępaka brzozowego w XIX-wiecznej Anglii w zadymionych miastach upowszechnił się ciemny wariant — był gorzej widoczny dla ptaków.' },
+    no_goal: { icon: '🧭', title: 'Ewolucja nie ma celu — cel ma gracz',
+      body: 'Ewolucja nie dąży do inteligencji ani do „lepszych” form. Gatunki dopasowują się do bieżących warunków, ' +
+        'a większość linii nigdy nie rozwija dużego mózgu. Cel „rozumu” wyznacza ta gra — nie przyroda.',
+      fossil: 'Bakterie, rekiny i skrzypłocze trwają setki milionów lat bez dużego mózgu — to też ewolucyjny sukces.' },
+    cambrian: { icon: '🦐', title: 'Eksplozja kambryjska',
+      body: 'Ok. 539–515 mln lat temu w krótkim (geologicznie) czasie pojawiły się niemal wszystkie dzisiejsze typy zwierząt: ' +
+        'szkielety, oczy, odnóża. Sprzyjały temu więcej tlenu i wyścig między drapieżnikami a ofiarami.',
+      fossil: 'Łupki z Burgess w Kanadzie i Chengjiang w Chinach zachowały nawet miękkie ciała kambryjskich zwierząt.' },
+    reefs: { icon: '🪸', title: 'Rafy — miasta oceanu',
+      body: 'Rafy tworzą labirynt kryjówek i dają schronienie tysiącom gatunków. Pierwsze wielkie rafy budowały w ordowiku ' +
+        'i sylurze korale i gąbki.', fossil: 'Ordowickie rafy tworzyły korale denkowe i czteropromienne, dziś wymarłe.' },
+    oxygen_size: { icon: '🫁', title: 'Tlen a rozmiar ciała',
+      body: 'Owady oddychają tchawkami, a tlen dociera przez nie tylko na niewielką odległość. Gdy w karbonie tlenu było ' +
+        'ok. 35%, owady mogły być olbrzymie; gdy go ubyło, olbrzymy zniknęły.',
+      fossil: 'Ważka Meganeura z karbonu miała rozpiętość skrzydeł ok. 70 cm.' },
+    coal: { icon: '🌿', title: 'Lasy węglowe',
+      body: 'W karbonie bagniste lasy paproci drzewiastych i widłaków porastały ogromne obszary. Martwe drzewa zalegały ' +
+        'w bagnach i z czasem zamieniły się w węgiel kamienny.', fossil: 'Polskie złoża węgla na Śląsku pochodzą z karbonu.' },
+    vicariance: { icon: '🗺️', title: 'Wikariancja',
+      body: 'Gdy bariera (ocean, góry, rzeka) rozdzieli populację, obie części ewoluują osobno i mogą dać dwa gatunki. ' +
+        'Rozpad kontynentów rozdzielił wiele grup zwierząt.', fossil: 'Strusie, nandu i emu to potomkowie ptaków rozdzielonych rozpadem Gondwany.' },
+    coevolution_plants: { icon: '🌸', title: 'Koewolucja roślin i zwierząt',
+      body: 'Rośliny kwiatowe i owady zapylające zmieniały się razem: kwiat dopasowuje się do zapylacza, zapylacz do kwiatu. ' +
+        'Obie strony zyskują, ale też od siebie zależą.', fossil: 'Storczyk Darwina ma ostrogę długości 30 cm — Darwin przewidział istnienie ćmy z równie długim językiem.' },
+    grassland: { icon: '🌾', title: 'Sawanny i trawy',
+      body: 'Ok. 20 mln lat temu klimat wysechł, a trawy rozprzestrzeniły się po kontynentach. Zwierzęta otwartych przestrzeni ' +
+        'stały się szybsze, wyższe, a ich zęby — odporne na krzemionkę w trawie.', fossil: 'Konie z miocenu mają coraz wyższe korony zębów — przystosowanie do jedzenia trawy.' },
+    biotic_interchange: { icon: '🌉', title: 'Wielka wymiana fauny',
+      body: 'Gdy powstał pomost lądowy, zwierzęta z dwóch kontynentów zaczęły się mieszać. Jedne zyskały nowe tereny, ' +
+        'inne wyginęły w konkurencji lub od nowych chorób.', fossil: 'Ok. 3 mln lat temu Przesmyk Panamski połączył obie Ameryki — tak do Ameryki Południowej trafiły koty i niedźwiedzie.' },
+    refugium: { icon: '🏔️', title: 'Refugia',
+      body: 'W czasie zlodowaceń gatunki przetrwały w osłoniętych enklawach łagodniejszego klimatu — refugiach. ' +
+        'Stamtąd, po ociepleniu, zasiedlały kontynent na nowo.', fossil: 'Buki i dęby wróciły do Europy Środkowej z refugiów na Bałkanach i Półwyspie Iberyjskim.' },
+    deep_sea: { icon: '🌑', title: 'Życie w głębinach',
+      body: 'Poniżej 200 m słońce nie dociera. Zwierzęta głębin są oszczędne, często świecą i żywią się tym, co opada z góry. ' +
+        'Drapieżników jest tam mniej, ale pokarmu też.', fossil: 'Latimeria, „żywa skamielina”, przetrwała w głębinach Oceanu Indyjskiego.' },
+    red_queen: { icon: '♟️', title: 'Hipoteza Czerwonej Królowej',
+      body: 'Pasożyty i żywiciele ścigają się ewolucyjnie bez końca: trzeba się zmieniać, by pozostać w miejscu. ' +
+        'Rozmnażanie płciowe tasuje geny i utrudnia pasożytom dopasowanie.', fossil: 'Ślimaki Potamopyrgus częściej rozmnażają się płciowo tam, gdzie jest więcej pasożytów.' },
+    migration_season: { icon: '🦌', title: 'Wędrówki',
+      body: 'Wiele zwierząt podąża za pokarmem z porami roku. Wędrówka kosztuje energię, ale pozwala korzystać ' +
+        'z zasobów, których w jednym miejscu by zabrakło.', fossil: 'Gnu w Serengeti co roku pokonują ok. 1000 km za deszczami i świeżą trawą.' },
+    lazarus: { icon: '🕯️', title: 'Takson Łazarza',
+      body: 'Tak nazywa się grupę, która znika z zapisu kopalnego, a potem pojawia się znowu — przetrwała gdzieś, ' +
+        'gdzie skamieniałości się nie tworzyły.', fossil: 'Latimerię uważano za wymarłą 66 mln lat temu, dopóki w 1938 r. nie złowiono żywej.' },
+    convergence: { icon: '🔁', title: 'Ewolucja zbieżna',
+      body: 'Niespokrewnione gatunki w podobnych warunkach wykształcają podobne rozwiązania: kształt, zmysły, zachowania. ' +
+        'Dobór naturalny wielokrotnie „odkrywa” te same odpowiedzi.', fossil: 'Ichtiozaury (gady), delfiny (ssaki) i rekiny (ryby) mają niemal ten sam opływowy kształt.' },
+    fire: { icon: '🔥', title: 'Ogień i kultura',
+      body: 'Ogień ogrzewał, chronił przed drapieżnikami i pozwalał gotować — gotowane jedzenie dostarcza więcej energii, ' +
+        'co mogło wspierać rozwój dużego mózgu.', fossil: 'Ślady kontrolowanego ognia w jaskini Wonderwerk w RPA mają ok. 1 mln lat.' },
+    language: { icon: '🎶', title: 'Język i imiona',
+      body: 'Język pozwala przekazywać wiedzę, planować i współpracować w dużych grupach. U waleni i delfinów ' +
+        'sygnały dźwiękowe pełnią funkcję imion i tradycji.', fossil: 'Pieśni humbaków rozchodzą się po oceanie jak moda — od populacji do populacji.' },
+    island_rule: { icon: '🏝️', title: 'Reguła wyspowa',
+      body: 'Na wyspach duże zwierzęta często karleją (mało pokarmu), a małe olbrzymieją (brak drapieżników). ' +
+        'To przykład tego, jak środowisko kształtuje rozmiar ciała.', fossil: 'Na Krecie i Malcie żyły słonie wielkości kucyka, a na Mauritiusie — ptak dodo, olbrzymi gołąb.' },
+    venom: { icon: '🐍', title: 'Jad',
+      body: 'Jad to mieszanina toksyn wstrzykiwana zębami, żądłem lub kolcem. Wyewoluował niezależnie dziesiątki razy: ' +
+        'u węży, pająków, meduz, ryb, a nawet ssaków.', fossil: 'Dziobak — samiec ma jadowity kolec na tylnych łapach.' },
+    bioluminescence: { icon: '✨', title: 'Bioluminescencja',
+      body: 'Wiele organizmów morskich wytwarza światło w reakcji chemicznej. Służy do wabienia ofiar i partnerów ' +
+        'oraz do maskowania sylwetki od spodu.', fossil: 'Ok. 3/4 zwierząt głębinowych potrafi świecić.' },
+    electroreception: { icon: '⚡', title: 'Elektrorecepcja',
+      body: 'Rekiny, płaszczki i dziobaki wyczuwają słabe pola elektryczne wytwarzane przez mięśnie innych zwierząt — ' +
+        'nawet ukrytych w piasku.', fossil: 'Ampułki Lorenziniego rekinów wyczuwają pole rzędu miliardowych części wolta na centymetr.' },
+    spines: { icon: '🦔', title: 'Kolce i pancerze',
+      body: 'Kolce, płyty i pancerze to obrona pasywna: zwierzę nie musi uciekać, ale ciężka zbroja ogranicza ruch ' +
+        'i kosztuje materiał.', fossil: 'Ankylozaury miały kostne płyty i maczugę na ogonie; jeżozwierze bronią się kolcami do dziś.' },
+    arthropods: { icon: '🦂', title: 'Stawonogi',
+      body: 'Stawonogi (owady, pajęczaki, skorupiaki) mają zewnętrzny szkielet z chityny i członowane odnóża. ' +
+        'To najliczniejsza grupa zwierząt na Ziemi.', fossil: 'Trylobity żyły przez prawie 300 mln lat — od kambru do permu.' },
+    cephalopods: { icon: '🐙', title: 'Głowonogi',
+      body: 'Ośmiornice, kałamarnice i mątwy mają największe mózgi wśród bezkręgowców, zmieniają barwę w ułamku sekundy ' +
+        'i potrafią rozwiązywać zadania. Żyją jednak krótko — rzadko dłużej niż 2 lata.',
+      fossil: 'Łodzik, krewny amonitów, niewiele zmienił się od setek milionów lat.' }
+  };
+
+  /* Podpowiedzi do Kodeksu: jak odkryć pojęcie (pokazywane przy zarysie nieodkrytej karty). */
+  var CODEX_HINTS = {
+    intro: 'Rozpocznij grę.', mutation_good: 'Doczekaj się korzystnej mutacji.', mutation_bad: 'Mutacje bywają też szkodliwe.',
+    predation: 'Strać wielu osobników przez drapieżniki.', coevolution: 'Rozbuduj obronę — drapieżniki odpowiedzą.',
+    starvation: 'Wpadnij w ujemny bilans energii.', cold: 'Przeżyj chłodną turę albo zdobądź stałocieplność.',
+    land: 'Wyjdź na ląd.', niche: 'Zmień niszę albo zdobądź kończyny, lot czy jajo lądowe.', events: 'Wykorzystaj łagodny sezon.',
+    intelligence: 'Zdobądź cechę układu nerwowego.', speciation: 'Rozdziel linię (specjacja).', extinction: 'Przetrwaj katastrofę.',
+    reserves: 'Pokryj deficyt energii z zapasów albo gromadź zapasy.', rk: 'Zmień strategię rozrodu na r albo K.',
+    variation: 'Włącz ukierunkowany dobór albo postaw na odporność w epidemii.', drift: 'Przeżyj wąskie gardło (bardzo mała populacja).',
+    founder: 'Wyślij kolonistów na wyspę.', boom: 'Postaw na rozród w czasie obfitości.', capacity: 'Zapełnij niszę do granic.',
+    trophic: 'Zostań mięsożercą.', trophic_cascade: 'Utrzymaj mięsożerną gałąź obok roślinożernej.', diet: 'Zmień dietę linii.',
+    chemosynthesis: 'Wybierz chemosyntezę w prologu.', photosynthesis: 'Wybierz fotosyntezę w prologu.', phagocytosis: 'Wybierz fagocytozę w prologu.',
+    endosymbiosis: 'Wybierz endosymbiozę w prologu.', multicellularity: 'Wybierz wielokomórkowość w prologu.', binary_fission: 'Wybierz pojedyncze komórki w prologu.',
+    great_oxidation: 'Wybierz oddychanie tlenowe w prologu.', anoxia: 'Wybierz życie bez tlenu w prologu.', ediacaran: 'Wybierz miękkie ciało w prologu.',
+    competition: 'Spotkaj konkurenta albo podziel niszę między dwie linie.', radiation: 'Zajmij dwie nisze naraz.',
+    echolocation: 'Zdobądź echolokację.', culture: 'Zdobądź kulturę akustyczną.', toxins: 'Spróbuj nieznanego pokarmu.',
+    displacement: 'Zmień dietę w starciu z konkurentem.', hybridization: 'Skrzyżuj się z pokrewną populacją.',
+    sexual_selection: 'Postaw na ozdoby w wyścigu godowym.', symbiosis: 'Przyjmij symbionta.', dormancy: 'Zapadnij w odrętwienie w chudym sezonie.',
+    parallel: 'Kup cechę, którą ma już linia pokrewna.', range: 'Przetrwaj katastrofę w kilku niszach.', milestone: 'Dotrwaj do nowej ery.',
+    variants: 'Utrwal wariant z puli genów.', no_goal: 'Kup pierwszą cechę drogi do rozumu.', cambrian: 'Eksperymentuj z budową ciała w kambrze.',
+    reefs: 'Zamieszkaj w rafie (ordowik, sylur).', oxygen_size: 'Urośnij w karbonie.', coal: 'Żeruj w bagiennych lasach.',
+    vicariance: 'Rozdziel populację, gdy rozpada się Pangea.', coevolution_plants: 'Dopasuj się do kwitnących roślin (kreda).',
+    grassland: 'Wyjdź na sawannę (neogen).', biotic_interchange: 'Przejdź przez most lądowy.', refugium: 'Schroń się w refugium.',
+    deep_sea: 'Zejdź w głębiny.', red_queen: 'Potasuj geny przeciw pasożytom.', migration_season: 'Wędruj za pokarmem.',
+    lazarus: 'Rzadka karta dla małej populacji.', convergence: 'Rzadka karta od mezozoiku.', fire: 'Przejdź próbę rozumu na lądzie.',
+    language: 'Przejdź próbę rozumu w wodzie.', island_rule: 'Zdobądź karłowatość albo gigantyzm.', venom: 'Zdobądź jad.',
+    bioluminescence: 'Zdobądź bioluminescencję.', electroreception: 'Zdobądź elektrorecepcję.', spines: 'Zdobądź kolce.',
+    arthropods: 'Zagraj stawonogiem.', cephalopods: 'Zagraj głowonogiem.'
+  };
+
+  /* Nazwa łacińska (ozdobnik): rdzeń z nazwy gatunku + przyrostek planu budowy + epitet. */
+  var LATIN = {
+    suffix: { fish: 'ichthys', saur: 'saurus', mammal: 'therium', bird: 'ornis', worm: 'zoon',
+      stawonog_water: 'caris', stawonog_land: 'pus', stawonog_air: 'pteron', glowonog: 'teuthis' },
+    // Pierwsza posiadana cecha z listy wyznacza epitet (rozumny gatunek — „sapiens”).
+    epithets: [['tool_use', 'faber'], ['vocal_culture', 'cantor'], ['venom', 'venenatus'], ['bioluminescence', 'lucifer'],
+      ['electroreception', 'sentiens'], ['spines', 'spinosus'], ['gigantism', 'giganteus'], ['dwarfism', 'nanus'],
+      ['hibernation', 'dormiens'], ['flight', 'volans'], ['pack_hunting', 'venator'], ['echolocation', 'sonans'],
+      ['shell', 'loricatus'], ['camouflage', 'occultus'], ['big_brain', 'cogitans'], ['insulation', 'pilosus'],
+      ['filter_feeding', 'filtrans'], ['jaws', 'dentatus'], ['fins', 'pinnatus']],
+    niche: { woda: 'marinus', przybrzeze: 'litoralis', lad: 'terrestris', powietrze: 'aerius' }
   };
 
   return {
@@ -1127,7 +1577,9 @@
     REGIONAL: REGIONAL, REGIONAL_DISASTERS: REGIONAL_DISASTERS, ERA_GOALS: ERA_GOALS, ERA_GOALS_PER_ERA: ERA_GOALS_PER_ERA,
     OUTLOOK: OUTLOOK, SCORE: SCORE, ACHIEVEMENTS: ACHIEVEMENTS, WIN_MIN_POP: WIN_MIN_POP, EP_RULES: EP_RULES, ENV_VARIATION: ENV_VARIATION,
     DIFFICULTIES: DIFFICULTIES, NICHES: NICHES, CATEGORIES: CATEGORIES, CATEGORY_ICONS: CATEGORY_ICONS,
-    TRAITS: TRAITS, ERAS: ERAS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE,
+    TRAITS: TRAITS, ERAS: ERAS, SCENARIOS: SCENARIOS, KNOWLEDGE: KNOWLEDGE, CODEX_HINTS: CODEX_HINTS, LATIN: LATIN,
+    VARIANT: VARIANT, VARIANTS: VARIANTS, CONTRACT: CONTRACT, PERKS: PERKS, RARE: RARE, BODY_PLANS: BODY_PLANS,
+    WORLD_MODS: WORLD_MODS, LEGACY: LEGACY, TRIAL: TRIAL, RARE_CARD_WEIGHT: RARE_CARD_WEIGHT, PERIOD_CARD_WEIGHT: PERIOD_CARD_WEIGHT,
     // Zgodność wsteczna:
     INTELLIGENCE_GOAL: DIFFICULTIES.normalny.goal, START_EP: DIFFICULTIES.normalny.startEp
   };

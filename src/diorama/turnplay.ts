@@ -5,7 +5,8 @@
  * drapieżników, głód, narodziny, mutację i ewentualną katastrofę (uderzenie
  * meteorytu, zlodowacenie, wulkanizm). Liczba ofiar i młodych na scenie jest
  * proporcjonalna do liczb z silnika. Całość trwa ok. 4–7 s i można ją pominąć
- * (przycisk, Esc, Enter, spacja).
+ * (przycisk, kliknięcie sceny, Esc, Enter, spacja). Spokojna tura może iść
+ * w trybie skróconym (`speed` < 1, ok. 1,5 s).
  */
 import { Text } from 'pixi.js';
 import type { Agent, StageAccess } from './diorama.ts';
@@ -18,6 +19,8 @@ export interface TurnPlay {
   births: number; predationDeaths: number; starvationDeaths: number; catDeaths: number;
   mutation?: { beneficial: boolean; text: string } | null;
   catastrophe?: { name: string; kind: CatastropheKind } | null;
+  /** Tempo: 1 — pełna animacja, mniej — skrócona (spokojne tury). */
+  speed?: number;
   /** Wielkie wymieranie: plansza po uderzeniu katastrofy (teksty z UI). */
   extinction?: { kicker: string; title: string; sub: string } | null;
   /** Napisy (i18n po stronie UI). */
@@ -60,6 +63,7 @@ export class TurnDirector {
   private card: HTMLElement | null = null;
   private skipBtn: HTMLButtonElement;
   private onKey: (e: KeyboardEvent) => void;
+  private onClick: (e: MouseEvent) => void;
   private remaining: Agent[];
 
   constructor(private st: StageAccess, private play: TurnPlay, private onDone: () => void) {
@@ -81,6 +85,9 @@ export class TurnDirector {
     st.host.classList.add('turn-playing');
     this.onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.finish(); } };
     document.addEventListener('keydown', this.onKey);
+    // Kliknięcie w scenę też przewija do końca tury.
+    this.onClick = (e) => { if (e.target !== this.skipBtn) this.finish(); };
+    st.host.addEventListener('click', this.onClick);
     this.skipBtn.focus({ preventScroll: true });
     this.next();
   }
@@ -279,6 +286,15 @@ export class TurnDirector {
     }
 
     this.phases.push({ title: '', sub: '', tone: 'neutral', dur: 0.5, start: () => this.st.setFeeding(false), update: () => {} });
+    // Tryb skrócony: te same fazy, krócej (minimum, by liczby dało się przeczytać).
+    // Pełna animacja też jest nieco zwięźlejsza (×0,85) niż pierwotnie.
+    const k = (p.speed && p.speed > 0 ? p.speed : 1) * 0.85;
+    // Tura wielkiego wymierania: zwykłe fazy krótko, a cała uwaga na katastrofie i planszy z bilansem.
+    const lead = p.extinction && p.catastrophe ? 0.35 : 1;
+    this.phases.forEach((ph) => {
+      const main = !!(p.catastrophe && (ph.title === p.catastrophe.name || (!ph.title && ph.dur > 1)));
+      ph.dur = Math.max(k < 0.5 ? 0.25 : 0.35, ph.dur * k * (main ? 1 : lead));
+    });
   }
 
   private pick(): Agent | null {
@@ -398,6 +414,7 @@ export class TurnDirector {
     this.st.stage.position.set(0, 0);
     this.floaters.forEach((f) => f.t.destroy()); this.floaters = [];
     document.removeEventListener('keydown', this.onKey);
+    this.st.host.removeEventListener('click', this.onClick);
     this.banner.remove(); this.skipBtn.remove();
     if (this.card) { this.card.remove(); this.card = null; }
     this.st.host.classList.remove('turn-playing');

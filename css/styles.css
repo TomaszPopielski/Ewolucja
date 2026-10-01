@@ -145,6 +145,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
 [data-cat="rozrod"] { --wash: var(--wash-rozrod); }
 [data-cat="termoregulacja"] { --wash: var(--wash-termoregulacja); }
 [data-cat="uklad_nerwowy"] { --wash: var(--wash-uklad_nerwowy); }
+[data-cat="rzadkie"] { --wash: #b0659a; }
 [data-niche="woda"] { --wash: var(--niche-woda); }
 [data-niche="przybrzeze"] { --wash: var(--niche-przybrzeze); }
 [data-niche="lad"] { --wash: var(--niche-lad); }
@@ -334,7 +335,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
    przewijaniu kart adaptacji. Po przyklejeniu (.is-stuck) robi się zwarty. */
 .status-sentinel { height: 1px; margin-bottom: -1px; }
 .status-bar {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   margin: 0 -8px 12px; padding: 4px 8px;
   position: sticky; top: var(--topbar-h, 61px); z-index: 15;
   background: var(--bg);
@@ -845,7 +846,7 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
   .game-grid { grid-template-columns: 1fr; }
   .status-bar { grid-template-columns: repeat(2, 1fr); }
   /* Na wąskim ekranie przyklejony pasek mieści się w jednym rzędzie. */
-  .status-bar.is-stuck { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .status-bar.is-stuck { grid-template-columns: repeat(5, 1fr); gap: 4px; }
   .status-bar.is-stuck .status-item { padding: 2px 4px; }
   .status-bar.is-stuck .status-label { font-size: .58rem; }
   .status-bar.is-stuck .status-value { font-size: 1rem; }
@@ -994,13 +995,31 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 :root[data-palette="cb"] .effect-chip.up { border-style: solid; }
 :root[data-palette="cb"] .effect-chip.down { border-style: dashed; }
 
-/* Telefon: „Przeżyj turę” zawsze pod kciukiem (panel linii jest daleko od kart cech). */
+/* Pasek akcji: „Przeżyj turę” zawsze pod ręką, na każdym ekranie (przyklejony do dołu). */
+.action-bar {
+  position: sticky; bottom: 0; z-index: 25; margin: 16px -8px 0;
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent); backdrop-filter: blur(4px);
+  border-top: 1px solid var(--line-strong); box-shadow: 0 -8px 18px -12px rgba(0, 0, 0, .35);
+}
+.action-info { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: .85rem; color: var(--ink-soft); }
+.ai-ep strong { color: var(--ep); font-family: var(--serif); font-size: 1.15rem; }
+.ai-pending {
+  font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; border: 0; border-radius: 14px; padding: 3px 12px;
+  color: var(--bg-panel); background: var(--accent); animation: alertPulse 1.6s ease-in-out infinite;
+}
+.ai-pending.ai-trial { background: var(--ep); }
+.ai-pending.ai-variant { background: var(--gene); }
+.ai-keys { font-size: .74rem; }
+kbd {
+  font: 600 .72rem/1 var(--font); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line-strong);
+  border-bottom-width: 2px; background: var(--bg-elev); color: var(--ink);
+}
+#btn-simulate { flex: 0 0 auto; padding: 12px 26px; font-size: 1.05rem; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .4); }
 @media (max-width: 820px) {
-  #btn-simulate {
-    position: fixed; left: 14px; right: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: auto; z-index: 30;
-    padding: 14px; font-size: 1.05rem; box-shadow: 0 6px 22px rgba(0, 0, 0, .28);
-  }
-  .screen-game { padding-bottom: 88px; }
+  .action-bar { margin: 12px -14px 0; }
+  .ai-keys { display: none; }
+  #btn-simulate { padding: 12px 16px; }
 }
 
 /* Ekran startowy i końcowy jak tablica przyrodnicza: numer tablicy, podwójna ramka, rycina w oprawie. */
@@ -1051,3 +1070,217 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .anthro-picks { font-size: .85rem; color: var(--ink-soft); }
 .anthro-note { font-style: italic; }
 #anthro-meters { margin: 6px 0 12px; }
+
+
+/* ===================== Miodność: nowe elementy ===================== */
+
+/* Status: szansa na rozum */
+.status-chance .status-value { color: var(--accent); }
+.status-chance[data-level="high"] .status-value { color: var(--brand); }
+.status-chance[data-level="low"] .status-value { color: var(--danger); }
+.status-alert-trial { background: var(--ep); }
+
+/* Kontrakt ery, przywileje, modyfikatory, inne drogi do sukcesu */
+.era-perk {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: .78rem;
+  border: 1px dashed var(--ep); color: var(--ep); background: color-mix(in srgb, var(--ep) 8%, transparent);
+}
+.era-mod { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.contract-offer {
+  border: 1px solid var(--ep); border-left-width: 4px; border-radius: 10px; background: var(--bg-panel);
+  padding: 10px 12px; margin: 0 0 14px; box-shadow: var(--shadow);
+}
+.contract-offer h3 { font-size: 1.05rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.contract-offer h3 small { font-family: var(--font); font-weight: 400; font-size: .76rem; color: var(--ink-soft); }
+.contract-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.contract-option {
+  font: inherit; text-align: left; cursor: pointer; color: var(--ink); display: grid; gap: 3px; font-size: .82rem;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; position: relative;
+}
+.contract-option:hover:not(:disabled) { border-color: var(--ep); transform: translateY(-1px); }
+.contract-option span { color: var(--ink-soft); }
+.contract-option .contract-reward { color: var(--ep); font-size: .76rem; }
+.contract-key {
+  display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 4px; font-size: .72rem; font-weight: 700;
+  border: 1px solid var(--line-strong); color: var(--ink-soft); background: var(--bg-panel); vertical-align: 1px;
+}
+.contract-option .contract-key { position: absolute; top: 6px; right: 8px; }
+.legacy-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .78rem; color: var(--ink-soft); margin: -8px 0 14px; }
+.outlook-legacy .legacy-panel { margin: 6px 0 10px; }
+.legacy-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-panel); }
+.legacy-chip strong { color: var(--ink); font-weight: 600; }
+.legacy-chip em { font-style: normal; }
+.legacy-chip.met { border-color: var(--brand); color: var(--brand); }
+.legacy-bar { width: 46px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; display: inline-block; }
+.legacy-bar > span { display: block; height: 100%; background: var(--brand); }
+
+/* Warianty w puli genów i próba rozumu */
+.variant-card { border-color: var(--gene); }
+.variant-option .variant-fx { display: flex; flex-wrap: wrap; gap: 4px; }
+.variant-option .variant-favors { font-size: .74rem; font-style: italic; }
+.choice-option .tactic-cost { margin-left: 4px; }
+.trial-card { border-color: var(--ep); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ep) 18%, transparent); }
+.trial-kicker { margin: 0 0 4px; font: 600 .72rem/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--ep); }
+
+/* Panel cech: widok „Teraz”, następny krok, zdobyte i późniejsze */
+.traits-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -4px 0 12px; }
+.view-toggle { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.view-toggle button { font: inherit; font-size: .8rem; padding: 4px 10px; border: 0; background: var(--bg-panel); color: var(--ink-soft); cursor: pointer; }
+.view-toggle button + button { border-left: 1px solid var(--line-strong); }
+.view-toggle button[aria-pressed="true"] { background: var(--brand); color: var(--bg-panel); font-weight: 600; }
+.next-step { font-size: .84rem; color: var(--ink-soft); display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.next-step .btn-link { font-weight: 700; }
+.trait.next-step-card { box-shadow: 0 0 0 2px var(--ep), var(--shadow); }
+.trait.pulse { animation: traitPulse 1.6s ease; }
+@keyframes traitPulse { 0%, 100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 4px var(--accent); } }
+.traits-empty { font-size: .9rem; color: var(--ink-soft); }
+.traits-foot { margin-top: 14px; font-size: .82rem; color: var(--ink-soft); display: grid; gap: 8px; }
+.traits-owned { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0; }
+.owned-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink); }
+.traits-later summary { cursor: pointer; }
+.traits-later ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+
+/* Raport: nagłówek z dużymi liczbami, zdanie, decyzje kontra los, szczegóły zwinięte */
+.report-headline { margin-bottom: 10px; }
+.rh-main { display: flex; flex-wrap: wrap; gap: 8px; }
+.rh-num { flex: 1 1 140px; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.rh-num span { display: block; font-size: .72rem; color: var(--ink-soft); }
+.rh-num strong { font-family: var(--serif); font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.rh-num em { margin-left: 8px; font-style: normal; font-weight: 700; color: var(--ink-soft); }
+.rh-num em.pos { color: var(--good); }
+.rh-num em.neg { color: var(--danger); }
+.rh-story { font-size: .98rem; margin: 10px 0 6px; }
+.rh-causes p { margin: 3px 0; font-size: .84rem; }
+.rh-tag { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.rh-you { background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--brand); }
+.rh-luck { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.rh-goal { margin: 4px 0; font-size: .86rem; font-weight: 600; }
+.rh-goal.done { color: var(--brand); }
+.rh-goal.failed { color: var(--ink-soft); }
+.rh-trial { margin: 8px 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--ep) 14%, transparent); color: var(--ep); }
+.report-details { margin: 6px 0 10px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.report-details > summary { cursor: pointer; font-size: .84rem; color: var(--ink-soft); padding: 4px 0; }
+.report-details[open] > summary { margin-bottom: 6px; }
+.knowledge-more { font-size: .82rem; color: var(--ink-soft); margin: 6px 0; }
+
+/* Kodeks: postęp, zarysy nieodkrytych, „nowe” */
+.codex-progress { font-size: .88rem; margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.codex-bar { flex: 1 1 160px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.codex-bar > span { display: block; height: 100%; background: var(--brand); }
+.knowledge-card.locked { opacity: .6; border-style: dashed; filter: grayscale(.8); }
+.knowledge-card.locked h4 { color: var(--ink-soft); }
+.knowledge-card.locked .ico { font-family: var(--serif); font-weight: 700; color: var(--ink-soft); }
+.codex-new { margin-left: 6px; font-size: .68rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--accent); color: var(--bg-panel); }
+
+/* Tosty */
+.toasts { position: fixed; right: 16px; bottom: 84px; z-index: 60; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.toast {
+  pointer-events: auto; font-size: .86rem; padding: 8px 12px; border-radius: 8px; background: var(--bg-panel); color: var(--ink);
+  border: 1px solid var(--line-strong); border-left: 4px solid var(--ep); box-shadow: var(--shadow); animation: toastIn .25s ease;
+}
+.toast-good { border-left-color: var(--brand); }
+.toast-warn { border-left-color: var(--danger); }
+.toast-out { opacity: 0; transform: translateY(6px); transition: opacity .5s ease, transform .5s ease; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast, .ai-pending, .trait.pulse { animation: none; } }
+
+/* Start: centrum gracza, plan budowy, modyfikatory, blokady */
+.start-hub { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elev); padding: 10px 12px; margin: 0 0 14px; display: grid; gap: 10px; }
+.hub-last { display: flex; align-items: center; gap: 12px; }
+.hub-last img { width: 120px; height: 66px; object-fit: contain; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 8px; }
+.hub-last strong { font-family: var(--serif); font-size: 1.1rem; }
+.hub-kicker, .hub-sub { display: block; font-size: .74rem; color: var(--ink-soft); }
+.hub-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hub-chip { font: inherit; font-size: .8rem; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-panel); color: var(--ink); }
+button.hub-chip { cursor: pointer; }
+button.hub-chip:hover { border-color: var(--brand); }
+.hub-challenges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.hub-challenges code, .museum-facts code { font-weight: 700; }
+.hub-note { font-size: .78rem; color: var(--ink-soft); }
+.intro-goal-box > summary { cursor: pointer; font-family: var(--serif); font-weight: 600; margin-bottom: 6px; }
+.pick-group { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 10px; margin: 10px 0 0; }
+.pick-group legend { font-weight: 600; padding: 0 4px; }
+.pick-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.pick-opt { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-panel); cursor: pointer; }
+.pick-opt.current { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.pick-opt.locked { opacity: .55; cursor: not-allowed; }
+.pick-opt img { width: 84px; height: 46px; object-fit: contain; flex: 0 0 auto; }
+.pick-opt input { margin-top: 3px; }
+.pick-ico { font-size: 1.3rem; }
+.pick-text { display: grid; gap: 2px; font-size: .8rem; }
+.pick-text small { color: var(--ink-soft); }
+.pick-text em { font-style: normal; color: var(--ep); font-weight: 600; }
+.pick-lock { color: var(--accent) !important; }
+.scenario-card.locked { opacity: .55; cursor: not-allowed; }
+.scenario-card.locked:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.scenario-lock { font-size: .76rem; color: var(--accent); font-weight: 600; }
+.scenario-card[data-scenario="mammals"] { --wash: var(--niche-lad); }
+.scenario-card[data-scenario="island"] { --wash: var(--niche-przybrzeze); }
+.scenario-card[data-scenario="sandbox"] { --wash: var(--ep); }
+.unlock-note { text-align: center; font-size: .8rem; margin: 10px 0 0; }
+
+/* Ekran końcowy: nazwa łacińska, próba, kronika, propozycje odznak */
+.end-latin { margin: -6px 0 8px; font-family: var(--serif); color: var(--ink-soft); font-size: 1.05rem; text-align: center; }
+.end-trial { text-align: center; font-weight: 600; color: var(--ep); }
+.latin { font-family: var(--serif); color: var(--ink-soft); }
+.end-chronicle details > summary { cursor: pointer; list-style-position: inside; }
+.end-chronicle summary h2 { display: inline; }
+.chronicle-list { margin: 8px 0 0; padding-left: 0; list-style: none; display: grid; gap: 4px; font-size: .86rem; max-height: 340px; overflow: auto; }
+.chronicle-list li { padding: 3px 0; border-bottom: 1px dotted var(--line); }
+.chr-turn { font-family: var(--serif); font-weight: 600; color: var(--ink-soft); }
+.ach-next h3 { font-size: 1rem; margin: 12px 0 6px; }
+.ach-unlocked { margin: 10px 0 0; font-size: .88rem; color: var(--brand); }
+.ach-all { margin-top: 10px; }
+.ach-all > summary { cursor: pointer; font-size: .86rem; color: var(--ink-soft); margin-bottom: 6px; }
+.ach-none { font-size: .86rem; color: var(--ink-soft); list-style: none; }
+
+/* Muzeum gatunków */
+.museum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.museum-card {
+  font: inherit; text-align: left; cursor: pointer; color: var(--ink); display: grid; gap: 2px; padding: 8px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elev);
+}
+.museum-card:hover { border-color: var(--brand); transform: translateY(-1px); }
+.museum-card img { width: 100%; height: 100px; object-fit: contain; background: var(--bg-panel); border-radius: 6px; }
+.museum-card strong { font-family: var(--serif); }
+.museum-card em { font-family: var(--serif); color: var(--ink-soft); font-size: .8rem; }
+.museum-card span, .museum-card small { font-size: .76rem; color: var(--ink-soft); }
+.museum-card.status-won { border-left: 4px solid var(--brand); }
+.museum-card.status-survived { border-left: 4px solid var(--accent); }
+.museum-card.status-lost { border-left: 4px solid var(--line-strong); }
+.museum-card.fav { box-shadow: inset 0 0 0 1px var(--accent); }
+.museum-back { margin-bottom: 10px; }
+.museum-detail { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: 16px; align-items: start; }
+.museum-detail img { width: 100%; height: auto; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; }
+.museum-detail h3 { font-size: 1.4rem; margin-bottom: 0; }
+.museum-detail .end-latin { text-align: left; margin: 0 0 6px; }
+.museum-facts { padding-left: 18px; font-size: .86rem; display: grid; gap: 2px; }
+@media (max-width: 720px) { .museum-detail { grid-template-columns: 1fr; } }
+.trait.too_expensive.compact { border-style: solid; border-top-style: solid; background: var(--bg-panel); }
+.rh-num strong { font-size: 1.25rem; }
+.trait-cat-tag { display: inline-flex; align-items: center; gap: 4px; font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.trait-cat-tag .ico { font-size: .8rem; }
+.trait-grid-now { margin-top: 4px; }
+.ach.next { border-style: dashed; border-color: var(--accent); }
+/* Widok „Teraz”: opis i warunki cechy dopiero po najechaniu lub fokusie — siatka jest zwarta. */
+.trait-grid-now .trait:not(.next-step-card) .trait-desc,
+.trait-grid-now .trait .trait-condition { display: none; }
+.trait-grid-now .trait:hover .trait-desc, .trait-grid-now .trait:focus .trait-desc,
+.trait-grid-now .trait:hover .trait-condition, .trait-grid-now .trait:focus .trait-condition { display: block; }
+.report-threat-short { margin: 8px 0; font-size: .86rem; padding: 6px 10px; border: 1px dashed var(--danger); border-radius: 8px; color: var(--danger); }
+/* Wąski ekran: w nagłówku Muzeum i Kodeks jako same ikony (nazwa zostaje dla czytników ekranu). */
+@media (max-width: 560px) {
+  .topbar-actions { gap: 6px; }
+  #btn-museum, #btn-codex { font-size: 0; padding: 7px 9px; }
+  #btn-museum .ico, #btn-codex .ico { font-size: 1.15rem; }
+  #btn-codex .codex-new { font-size: .62rem; margin-left: 3px; }
+  .brand-name { font-size: 1.15rem; }
+}
+@media (max-width: 820px) {
+  .status-bar:not(.is-stuck) { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .status-bar:not(.is-stuck) .status-item { padding: 6px 6px; }
+  .status-bar:not(.is-stuck) .status-label { font-size: .66rem; }
+  .status-bar:not(.is-stuck) .status-value { font-size: 1.25rem; }
+  .status-bar:not(.is-stuck) .status-era .status-value { font-size: .9rem; line-height: 1.4; }
+  .status-bar:not(.is-stuck) .status-sub { font-size: .64rem; }
+}

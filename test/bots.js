@@ -166,7 +166,33 @@ function choiceScore(before, st, lineageId) {
   return tacticScore(f) + colony * 1.5 + l.variation * 3 + perm + (st.ep - before.ep) * 2;
 }
 
+/* Kontrakt ery: najłatwiejszy do spełnienia wg prostej kolejności (zapasy, kataklizm, obrona…). */
+var CONTRACT_PREF = ['fat', 'weather', 'armor', 'smart', 'fed', 'variation', 'abundance', 'two_lines', 'land', 'radiation', 'sky'];
+function contractTurn(s) {
+  var cp = E.contractPending(D, s);
+  if (!cp) return s;
+  var pick = cp.options.slice().sort(function (a, b) { return CONTRACT_PREF.indexOf(a) - CONTRACT_PREF.indexOf(b); })[0];
+  var r = E.chooseContract(D, s, pick);
+  return r.ok ? r.state : s;
+}
+/* Wariant z puli genów: utrwal ten, który poprawia ocenę linii (prognoza + trwałe statystyki);
+   inteligencja liczy się wysoko, dopóki linia nie osiągnie progu. */
+function variantTurn(s) {
+  var pv = s.pendingVariants;
+  if (!pv || pv.chosen) return s;
+  var l0 = E.getLineage(s, pv.lineageId); if (!l0 || !l0.alive) return s;
+  var best = null, bestScore = choiceScore(s, s, pv.lineageId) + 4;
+  pv.options.forEach(function (id) {
+    var r = E.promoteVariant(D, s, id); if (!r.ok) return;
+    var v = E.variantDef(D, id), intel = (v.effects.intelligence || 0) * (l0.stats.intelligence < s.intelligenceGoal ? 45 : 0);
+    var sc = choiceScore(s, r.state, pv.lineageId) + intel;
+    if (sc > bestScore) { bestScore = sc; best = r.state; }
+  });
+  return best || s;
+}
+
 function tacticsTurn(s) {
+  s = variantTurn(contractTurn(s));
   // Karta decyzji: opcja z najlepszą prognozą linii, której dotyczy (z kolonią);
   // ryzyko oceniane wartością oczekiwaną sukcesu i porażki.
   if (s.pendingChoice) {
@@ -175,7 +201,7 @@ function tacticsTurn(s) {
       var r = E.resolveChoice(D, s, o.id); if (!r.ok) return;
       var score;
       if (o.gamble) {
-        var p = E.gambleChance(D, E.getLineage(r.state, pc.lineageId), o.gamble);
+        var p = E.gambleChance(D, E.getLineage(r.state, pc.lineageId), o.gamble, r.state);
         score = p * choiceScore(s, withOutcome(r.state, pc.lineageId, o.gamble.win), pc.lineageId) +
           (1 - p) * choiceScore(s, withOutcome(r.state, pc.lineageId, o.gamble.lose), pc.lineageId);
       } else score = choiceScore(s, r.state, pc.lineageId);
@@ -338,7 +364,7 @@ function scenarioInit(id) {
   var sc = D.SCENARIOS.filter(function (x) { return x.id === id; })[0];
   return { difficulty: sc.difficulty, startEra: sc.startEra, startEp: sc.startEp, goal: sc.goal,
     startTraits: sc.startTraits, startNiche: sc.startNiche, scenarioId: sc.id,
-    winPaths: sc.winPaths, capMult: sc.capMult, forcedGoals: sc.forcedGoals };
+    winPaths: sc.winPaths, capMult: sc.capMult, forcedGoals: sc.forcedGoals, rareTraits: sc.rareTraits, sandbox: sc.sandbox };
 }
 
 module.exports = { seededRng: seededRng, play: play, winRate: winRate, avgScore: avgScore, stepFor: stepFor, scenarioInit: scenarioInit, PLAN: PLAN, STAR: STAR, STAR_SEA: STAR_SEA };
