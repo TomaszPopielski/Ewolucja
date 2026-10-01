@@ -240,7 +240,9 @@ prognozę, gracz taktyczny (jedna linia) i gracz prowadzący **klad** (gałęzie
 w wolnych niszach, każda ewoluuje). Połowa botów obiera drogę lądową, połowa
 wodną. Testy pilnują krzywej trudności, rozkładu tur zwycięstwa, grywalności
 obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
-[`docs/OCENA-MECHANIK.md`](./docs/OCENA-MECHANIK.md).
+[`docs/OCENA-MECHANIK.md`](./docs/OCENA-MECHANIK.md). Analiza tempa rozgrywki,
+nagrody i powodów do powrotu (z propozycjami zmian):
+[`docs/MIODNOSC.md`](./docs/MIODNOSC.md).
 
 ## Funkcje
 
