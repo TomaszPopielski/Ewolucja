@@ -3,6 +3,9 @@
 > **Aktualizacja: wdrożono rekomendacje.** Opis niżej (od „Werdykt”) dotyczy
 > stanu **sprzed** zmian. Stan po zmianach i pomiary — sekcja
 > [7. Stan po wdrożeniu](#7-stan-po-wdrożeniu).
+>
+> Sformułowania o „warstwie edukacyjnej” i „uczniu” wyrównano do nowych
+> założeń gry ([`ZALOZENIA.md`](../ZALOZENIA.md), sekcja 13); pomiary bez zmian.
 
 **Oceniany stan:** commit `9db216f` (po scaleniu PR #7: trwałe zachowania linii,
 zdarzenia pozytywne jako karty decyzji). Testy: 232 testy silnika i 37 testów
@@ -17,7 +20,7 @@ pomiar trafności prognozy i analiza przyczyn porażek.
 
 > Boty to przybliżenie gracza, nie gracz. Bot „tactics1” czyta prognozę na
 > jedną turę do przodu i kupuje ścieżkę ⭐, gdy nie grozi ona głodem. Dobrze
-> modeluje ucznia, który korzysta z podpowiedzi. Nie modeluje gracza, który
+> modeluje gracza, który korzysta z podpowiedzi. Nie modeluje gracza, który
 > planuje kilka tur naprzód.
 
 ---
@@ -32,7 +35,7 @@ pomiar trafności prognozy i analiza przyczyn porażek.
 | Specjacja i nisze | **4/10** | Rozgałęzianie się nie opłaca. Ląd i powietrze to pułapki, a przybrzeże to nisza uniwersalna. |
 | Losowość i regrywalność | **6/10** | Kod świata działa. Prognoza jest jednak niemal dokładna (±1,5%), więc w obrębie tury gra jest deterministyczna. |
 | Krzywa trudności i scenariusze | **4/10** | Skok 99% → 67% → 23%. „Podbój lądu” to łatwy poziom pełnej gry. „Epoki lodowcowe” karzą ostrożność. |
-| **Mechanika ogółem** | **5,5/10** | Solidny silnik z dobrą warstwą edukacyjną, ale znaczna część dodanych systemów nie zmienia wyniku. |
+| **Mechanika ogółem** | **5,5/10** | Solidny silnik z czytelną warstwą wyjaśnień, ale znaczna część dodanych systemów nie zmienia wyniku. |
 
 ---
 
@@ -172,7 +175,7 @@ Nisze żywych linii na koniec 200 partii bota „tactics” (normalny):
 - **Powietrze** (lot za 26 EP + 2 metabolizmu, pokarm ×0,7) nie daje nic,
   czego nie dałoby przybrzeże.
 
-Edukacyjny łuk „wyjście na ląd” istnieje w tekstach, ale nie w decyzjach
+Fabularny łuk „wyjście na ląd” istnieje w tekstach, ale nie w decyzjach
 gracza. Wcześniejsza recenzja pisała o „rybie z narzędziami”. Dziś to
 „mieszkaniec przybrzeża z narzędziami” i jest to strategia optymalna.
 
@@ -259,7 +262,7 @@ Różnica między prognozą a rzeczywistą populacją (tury bez ryzyka z karty,
 linie ≥ 30 osobników): **p10 = −1,7%, mediana 0,0%, p90 = +1,4%**, także
 w turach katastrof. Jedynym źródłem niepewności są mutacje i wynik ryzyka.
 
-Edukacyjnie to zaleta, bo przyczyna i skutek są jasne. Z punktu widzenia
+Dla czytelności to zaleta, bo przyczyna i skutek są jasne. Z punktu widzenia
 mechaniki oznacza to, że **decyzje w obrębie tury są rozwiązywalne kursorem**.
 Wyzwanie leży tylko w planowaniu na kilka tur, czyli w zbieraniu EP na
 kenozoik i przygotowaniu linii na zapowiedziane wymieranie. Jeśli ma zostać
@@ -391,7 +394,7 @@ partii to gracz „lądowy”, połowa „wodny” (`pref: 'mix'`).
 - **Lot** kupuje się rzadko (2%). Powietrze się opłaca (EP, mało drapieżników),
   ale bot rzadko ma wolne EP na gałąź z kończynami w mezozoiku. Gracz, który
   planuje radiację, może z tego korzystać częściej.
-- **Kalibracja opiera się na botach.** Potrzebne są testy z uczniami: czy
+- **Kalibracja opiera się na botach.** Potrzebne są testy z graczami: czy
   rozumieją przedział prognozy, wykluczenia cech i koszt doboru.
 
 ### 7.4. Po połączeniu z konkurentami, dietami i echami decyzji (PR #9)

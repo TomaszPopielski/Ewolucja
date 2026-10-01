@@ -1,5 +1,10 @@
 # Ewolucja — niezależna recenzja stanu gry (27.09.2026)
 
+> **Dokument historyczny.** Ta recenzja powstała, gdy Ewolucja była grą edukacyjną dla uczniów,
+> i ocenia ją również jako pomoc dydaktyczną. Od zmiany założeń ([`ZALOZENIA.md`](../ZALOZENIA.md), sekcja 13)
+> wartość edukacyjna nie jest kryterium, a fragmenty o quizach, trybie nauczyciela i lekcjach
+> **nie obowiązują**. Pomiary i opis mechanik zachowano jako zapis stanu z tamtego dnia.
+
 **Oceniany stan:** gałąź domyślna `claude/evolution-game-assumptions-ep2rfr`,
 commit `3ab237a` (wersja 0.2.0), oraz wszystkie 12 niescalonych gałęzi
 i otwarte PR-y (#1, #3).

@@ -220,7 +220,7 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; font-family: var(--serif); fon
   font: inherit; padding: 12px 14px; border-radius: 8px;
   border: 1px solid var(--line); background: var(--bg-elev); color: var(--ink);
 }
-.edu-note { font-size: .82rem; color: var(--ink-soft); margin-top: 18px; font-style: italic; }
+.model-note { font-size: .82rem; color: var(--ink-soft); margin-top: 18px; font-style: italic; }
 .label-opt { font-weight: 400; color: var(--ink-soft); }
 .field-hint { font-size: .78rem; color: var(--ink-soft); margin: -4px 0 0; }
 

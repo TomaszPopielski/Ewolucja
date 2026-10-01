@@ -924,7 +924,7 @@
     { id: 'codex', icon: '📚', label: 'Encyklopedysta', desc: 'Odkryj co najmniej 25 pojęć w Kodeksie.' }
   ];
 
-  // Scenariusze lekcyjne (ZALOZENIA sekcja 8/6).
+  // Scenariusze: warianty z własnymi regułami (ZALOZENIA sekcja 8).
   var SCENARIOS = [
     { id: 'full', name: 'Pełna ewolucja', icon: '🧬', difficulty: 'normalny', startEra: 0,
       intro: 'Klasyczna gra od prostego życia w morzu aż do gatunku rozumnego, przez trzy ery.' },
