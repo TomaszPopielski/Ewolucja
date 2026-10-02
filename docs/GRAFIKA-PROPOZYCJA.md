@@ -18,6 +18,12 @@ tury, raport, drzewo życia). Zasady stylu, których propozycja się trzyma:
 > Opis: [`STYL.md`](./STYL.md), sekcja „Sylwetki, bohater sceny i cienie”. Porównania:
 > [`grafika/etap2-stworzenia.jpg`](./grafika/etap2-stworzenia.jpg),
 > [`grafika/etap2-diorama.jpg`](./grafika/etap2-diorama.jpg).
+>
+> Etap 4 (pakiet D) zrealizowany: karty cech z okazami, oś er w barwach okresów geologicznych,
+> mikrowykresy w pasku stanu, liczniki, przejścia między ekranami, telefon (start od góry,
+> diorama w pierwszym kadrze, pełne tło nagłówka, podziałka do 30% szerokości). Opis:
+> [`STYL.md`](./STYL.md), sekcja „Interfejs atlasowy”. Porównanie:
+> [`grafika/etap4-interfejs.jpg`](./grafika/etap4-interfejs.jpg). Etap 3 (momenty) jeszcze nie zrobiony.
 
 **Teza w jednym zdaniu:** styl „ilustracji naukowej” jest dobrym wyborem
 i należy go zachować. Teraz trzeba dodać mu **światło, głębię i dramaturgię**,
@@ -167,7 +173,7 @@ ciemniejsze brzegi plamy i przebarwienia. Są dwie drogi:
 | 1 ✅ | A: scenariusz barw, światło, głębia | 2–3 dni | inną grę od pierwszego ekranu *(zrobione: 12 scen × 3 klimaty)* |
 | 2 ✅ | B: bohater, cień, przeciwcieniowanie, formy końcowe | 4–6 dni | zwierzęta, które da się rozpoznać *(zrobione)* |
 | 3 | C: rysowanie cechy, tablica ery, przemiana na końcu, wodospad | 3–4 dni | chwile, o których się opowiada |
-| 4 | D: karty-okazy, pasek skał, HUD, telefon | 2–3 dni | lżejszy, bardziej „atlasowy” ekran |
+| 4 ✅ | D: karty-okazy, pasek skał, HUD, telefon | 2–3 dni | lżejszy, bardziej „atlasowy” ekran *(zrobione)* |
 | 5 | E: materiał akwareli (opcjonalnie) | 2+ dni | „papier, który da się dotknąć” |
 
 Razem **ok. 12–17 dni**. Każdy etap kończy się osobnym commitem z odświeżonym

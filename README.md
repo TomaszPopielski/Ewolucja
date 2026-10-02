@@ -276,7 +276,10 @@ obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
 - **Ekran końcowy z historią** — rycina gatunku, „droga ewolucji” w miniaturach
   i wykres populacji na osi er.
 - **Żywa rycina gatunku** — zwierzę rysowane z cech: każda adaptacja jest
-  widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu.
+  widoczna, a przed zakupem można podejrzeć jej szkic na zwierzęciu. Karty cech
+  pokazują ten szkic jak okaz w atlasie (drobne cechy głowy w zbliżeniu).
+- **Oś er jak przekrój skał** — tury w barwach okresów geologicznych; pasek stanu
+  z mikrowykresem populacji i postępem do kolejnej cechy, ery i celu.
 - **Samouczek** pierwszych kroków, **tryb nauczyciela** (cofanie), **wykres populacji**.
 - **Eksport podsumowania gry** (kopiuj / pobierz .txt — np. dla nauczyciela).
 - **Kodeks wiedzy** (z ikonami) z powiązaniami do realnych organizmów kopalnych.

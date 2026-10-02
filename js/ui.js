@@ -28,7 +28,9 @@
     formStart: $('form-start'), speciesInput: $('species-name'), introGoal: $('intro-goal'),
     scenarioCards: $('scenario-cards'),
     ep: $('ep-value'), pop: $('pop-value'), era: $('era-value'), intel: $('intel-value'),
-    epAfford: $('ep-afford'), statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
+    epAfford: $('ep-afford'), epMeter: $('ep-meter'), popSpark: $('pop-spark'), popTrend: $('pop-trend'),
+    eraMeter: $('era-meter'), intelMeter: $('intel-meter'), btnTraitDetails: $('btn-trait-details'),
+    statusBar: $('status-bar'), statusSentinel: $('status-sentinel'), statusChoice: $('status-choice'),
     statusOutlook: $('status-outlook'), worldSeed: $('world-seed'), eraInfo: $('era-info'), envThreat: $('env-threat'), envRivals: $('env-rivals'), endEpilogue: $('end-epilogue'),
     endScoreTotal: $('end-score-total'), endScoreParts: $('end-score-parts'), endAch: $('end-ach'), btnPlaySame: $('btn-play-same'),
     modalOutlook: $('modal-outlook'), outlookReasons: $('outlook-reasons'), btnOutlookContinue: $('btn-outlook-continue'),
@@ -100,12 +102,18 @@
     el.btnUndo.textContent = '↶ Cofnij' + (undoStack.length ? ' (' + undoStack.length + ')' : '') + ' — tryb nauczyciela';
   }
 
+  /* Zmiana ekranu: nowy ekran wchodzi łagodnie (przenikanie, lekkie uniesienie) i zawsze
+     od góry strony — inaczej na telefonie gra zaczynała się przewinięta pod dioramę. */
+  var currentScreen = null;
   function showScreen(name) {
-    el.screenStart.hidden = name !== 'start';
-    el.screenGame.hidden = name !== 'game';
-    el.screenEnd.hidden = name !== 'end';
-    if (el.screenPrologue) el.screenPrologue.hidden = name !== 'prologue';
-    if (el.screenAnthro) el.screenAnthro.hidden = name !== 'anthropocene';
+    var screens = { start: el.screenStart, game: el.screenGame, end: el.screenEnd, prologue: el.screenPrologue, anthropocene: el.screenAnthro };
+    Object.keys(screens).forEach(function (k) { if (screens[k]) screens[k].hidden = k !== name; });
+    if (currentScreen !== name) {
+      var node = screens[name];
+      if (node) { node.classList.remove('screen-enter'); void node.offsetWidth; node.classList.add('screen-enter'); }
+      window.scrollTo(0, 0);
+    }
+    currentScreen = name;
   }
 
   function newGame(speciesName, opts) {
@@ -253,16 +261,29 @@
   // ===================== Render — pasek stanu =====================
   function renderStatus() {
     setAnimated(el.ep, state.ep);
-    setAnimated(el.pop, Engine.totalPopulation(state));
+    var total = Engine.totalPopulation(state);
+    setAnimated(el.pop, total);
     var era = Engine.currentEra(DATA, state);
     var tno = Math.min(state.turn + 1, era.turns.length);
-    el.era.textContent = era.name + ' ' + tno + '/' + era.turns.length;
+    el.era.innerHTML = escapeHtml(era.name) + ' <span class="era-turn">' + tno + '/' + era.turns.length + '</span>';
     el.era.title = era.dates || '';
-    el.intel.textContent = Engine.maxIntelligence(state) + ' / ' + state.intelligenceGoal;
+    var intel = Engine.maxIntelligence(state);
+    el.intel.textContent = intel + ' / ' + state.intelligenceGoal;
     // Ile cech aktywnej linii można kupić teraz — widać to bez przewijania do kart.
-    var afford = DATA.TRAITS.filter(function (t) { return Engine.traitStatus(state, t, DATA) === 'available'; }).length;
+    var lineage = Engine.getActiveLineage(state);
+    var statuses = DATA.TRAITS.map(function (t) { return { t: t, st: Engine.traitStatus(state, t, DATA) }; });
+    var afford = statuses.filter(function (x) { return x.st === 'available'; }).length;
     el.epAfford.textContent = state.status !== 'playing' ? '' :
       (afford ? 'stać Cię na ' + afford + ' ' + plural(afford, 'cechę', 'cechy', 'cech') : 'na razie nic do kupienia');
+    // Mikrowykresy: EP względem najtańszej cechy, na którą jeszcze nie stać; postęp ery i celu.
+    var next = statuses.filter(function (x) { return x.st === 'too_expensive'; })
+      .map(function (x) { return { t: x.t, cost: Engine.traitCost(DATA, state, x.t, lineage) }; })
+      .sort(function (a, b) { return a.cost - b.cost; })[0];
+    setMeter(el.epMeter, next && state.status === 'playing' ? state.ep / next.cost : null,
+      next ? 'Do cechy „' + next.t.name + '”: ' + state.ep + ' z ' + next.cost + ' EP' : '');
+    setMeter(el.eraMeter, tno / era.turns.length, 'Tura ' + tno + ' z ' + era.turns.length + ' w erze');
+    setMeter(el.intelMeter, intel / Math.max(1, state.intelligenceGoal), 'Inteligencja ' + intel + ' z ' + state.intelligenceGoal + ' potrzebnych');
+    renderPopSpark(total);
     el.statusChoice.hidden = !(state.pendingChoice && state.status === 'playing');
     el.statusOutlook.hidden = !(state.status === 'playing' && !Engine.victoryOutlook(DATA, state).possible);
   }
@@ -293,14 +314,55 @@
       var first = el.choiceCard.querySelector('.choice-option:not(:disabled)'); if (first) first.focus({ preventScroll: true });
     });
   }
+  /* Liczba zmienia się „licznikiem” (ok. 0,6 s) i błyska; przy ograniczaniu ruchu od razu. */
+  var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function setAnimated(node, value) {
-    if (node.textContent !== String(value)) {
-      node.textContent = value;
-      node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash');
-    }
+    if (node.textContent === String(value)) return;
+    var from = parseInt(node.textContent, 10), to = Number(value);
+    if (node._tween) cancelAnimationFrame(node._tween);
+    node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash');
+    if (reducedMotion || isNaN(from) || isNaN(to) || from === to || !window.requestAnimationFrame) { node.textContent = value; return; }
+    var t0 = 0, dur = 600;
+    var step = function (ts) {
+      if (!t0) t0 = ts;
+      var u = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - u, 3);
+      node.textContent = u < 1 ? Math.round(from + (to - from) * e) : value;
+      node._tween = u < 1 ? requestAnimationFrame(step) : 0;
+    };
+    node._tween = requestAnimationFrame(step);
+  }
+  /* Cienki pasek pod wartością w pasku stanu (null = ukryty). */
+  function setMeter(node, frac, title) {
+    if (!node) return;
+    node.hidden = frac == null;
+    if (frac == null) return;
+    node.firstChild.style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%';
+    node.title = title || '';
+    node.classList.toggle('full', frac >= 1);
+  }
+  /* Mikrowykres populacji (wszystkie linie, ostatnie tury) i trend względem poprzedniej tury. */
+  function renderPopSpark(total) {
+    if (!el.popSpark) return;
+    var d = (state.history || []).map(function (r) { return r.totalPopulation; }).slice(-11);
+    d.push(total);
+    if (d.length < 2) { el.popSpark.innerHTML = ''; el.popTrend.textContent = ''; return; }
+    var W = 54, H = 18, max = Math.max.apply(null, d), min = Math.min.apply(null, d), span = Math.max(1, max - min);
+    var pts = d.map(function (v, i) { return (i / (d.length - 1) * (W - 4) + 2).toFixed(1) + ',' + (H - 3 - (v - min) / span * (H - 6)).toFixed(1); });
+    var last = pts[pts.length - 1].split(',');
+    var delta = d[d.length - 1] - d[d.length - 2];
+    el.popSpark.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><polyline points="' + pts.join(' ') +
+      '" class="spark-line"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="2.4" class="spark-dot ' + (delta >= 0 ? 'up' : 'down') + '"/></svg>';
+    el.popTrend.className = 'status-sub ' + (delta > 0 ? 'trend-up' : delta < 0 ? 'trend-down' : '');
+    el.popTrend.textContent = delta === 0 ? 'bez zmian od ostatniej tury' : (delta > 0 ? '▲ +' : '▼ ') + delta + ' od ostatniej tury';
   }
 
   // ===================== Render — oś czasu =====================
+  /* Okres geologiczny tury (pierwsze słowo tytułu) — barwa warstwy jak w tabeli stratygraficznej. */
+  var PERIODS = { kambr: 1, ordowik: 1, sylur: 1, dewon: 1, karbon: 1, perm: 1, trias: 1, jura: 1, kreda: 1, paleogen: 1, neogen: 1, plejstocen: 1, 'współczesność': 1 };
+  function periodOf(title) {
+    var w = String(title || '').split(/[\s—-]/)[0].toLowerCase();
+    return PERIODS[w] ? (w === 'współczesność' ? 'holocen' : w) : null;
+  }
   function renderTimeline() {
     // Oś czasu pokazuje tylko to, co gracz może wiedzieć: minione i zapowiedziane
     // katastrofy, stałe wymierania historyczne i „?” w oknie przesuwanego wymierania.
@@ -312,6 +374,8 @@
       if (i === state.turn) step.classList.add('current');
       if (t.catastrophe) step.classList.add('catastrophe');
       if (t.maybe) step.classList.add('maybe');
+      var period = periodOf(t.title);
+      if (period) step.dataset.period = period;
       step.title = t.title + (t.catastrophe ? ' — ' + t.catastrophe.name : '') +
         (t.maybe ? ' — możliwe: ' + t.maybe + ' (jedna z zaznaczonych tur)' : '');
       step.innerHTML = '<span class="era-step-num">' + (i + 1) + (t.catastrophe ? ico('ui:meteor', '☄️') : '') +
@@ -919,9 +983,40 @@
       section.appendChild(grid);
       el.traits.appendChild(section);
     });
+    fillSpecimens(lineage);
+  }
+  /* Miniatury okazów na kartach: po jednej na klatkę (stare zadanie przerywa nowe renderowanie kart). */
+  var specimenJob = 0;
+  function fillSpecimens(lineage) {
+    var job = ++specimenJob;
+    var slots = Array.prototype.slice.call(el.traits.querySelectorAll('.trait-specimen.pending'));
+    var next = function () {
+      if (job !== specimenJob || !slots.length) return;
+      var slot = slots.shift(), id = slot.getAttribute('data-ghost');
+      var src = ART.creature.thumb(lineage, 220, 72, id, HEAD_TRAITS.indexOf(id) !== -1 ? 'ghost' : undefined);
+      if (src) slot.innerHTML = '<img src="' + src + '" alt="" width="220" height="72">';
+      slot.classList.remove('pending');
+      (window.requestAnimationFrame || setTimeout)(next);
+    };
+    (window.requestAnimationFrame || setTimeout)(next);
   }
   // Cecha kupiona przed chwilą dostaje animację „pieczątki” (raz).
   var lastBoughtId = null;
+  /* Cechy, które na rycinie są „scenką” (jaja, młode, towarzysze), a nie częścią ciała —
+     na miniaturze okazu nie byłoby ich widać, więc karta zostaje przy ikonie. */
+  var SCENE_TRAITS = ['many_eggs', 'amniotic_egg', 'parental_care', 'pack_hunting', 'social'];
+  function SPECIMEN_OK(id) { return !!(ART && ART.creature) && SCENE_TRAITS.indexOf(id) === -1; }
+  /* Drobne cechy głowy pokazujemy w zbliżeniu (jak wstawka „szczegół” na tablicy). */
+  var HEAD_TRAITS = ['jaws', 'filter_feeding', 'omnivory', 'eyes', 'echolocation', 'brain', 'big_brain'];
+  /* Tryb „szczegóły” kart cech (pełny opis i warunki niszy) — pamiętany w przeglądarce. */
+  var DETAILS_KEY = 'ewolucja.traitDetails';
+  function applyTraitDetails(on) {
+    el.traits.classList.toggle('show-details', on);
+    if (el.btnTraitDetails) {
+      el.btnTraitDetails.setAttribute('aria-pressed', on ? 'true' : 'false');
+      el.btnTraitDetails.textContent = on ? 'Ukryj szczegóły' : 'Pokaż szczegóły';
+    }
+  }
   function renderTraitCard(trait, lineage) {
     var status = Engine.traitStatus(state, trait, DATA);
     var btn = document.createElement('button');
@@ -965,12 +1060,25 @@
     var star = trait.path === 'intelligence' ? '<span class="trait-star" title="Droga do inteligencji">' + ico('ui:star', '⭐', 'ico-star') + '</span> ' : '';
     var badge = ART ? '<span class="trait-badge">' + ico('trait:' + trait.id, trait.icon) + '</span>' : '';
     var nameIco = ART ? '' : (trait.icon ? trait.icon + ' ' : '');
-    btn.innerHTML = '<div class="trait-head">' + badge + '<span class="trait-name">' + star + nameIco + trait.name + '</span>' +
+    // Okaz: zwierzę aktywnej linii z tą cechą dorysowaną fioletowym szkicem (jak rycina w atlasie).
+    // (rysowany po wyrenderowaniu kart — fillSpecimens — żeby zakup reagował od razu)
+    var specimen = '';
+    if ((status === 'available' || status === 'too_expensive') && SPECIMEN_OK(trait.id)) {
+      var head = HEAD_TRAITS.indexOf(trait.id) !== -1;
+      specimen = '<span class="trait-specimen pending' + (head ? ' detail' : '') + '" data-ghost="' + trait.id + '"></span>';
+    }
+    // Opis: pierwsze zdanie zawsze, reszta i warunki niszy w trybie „szczegóły”.
+    var sentences = String(trait.desc).match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [trait.desc];
+    var descMore = sentences.slice(1).join('').trim();
+    var conds = trait.conditions || [];
+    var condSummary = conds.length ? '<div class="trait-cond-summary" title="' + escapeHtml(conds.map(function (c) { return c.note + ': ' + effectsText(c.effects); }).join('\n')) + '">' +
+      ico('niche:przybrzeze', '⚑') + '<span>Działa różnie w niszach (' + conds.length + ') — w szczegółach</span></div>' : '';
+    btn.innerHTML = specimen + '<div class="trait-head">' + badge + '<span class="trait-name">' + star + nameIco + trait.name + '</span>' +
       '<span class="trait-cost">' + costLabel + '</span></div>' +
-      '<div class="trait-desc">' + trait.desc + '</div>' +
+      '<div class="trait-desc">' + sentences[0].trim() + (descMore ? ' <span class="trait-desc-more">' + descMore + '</span>' : '') + '</div>' +
       '<div class="trait-effects">' + renderEffects(trait.effects) + '</div>' +
       '<div class="trait-tradeoff">' + ico('ui:balance', '⚖') + '<span>' + trait.tradeoff + '</span></div>' +
-      (trait.conditions || []).map(function (c) {
+      condSummary + conds.map(function (c) {
         return '<div class="trait-condition">' + c.note + ': ' + effectsText(c.effects) + '</div>';
       }).join('') + extra;
 
@@ -1667,6 +1775,15 @@
     el.btnConfirmYes.addEventListener('click', function () { resolveConfirm(true); });
     el.btnConfirmNo.addEventListener('click', function () { resolveConfirm(false); });
     el.btnTutorialNext.addEventListener('click', tutorialNext);
+    if (el.btnTraitDetails) {
+      var det = false; try { det = localStorage.getItem(DETAILS_KEY) === '1'; } catch (e) {}
+      applyTraitDetails(det);
+      el.btnTraitDetails.addEventListener('click', function () {
+        var on = !el.traits.classList.contains('show-details');
+        applyTraitDetails(on);
+        try { localStorage.setItem(DETAILS_KEY, on ? '1' : '0'); } catch (e) {}
+      });
+    }
     el.btnTutorialSkip.addEventListener('click', endTutorial);
     if (el.btnPrologueSkip) el.btnPrologueSkip.addEventListener('click', skipPrologue);
 

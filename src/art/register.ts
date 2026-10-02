@@ -23,7 +23,8 @@ export interface GameArtApi {
   };
   /** Miniatura zwierzęcia (data URL PNG) — drzewo życia, ekrany startowy i końcowy. */
   creature: {
-    thumb: (lineage: LineageLike, width: number, height: number) => string;
+    /** `ghost` — cecha dorysowana fioletowym szkicem (podgląd na karcie cechy). */
+    thumb: (lineage: LineageLike, width: number, height: number, ghost?: string, focus?: 'ghost') => string;
   };
   /** Ustawienia grafiki (jakość, animacja tury) — zapisywane lokalnie. */
   settings: {
@@ -113,7 +114,7 @@ const api: GameArtApi = {
     renderer: () => { for (const slot of dioramas.values()) if (slot.d) return slot.d.rendererName(); return null; }
   },
   creature: {
-    thumb: (lineage, width, height) => { try { return creatureThumb(lineage, { width, height }); } catch (e) { return ''; } }
+    thumb: (lineage, width, height, ghost, focus) => { try { return creatureThumb(lineage, { width, height, ghost, focus }); } catch (e) { return ''; } }
   },
   diorama: {
     update: dioramaUpdate,

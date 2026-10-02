@@ -137,5 +137,5 @@ export function buildSpec(lineage: LineageLike): CreatureSpec {
 
 /** Czytelna etykieta podziałki (np. „3 cm”, „1 m”). */
 export function scaleLabel(cm: number): string {
-  return cm >= 100 ? Math.round(cm / 100) + ' m' : cm + ' cm';
+  return cm >= 100 ? Math.round(cm / 100) + ' m' : cm < 1 ? Math.round(cm * 10) + ' mm' : cm + ' cm';
 }

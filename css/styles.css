@@ -1051,3 +1051,122 @@ body.turn-busy .game-grid, body.turn-busy .lineage-bar { opacity: .65; pointer-e
 .anthro-picks { font-size: .85rem; color: var(--ink-soft); }
 .anthro-note { font-style: italic; }
 #anthro-meters { margin: 6px 0 12px; }
+
+/* =====================================================================
+   Etap 4: interfejs „atlasowy” — przejścia ekranów, mikrowykresy w pasku
+   stanu, oś er jak przekrój skał, karty cech jak okazy, telefon
+   ===================================================================== */
+
+/* Nagłówek nieprzezroczysty: tekst przewijanej strony nie prześwituje spod spodu. */
+.topbar { background: var(--bg-panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Przejścia między ekranami: nowy ekran wchodzi przenikaniem z lekkim uniesieniem.
+   Ekran gry tylko przenika (przesunięcie zmieniłoby punkt odniesienia przycisku przyklejonego na telefonie). */
+.screen-enter { animation: screenIn .38s cubic-bezier(.2, .8, .3, 1) both; }
+.screen-game.screen-enter { animation-name: screenFade; }
+@keyframes screenIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Pasek stanu: cienkie miarki i mikrowykres populacji. */
+.status-meter {
+  display: block; width: 72%; height: 3px; margin: 5px auto 1px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--line-strong) 55%, transparent);
+}
+.status-meter[hidden] { display: none; }
+.status-meter-fill { display: block; height: 100%; width: 0; background: currentColor; transition: width .55s cubic-bezier(.3, .8, .3, 1); }
+.status-ep .status-meter { color: var(--ep); }
+.status-era .status-meter { color: var(--accent); }
+.status-goal .status-meter { color: var(--brand); }
+.status-meter.full .status-meter-fill { background: var(--good); }
+.status-value-row { display: flex; align-items: center; justify-content: center; gap: 7px; }
+.status-spark svg { display: block; overflow: visible; }
+.spark-line { fill: none; stroke: var(--ink-soft); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+.spark-dot.up { fill: var(--good); }
+.spark-dot.down { fill: var(--danger); }
+.status-sub.trend-up { color: var(--good); }
+.status-sub.trend-down { color: var(--danger); }
+.status-bar.is-stuck .status-meter { margin-top: 2px; }
+
+/* Oś er jak przekrój skał: każda tura w barwie swojego okresu z tabeli stratygraficznej
+   (Międzynarodowa Komisja Stratygrafii); minione tury nasycone, przyszłe blade. */
+.era-step { --period: var(--line-strong); }
+.era-step[data-period="kambr"] { --period: #7fa056; }
+.era-step[data-period="ordowik"] { --period: #009270; }
+.era-step[data-period="sylur"] { --period: #b3e1b6; }
+.era-step[data-period="dewon"] { --period: #cb8c37; }
+.era-step[data-period="karbon"] { --period: #67a599; }
+.era-step[data-period="perm"] { --period: #f04028; }
+.era-step[data-period="trias"] { --period: #812b92; }
+.era-step[data-period="jura"] { --period: #34b2c9; }
+.era-step[data-period="kreda"] { --period: #7fc64e; }
+.era-step[data-period="paleogen"] { --period: #fd9a52; }
+.era-step[data-period="neogen"] { --period: #ffe619; }
+.era-step[data-period="plejstocen"] { --period: #f2e36b; }
+.era-step[data-period="holocen"] { --period: #f5d9a6; }
+.era-step {
+  background-color: color-mix(in srgb, var(--period) 14%, var(--bg-panel));
+  background-image: none;
+  box-shadow: inset 0 -5px 0 color-mix(in srgb, var(--period) 55%, var(--bg-panel));
+}
+/* minione warstwy: pełniejszy kolor i warstwowanie skały (cienkie linie ułożenia) */
+.era-step.done {
+  background-color: color-mix(in srgb, var(--period) 40%, var(--bg-panel));
+  background-image: repeating-linear-gradient(0deg, transparent 0 6px, color-mix(in srgb, var(--ink) 7%, transparent) 6px 7px);
+  box-shadow: inset 0 -5px 0 var(--period);
+}
+.era-step.current {
+  background-color: color-mix(in srgb, var(--period) 26%, var(--bg-panel));
+  box-shadow: inset 0 -5px 0 var(--period), inset 0 0 0 2px var(--accent);
+}
+.era-step.maybe {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--danger) 12%, transparent) 6px 12px);
+}
+
+/* Karty cech jak okazy: miniatura zwierzęcia z nową częścią szkicowaną na fioletowo. */
+.trait-specimen {
+  display: block; height: 72px; margin: -4px -4px 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg-elev); background-image: var(--paper-grain);
+}
+.trait-specimen img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* zbliżenie: podpis „szczegół” jak przy wstawce na tablicy */
+.trait-specimen.detail { position: relative; }
+.trait-specimen.detail::after {
+  content: "szczegół"; position: absolute; left: 7px; top: 3px; font-family: var(--serif); font-style: italic;
+  font-size: .66rem; color: var(--ink-soft);
+}
+.trait:not(.compact):has(.trait-specimen) .trait-badge { width: 36px; height: 36px; }
+.trait:not(.compact):has(.trait-specimen) .trait-badge .ico { font-size: 1.3rem; }
+.traits-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin: -4px 0 12px; }
+.traits-head .panel-hint { margin: 0; }
+.btn-small { padding: 5px 10px; font-size: .8rem; white-space: nowrap; }
+.btn-small[aria-pressed="true"] { border-color: var(--ep); color: var(--ep); }
+.traits-container:not(.show-details) .trait-condition,
+.traits-container:not(.show-details) .trait-desc-more { display: none; }
+.traits-container.show-details .trait-cond-summary { display: none; }
+.trait-cond-summary { font-size: .72rem; color: var(--ink-soft); display: flex; gap: 4px; align-items: center; }
+.trait-cond-summary .ico { font-size: .9rem; }
+.trait.compact .trait-cond-summary { display: none; }
+
+/* Telefon: pasek stanu w jednym rzędzie z krótkimi podpisami, diorama w pierwszym kadrze
+   (zaraz pod osią er — cele ery i linie pod nią), bez zasłaniania przez przycisk tury. */
+@media (max-width: 820px) {
+  .screen-game:not([hidden]) { display: flex; flex-direction: column; }
+  .screen-game > .diorama { order: 1; }
+  .screen-game > .era-info, .screen-game > .lineage-bar { order: 2; }
+  .screen-game > .game-grid { order: 3; }
+  .screen-game > .era-info { margin-top: 0; }
+  .status-bar, .status-bar.is-stuck { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .status-item, .status-bar.is-stuck .status-item { padding: 5px 4px; }
+  .status-label { font-size: 0; }
+  .status-label::after { content: attr(data-short); font-size: .64rem; }
+  .status-bar.is-stuck .status-label { font-size: 0; }
+  .status-value, .status-bar.is-stuck .status-value { font-size: 1.15rem; margin-top: 0; line-height: 1.25; }
+  .status-era .status-value, .status-bar.is-stuck .status-era .status-value { font-size: .74rem; line-height: 1.2; margin-top: 1px; }
+  .status-era .era-turn { display: block; }
+  .status-meter, .status-bar.is-stuck .status-meter { margin-top: 3px; }
+  .status-sub, .status-spark { display: none; }
+  .status-meter { width: 84%; }
+  .era-timeline { margin-bottom: 10px; }
+  .traits-head { flex-direction: column; gap: 8px; }
+}

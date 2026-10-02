@@ -1280,8 +1280,10 @@ export function drawPortrait(ctx: Ctx, sc: PortraitScene) {
 
 /** Podziałka w rogu — jak na tablicach („1 cm”); długość wg rozmiaru ciała. */
 function drawScaleBar(ctx: Ctx, spec: CreatureSpec, theme: Theme, lay: SceneLayout, bodyPx: number) {
-  const nice = [1, 2, 5, 10, 20, 50, 100, 200];
-  const unit = nice.filter((n) => n <= spec.sizeCm * 0.4).pop() || 1;
+  // podziałka: „okrągła” długość do 40% ciała i najwyżej 30% szerokości ryciny (przy małych zwierzętach w milimetrach)
+  const nice = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200];
+  const fits = nice.filter((n) => n <= spec.sizeCm * 0.4 && bodyPx * (n / spec.sizeCm) <= lay.width * 0.3);
+  const unit = fits.pop() || nice[0];
   const px = bodyPx * (unit / spec.sizeCm);
   const x1 = lay.width - 10, x0 = x1 - px, y = lay.height - 7;
   ctx.save();

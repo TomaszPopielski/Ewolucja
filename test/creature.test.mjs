@@ -36,7 +36,7 @@ group('Rozmiar ciała rośnie z planem budowy', () => {
   ok(size([]) < size(['fins']), 'ryba większa od robaka');
   ok(size(['fins']) < size(['fins', 'limbs']), 'czworonóg większy od ryby');
   ok(size(['fins', 'limbs']) < size(['fins', 'limbs', 'endothermy', 'brain', 'big_brain']), 'stałocieplny z mózgiem największy');
-  ok(scaleLabel(3) === '3 cm' && scaleLabel(100) === '1 m', 'etykiety podziałki');
+  ok(scaleLabel(3) === '3 cm' && scaleLabel(100) === '1 m' && scaleLabel(0.5) === '5 mm', 'etykiety podziałki (także milimetry)');
 });
 
 group('Generator losowy jest powtarzalny i w zakresie [0, 1)', () => {

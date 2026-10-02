@@ -359,3 +359,45 @@ z etapem 1 mieści się w szumie pomiaru, do ±3 kl./s.
 Z „ruchu wtórnego” z propozycji zrobiony jest tylko gęstszy cykl klatek bohatera (falowanie ogona
 z opóźnieniem fazy było już wcześniej). Oddech i ugięcie ciała przy wypadzie drapieżnika zostają
 do zrobienia. Odrzucone, jak w propozycji: widok 3/4 i rysunek z wielu kątów.
+
+## Interfejs atlasowy (etap 4)
+
+Plan: [`GRAFIKA-PROPOZYCJA.md`](./GRAFIKA-PROPOZYCJA.md), pakiet D. Porównanie przed/po:
+[`grafika/etap4-interfejs.jpg`](./grafika/etap4-interfejs.jpg).
+
+**Karty cech jak okazy** (`js/ui.js`, `renderTraitCard`). Karta cechy dostępnej (albo za drogiej)
+ma nad nazwą miniaturę zwierzęcia aktywnej linii z tą cechą dorysowaną fioletowym szkicem.
+To ten sam podgląd „co-jeśli” co na rycinie (`creatureThumb(…, { ghost })`).
+- Drobne cechy głowy (szczęki, filtrowanie, wszystkożerność, oczy, echolokacja, mózg) są pokazane
+  w zbliżeniu z podpisem „szczegół”. Kadr wyznacza porównanie rysunku z cechą i bez niej (`ghostBox`
+  w `thumb.ts`), więc działa dla każdego planu budowy.
+- Cechy, które na rycinie są scenką, a nie częścią ciała (jaja, opieka, stado, społeczność), zostają przy ikonie.
+- Miniatury rysują się po wyrenderowaniu kart, po jednej na klatkę (`fillSpecimens`), więc zakup
+  cechy reaguje tak szybko jak wcześniej (mediana 122 ms wobec 105 ms przy procesorze spowolnionym 4×;
+  bez odroczenia było 261 ms).
+- Opis jest skrócony do pierwszego zdania. Reszta opisu i warunki działania w niszach są w trybie
+  „Pokaż szczegóły” (przycisk nad kartami, zapamiętywany w przeglądarce). Bez niego karta ma
+  jedną linijkę „Działa różnie w niszach (n)” z pełną treścią w podpowiedzi.
+
+**Oś er jak przekrój skał.** Każda tura ma barwę swojego okresu z tabeli stratygraficznej
+Międzynarodowej Komisji Stratygrafii (kambr, ordowik … neogen, plejstocen, holocen). Okres
+pochodzi z pierwszego słowa tytułu tury (`periodOf`). Minione tury są nasycone i warstwowane jak skała,
+przyszłe blade, bieżąca ma ramkę w kolorze akcentu. Te same barwy uczeń zobaczy na mapach geologicznych.
+
+**Pasek stanu z mikrowykresami.**
+- EP: cienki pasek postępu do najtańszej cechy, na którą jeszcze nie stać (z nazwą w podpowiedzi).
+- Populacja: mikrowykres ostatnich tur (wszystkie linie) i trend „▲ +n / ▼ −n od ostatniej tury”.
+- Era: postęp tur w erze. Inteligencja: postęp do celu (na zielono po osiągnięciu).
+- Liczby zmieniają się licznikiem (ok. 0,6 s) z błyskiem; przy ograniczaniu ruchu od razu.
+
+**Przejścia między ekranami.** Start, prolog, gra, Antropocen i koniec wchodzą przenikaniem
+z lekkim uniesieniem (ekran gry samym przenikaniem). Każda zmiana ekranu zaczyna się od góry strony.
+
+**Telefon** (do 820 px):
+- Gra zaczyna się od góry. Dawniej strona zostawała przewinięta o ok. 700 px, pod dioramę.
+- Pasek stanu w jednym rzędzie z krótkimi podpisami (EP, Populacja, Era, Rozum; z `data-short`)
+  i miarkami, bez mikrowykresu i podpisów pomocniczych.
+- Kolejność: pasek stanu → oś er → diorama → cele ery i linie → panele. Diorama mieści się
+  w pierwszym kadrze nad przyklejonym przyciskiem „Przeżyj turę”.
+- Nagłówek ma pełne tło (tekst strony nie prześwituje).
+- Podziałka na rycinie zajmuje najwyżej 30% szerokości ryciny; małe zwierzęta dostają milimetry.

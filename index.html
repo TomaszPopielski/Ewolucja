@@ -87,21 +87,25 @@
       <div class="status-sentinel" id="status-sentinel" aria-hidden="true"></div>
       <div class="status-bar" id="status-bar">
         <div class="status-item status-ep">
-          <span class="status-label" data-i18n="status.ep">Punkty ewolucji do wydania</span>
+          <span class="status-label" data-short="EP" data-i18n="status.ep">Punkty ewolucji do wydania</span>
           <span class="status-value" id="ep-value">0</span>
+          <span class="status-meter" id="ep-meter" hidden><span class="status-meter-fill"></span></span>
           <span class="status-sub" id="ep-afford"></span>
         </div>
-        <div class="status-item">
-          <span class="status-label" data-i18n="status.population">Populacja</span>
-          <span class="status-value" id="pop-value">0</span>
+        <div class="status-item status-pop">
+          <span class="status-label" data-short="Populacja" data-i18n="status.population">Populacja</span>
+          <span class="status-value-row"><span class="status-value" id="pop-value">0</span><span class="status-spark" id="pop-spark" aria-hidden="true"></span></span>
+          <span class="status-sub" id="pop-trend"></span>
         </div>
         <div class="status-item status-era">
-          <span class="status-label" data-i18n="status.era">Era</span>
+          <span class="status-label" data-short="Era" data-i18n="status.era">Era</span>
           <span class="status-value" id="era-value">—</span>
+          <span class="status-meter" id="era-meter"><span class="status-meter-fill"></span></span>
         </div>
         <div class="status-item status-goal">
-          <span class="status-label" data-i18n="status.intelligence">Inteligencja (cel)</span>
+          <span class="status-label" data-short="Rozum" data-i18n="status.intelligence">Inteligencja (cel)</span>
           <span class="status-value" id="intel-value">0 / 0</span>
+          <span class="status-meter" id="intel-meter"><span class="status-meter-fill"></span></span>
         </div>
         <button type="button" class="status-alert" id="status-choice" hidden>Karta decyzji czeka</button>
         <button type="button" class="status-alert status-alert-lost" id="status-outlook" hidden>Zwycięstwo już nieosiągalne</button>
@@ -184,7 +188,10 @@
 
         <div class="panel panel-traits" aria-labelledby="traits-panel-title">
           <h2 id="traits-panel-title" class="panel-title" data-i18n="traits.title">Adaptacje — wydaj punkty ewolucji</h2>
-          <p class="panel-hint" data-i18n="traits.hint"></p>
+          <div class="traits-head">
+            <p class="panel-hint" data-i18n="traits.hint"></p>
+            <button id="btn-trait-details" class="btn btn-ghost btn-small" type="button" aria-pressed="false">Pokaż szczegóły</button>
+          </div>
           <div id="traits-container" class="traits-container"></div>
         </div>
       </div>
