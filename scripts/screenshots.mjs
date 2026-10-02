@@ -40,6 +40,8 @@ for (const scheme of ['light', 'dark']) {
     const tag = `${vpName}-${scheme}`;
     await page.screenshot({ path: `${outDir}/start-${tag}.png`, fullPage: true });
 
+    // Prolog jest domyślnie włączony — pomijamy go, żeby od razu trafić na ekran gry.
+    await page.uncheck('#prologue-toggle');
     await page.locator('#scenario-cards button, #scenario-cards .scenario-card').first().click();
     await page.waitForSelector('#screen-game:not([hidden])');
     await page.waitForTimeout(600);

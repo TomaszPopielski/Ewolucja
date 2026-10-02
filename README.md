@@ -288,6 +288,8 @@ Przycisk z suwakami w nagłówku otwiera **Ustawienia grafiki**: jakość
 Tryb automatyczny sam obniża jakość na słabszym sprzęcie; poziom niski
 zamienia dioramę w nieruchomą ilustrację. Szczegóły, pomiary i instrukcja
 podmiany grafiki proceduralnej na ręcznie rysowaną: [`docs/STYL.md`](./docs/STYL.md).
+Propozycja kolejnego etapu oprawy (światło, głębia, sylwetki, kluczowe momenty):
+[`docs/GRAFIKA-PROPOZYCJA.md`](./docs/GRAFIKA-PROPOZYCJA.md).
 
 ## Struktura projektu (uzupełnienie)
 
