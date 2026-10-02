@@ -71,9 +71,12 @@ const PROFILE = {
   fish: [0, 12, 17, 22, 21, 14, 5.5, 3],
   tetra: [0, 10, 10.5, 7, 17, 15, 5.5, 1.2],
   mammal: [0, 11, 12, 8, 19, 17, 5, 1.2],
-  bird: [0, 7.5, 8, 6.5, 14, 12, 5, 3],
+  /** Ptak i pterozaur: mała głowa, cienka szyja, głęboka pierś, krótki ogon. */
+  bird: [0, 6.5, 6.5, 4.6, 15.5, 13, 4.5, 2.2],
   /** Gad: cienka szyja, ciężki tułów i gruby ogon. */
-  saur: [0, 6.5, 6, 5, 17, 16, 10, 2.8]
+  saur: [0, 6.5, 6, 5, 17, 16, 10, 2.8],
+  /** Postawa wyprostowana: okrągła głowa, wyraźna szyja, smuklejszy tułów, biodra. */
+  erect: [0, 10, 10.5, 4.8, 13, 11.5, 4.5, 1.2]
 };
 
 function profileAt(p: number[], t: number): number {
@@ -92,6 +95,8 @@ interface Plan {
   land: number; air: number; water: number;
   /** Uniesienie przodu ciała (ręka chwytna na lądzie) — przednia kończyna staje się ręką. */
   raise: number;
+  /** Ptak (lot z piórami), pterozaur (lot na błonie), ssak (futro i stałocieplność na kończynach): 0…1. */
+  bird: number; ptero: number; mam: number;
   /**
    * Podstawowa częstość ruchu [rad/s]. Wszystkie ruchy cykliczne (falowanie,
    * chód, skrzydła) są jej całkowitymi wielokrotnościami, więc animacja
@@ -111,12 +116,17 @@ interface Body {
 const N_SEG = 34;
 
 function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean): Body {
-  const { f, l, fl, en, br, bb } = plan;
-  const L = 200 * spec.proportions.length;
+  const { f, l, fl, en, br, bb, bird, ptero } = plan;
+  const avian = Math.max(bird, ptero);
+  // ptak i pterozaur mają krótki, zwarty tułów
+  const L = 200 * spec.proportions.length * (1 - 0.26 * bird - 0.2 * ptero);
   const girth = spec.proportions.girth;
   const headK = spec.proportions.head * (1 + 0.22 * br + 0.35 * bb);
   const saur = spec.form === 'saur' ? l * (1 - fl) : 0;
-  const tailCompress = (1 - 0.45 * en * l) * (1 + 0.32 * saur);
+  // ogon: krótszy u stałocieplnych i lotnych; u wyprostowanej formy rozumnej prawie znika
+  // (gadzia sylwetka zachowuje go jako przeciwwagę)
+  const tailCompress = (1 - 0.45 * en * l) * (1 + 0.32 * saur) * (1 - 0.3 * bird - 0.25 * ptero)
+    * (1 - plan.raise * (spec.form === 'saur' ? 0.25 : 0.78));
 
   // Falowanie: robak całym ciałem, ryba ogonem, na lądzie ledwie ogon.
   const wormA = (t: number) => 9 * Math.pow(t, 1.2);
@@ -133,28 +143,50 @@ function buildBody(spec: CreatureSpec, plan: Plan, time: number, still: boolean)
     let w = lerp(profileAt(PROFILE.worm, t), profileAt(PROFILE.fish, t), f);
     w = lerp(w, profileAt(PROFILE.tetra, t), l);
     w = lerp(w, profileAt(PROFILE.mammal, t), en * l);
-    w = lerp(w, profileAt(PROFILE.bird, t), fl);
+    w = lerp(w, profileAt(PROFILE.bird, t), avian);
     w = lerp(w, profileAt(PROFILE.saur, t), saur * (1 - 0.4 * en));
+    w = lerp(w, profileAt(PROFILE.erect, t), plan.raise * (spec.form === 'saur' ? 0.5 : 1));
     if (t <= 0.14) w *= lerp(1, headK, clamp01(1 - (t - 0.1) / 0.04));
     w *= girth * Math.sqrt(Math.min(1, t / 0.055));
     W.push(w);
 
-    const x = t <= 0.7 ? L * (0.5 - t) : L * (0.5 - 0.7) - (t - 0.7) * L * tailCompress;
+    let x = t <= 0.7 ? L * (0.5 - t) : L * (0.5 - 0.7) - (t - 0.7) * L * tailCompress;
+    // postawa wyprostowana: krótszy tułów (głowa i tułów mniej więcej tak długie jak nogi)
+    if (t < 0.64) x = L * (0.5 - 0.64) + (0.64 - t) * L * (1 - 0.3 * plan.raise);
+    // pterozaur: wydłużona głowa z długim dziobem
+    if (t < 0.1) x += ptero * 16 * Math.pow(1 - t / 0.1, 1.2);
     let A = lerp(lerp(wormA(t), fishA(t), f), tetraA(t), l);
     A = lerp(A, landA(t), plan.land);
     A = lerp(A, 0.4 * t, plan.air);
     const y = still ? 0 : A * Math.sin(k * t * Math.PI * 2 - time * speed);
     // długa szyja gada unosi głowę ponad grzbiet (łagodny łuk)
     const neck = saur > 0 && t < 0.3 ? saur * 24 * Math.pow(1 - t / 0.3, 2) : 0;
-    P.push(v(x, y - neck));
+    // ptak i pterozaur trzymają głowę wysoko na szyi (w locie wyciągniętej do przodu)
+    const avNeck = avian > 0 && t < 0.3 ? avian * (1 - 0.6 * plan.air) * 16 * Math.pow(1 - t / 0.3, 1.6) : 0;
+    P.push(v(x, y - neck - avNeck));
   }
-  // Postawa wyprostowana: przód ciała obraca się wokół bioder (t ≈ 0,64),
-  // łagodnie, żeby nie było załamania.
+  // Postawa wyprostowana: przód ciała obraca się wokół bioder (t ≈ 0,64) — przy
+  // rozbudowanym mózgu prawie do pionu — a głowa wokół szyi z powrotem do przodu,
+  // żeby zwierzę patrzyło przed siebie, a nie w niebo. Łagodnie, bez załamań.
   if (plan.raise > 0.01) {
-    const pivotI = Math.round(0.64 * N_SEG), pivot = P[pivotI];
+    const rot = (pivotT: number, spread: number, ang: number) => {
+      const pivotI = Math.round(pivotT * N_SEG), pivot = P[pivotI];
+      for (let i = 0; i < pivotI; i++) {
+        const u = clamp01((pivotT - ts[i]) / spread);
+        const a = ang * u * u * (3 - 2 * u);
+        const d = sub(P[i], pivot);
+        P[i] = add(pivot, v(d.x * Math.cos(a) - d.y * Math.sin(a), d.x * Math.sin(a) + d.y * Math.cos(a)));
+      }
+    };
+    rot(0.64, 0.2, -1.05 * plan.raise);
+    rot(0.17, 0.07, 0.75 * plan.raise);
+  }
+  // ptak stojący na ziemi unosi pierś i głowę (tułów pochylony ok. 20°)
+  const perch = plan.bird * plan.land;
+  if (perch > 0.01) {
+    const pivotI = Math.round(0.6 * N_SEG), pivot = P[pivotI];
     for (let i = 0; i < pivotI; i++) {
-      const u = clamp01((0.64 - ts[i]) / 0.22);
-      const a = -0.55 * plan.raise * u * u * (3 - 2 * u);
+      const u = clamp01((0.6 - ts[i]) / 0.3), a = -0.36 * perch * u * u * (3 - 2 * u);
       const d = sub(P[i], pivot);
       P[i] = add(pivot, v(d.x * Math.cos(a) - d.y * Math.sin(a), d.x * Math.sin(a) + d.y * Math.cos(a)));
     }
@@ -351,7 +383,8 @@ interface LegPose { hip: V; knee: V; foot: V; toeDir: number }
 function legPose(body: Body, plan: Plan, tAt: number, front: boolean, phase: number, time: number, still: boolean): LegPose {
   const a = at(body, tAt);
   const hip = sub(a.p, mul(a.n, a.w * 0.45));
-  const k = (1 + 0.35 * plan.en) * (1 - 0.35 * plan.air);
+  // ssak: dłuższe nogi pod ciałem; forma wyprostowana: długie nogi, na których stoi
+  const k = (1 + 0.35 * plan.en + 0.3 * plan.mam + 0.4 * plan.raise) * (1 - 0.35 * plan.air) * (1 - 0.2 * plan.bird);
   const l1 = 16 * k, l2 = 15 * k;
   const walk = still ? 0 : time * plan.omega * (1 + plan.land);
   const ph = walk + phase;
@@ -370,6 +403,13 @@ function legPose(body: Body, plan: Plan, tAt: number, front: boolean, phase: num
     th1 = Math.PI / 2 - lerp(0.6, 0.25, en) - swing + trail;
     th2 = Math.PI / 2 + lerp(0.6, 0.4, en) + lift + trail * 0.7;
   }
+  // Postawa wyprostowana: tylna noga prawie prosta, stopa pod biodrem; nogi lekko
+  // rozstawione (dalsza w przód, bliższa w tył), żeby było widać obie także w stałej pozie.
+  if (!front && plan.raise > 0.01) {
+    const stance = 0.16 * Math.cos(phase);
+    th1 = lerp(th1, Math.PI / 2 - 0.1 - swing * 0.5 - stance, plan.raise);
+    th2 = lerp(th2, Math.PI / 2 + 0.08 + lift * 0.3 - stance * 0.5, plan.raise);
+  }
   // Ręka (postawa wyprostowana): ramię zwisa, przedramię wysunięte do przodu.
   if (front && plan.raise > 0.01) {
     const armSwing = still ? 0 : 0.12 * Math.sin(time * plan.omega);
@@ -381,7 +421,10 @@ function legPose(body: Body, plan: Plan, tAt: number, front: boolean, phase: num
   return { hip, knee, foot, toeDir: front && plan.raise > 0.5 ? th2 : -0.1 + trail * 0.9 };
 }
 
-function drawLeg(ctx: Ctx, pose: LegPose, s: Style, color: string, thick: number, far: boolean, hand: boolean) {
+/** Gdzie wyrastają tylne nogi: u ptaka pod środkiem ciężkości, u pozostałych przy biodrach. */
+function rearAtFor(plan: Plan): number { return 0.64 - 0.14 * plan.bird - 0.04 * plan.ptero; }
+
+function drawLeg(ctx: Ctx, pose: LegPose, s: Style, color: string, thick: number, far: boolean, hand: boolean, avian = false) {
   const { hip, knee, foot } = pose;
   ctx.save();
   if (far) ctx.globalAlpha *= 0.55;
@@ -417,6 +460,14 @@ function drawLeg(ctx: Ctx, pose: LegPose, s: Style, color: string, thick: number
     }
     const th = add(foot, polar(pose.toeDir - 1.4, 3.8));
     ctx.moveTo(foot.x, foot.y); ctx.lineTo(th.x, th.y);
+  } else if (avian) {
+    // ptasia stopa: trzy palce do przodu, jeden (paluch) do tyłu
+    for (let d = 0; d < 3; d++) {
+      const tip = add(foot, polar(pose.toeDir - 0.25 + d * 0.28, 5.2));
+      ctx.moveTo(foot.x, foot.y); ctx.lineTo(tip.x, tip.y);
+    }
+    const back = add(foot, polar(pose.toeDir + Math.PI - 0.25, 3.4));
+    ctx.moveTo(foot.x, foot.y); ctx.lineTo(back.x, back.y);
   } else {
     for (let d = 0; d < 4; d++) {
       const tip = add(foot, polar(pose.toeDir - 0.3 + d * 0.3, 4.2));
@@ -428,7 +479,7 @@ function drawLeg(ctx: Ctx, pose: LegPose, s: Style, color: string, thick: number
 }
 
 function drawWing(ctx: Ctx, body: Body, plan: Plan, s: Style, color: string, time: number, still: boolean,
-  feathered: boolean, far: boolean, claw: boolean) {
+  feathered: boolean, far: boolean, claw: boolean, attach: V | null = null) {
   const a = at(body, 0.3);
   const shoulder = add(a.p, mul(a.n, a.w * 0.35));
   const flying = plan.air;
@@ -445,6 +496,11 @@ function drawWing(ctx: Ctx, body: Body, plan: Plan, s: Style, color: string, tim
   const trail = feathered
     ? [P(1, 0.35), P(0.85, 0.7), P(0.65, 0.95), P(0.45, 1.05), P(0.2, 1), P(0, 0.75)]
     : [P(0.9, 0.35), P(0.7, 0.55), P(0.5, 0.62), P(0.32, 0.7), P(0.15, 0.78), P(0, 0.85)];
+  // pterozaur: błona lotna sięga od palca skrzydłowego aż do tylnej nogi
+  if (!feathered && attach) {
+    const a = add(attach, off);
+    trail.splice(4, 2, lerpV(P(0.15, 0.85), a, 0.45), a);
+  }
   ctx.save();
   if (far) ctx.globalAlpha *= 0.5;
   ctx.beginPath();
@@ -502,7 +558,7 @@ export function footDrop(spec: CreatureSpec, pres: Presence): number {
   if (spec.bodyPlan === 'glowonog') return cephFootDrop(spec, pres);
   const plan = planFor(spec, pres);
   const body = buildBody(spec, plan, 0, true);
-  const rear = legPose(body, plan, 0.64, false, 0, 0, true);
+  const rear = legPose(body, plan, rearAtFor(plan), false, 0, 0, true);
   const front = legPose(body, plan, 0.3, true, 0, 0, true);
   const lowestBody = Math.max(...body.lower.map((p) => p.y));
   const feet = plan.raise > 0.5 ? rear.foot.y : Math.max(rear.foot.y, front.foot.y);
@@ -525,7 +581,10 @@ export function planFor(spec: CreatureSpec, pres: Presence): Plan {
     land: onLand * pres.limbs, air: inAir,
     water: (1 - onLand) * (1 - inAir),
     omega: lerp(lerp(3 + 1.8 * pres.fast_muscle, 2.75, onLand * pres.limbs), 3.25, inAir),
-    raise: pres.grasping_hand * pres.limbs * onLand * (1 - pres.flight) * (0.55 + 0.45 * pres.big_brain)
+    raise: pres.grasping_hand * pres.limbs * onLand * (1 - pres.flight) * (0.55 + 0.45 * pres.big_brain),
+    bird: pres.flight * pres.insulation,
+    ptero: pres.flight * (1 - pres.insulation),
+    mam: pres.endothermy * pres.insulation * pres.limbs * (1 - pres.flight)
   };
 }
 
@@ -535,11 +594,46 @@ export function drawCreature(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Crea
   try { drawCreatureInner(ctx, spec, theme, o); } finally { lineK = prevK; }
 }
 
-/** Wymiary rysunku planów innych niż kręgowiec (null = kręgowiec, liczą go wywołujący). */
-export function planExtents(spec: CreatureSpec, pres: Presence) {
+/**
+ * Wymiary rysunku (od środka ciała): left — za ogonem, right — przed pyskiem,
+ * top — nad grzbietem, bottom — pod stopami. Kręgowiec liczony z geometrii
+ * w stałej pozie, z zapasem na ruch (krok, uderzenie skrzydeł) i dodatki
+ * (płetwy, dziób, nuty, fale dźwięku).
+ */
+export function planExtents(spec: CreatureSpec, pres: Presence, motion = true): { L: number; left: number; right: number; top: number; bottom: number } {
   if (spec.bodyPlan === 'stawonog') return arthroExtents(spec, pres);
   if (spec.bodyPlan === 'glowonog') return cephExtents(spec, pres);
-  return null;
+  const plan = planFor(spec, pres);
+  const body = buildBody(spec, plan, 0, true);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  const put = (p: V, m: number) => { x0 = Math.min(x0, p.x - m); x1 = Math.max(x1, p.x + m); y0 = Math.min(y0, p.y - m); y1 = Math.max(y1, p.y + m); };
+  body.upper.forEach((p) => put(p, 4)); body.lower.forEach((p) => put(p, 4));
+  // falowanie ciała w ruchu (robak, ryba)
+  const wave = motion ? 12 * (1 - plan.land) * (1 - plan.air) : 0;
+  y0 -= wave; y1 += wave;
+  // ogon: płetwa albo pióra
+  const tail = body.P[body.n - 1];
+  put(add(tail, v(-26, 0)), 18 * (pres.fins + pres.insulation * pres.flight > 0.01 ? 1 : 0.4));
+  // pysk: dziób, echolokacja; nad głową: grzebień, ucho, nuty
+  put(add(body.P[0], v(12 + 22 * plan.ptero + 22 * pres.echolocation, 0)), 10);
+  const head = body.P[Math.round(0.1 * N_SEG)];
+  put(add(head, v(0, -14 - 26 * pres.vocal_culture - 10 * plan.ptero)), 6);
+  // płetwa grzbietowa
+  if (pres.fins > 0.01) put(add(at(body, 0.43).p, v(0, -at(body, 0.43).w - 16)), 4);
+  // nogi z zapasem na krok
+  if (pres.limbs > 0.01) {
+    [legPose(body, plan, 0.3, true, 0, 0, true), legPose(body, plan, rearAtFor(plan), false, 0, 0, true)].forEach((lp) => {
+      put(lp.knee, 8); put(lp.foot, 10);
+    });
+    if (pres.tool_use > 0.01) put(add(legPose(body, plan, 0.3, true, 0, 0, true).foot, v(6, -6)), 12);
+  }
+  // skrzydło: w ruchu cały cykl uderzeń (w locie mocno w górę i w dół), nieruchome — stała poza
+  if (pres.flight > 0.01) {
+    const sh = at(body, 0.3).p;
+    put(add(sh, v(-30, -(motion ? lerp(26, 108, plan.air) : lerp(14, 48, plan.air)))), 10);
+    if (motion) put(add(sh, v(-30, lerp(0, 70, plan.air))), 10);
+  }
+  return { L: body.length, left: -x0, right: x1, top: -y0, bottom: y1 };
 }
 
 function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: CreatureDrawOptions) {
@@ -555,24 +649,28 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
   const hasLegs = pres.limbs + o.ghost.limbs > 0.01;
 
   // --- 1. strona dalsza: kończyny i skrzydło za ciałem
-  const legThick = 4.2 * (1 + 0.25 * plan.en) * spec.proportions.girth;
-  const frontAt = 0.3, rearAt = 0.64;
+  const legThick = 4.2 * (1 + 0.25 * plan.en) * spec.proportions.girth * (1 - 0.45 * plan.bird);
+  const frontAt = 0.3, rearAt = rearAtFor(plan);
+  const avianFeet = plan.bird > 0.5;
+  const farRear = legPose(body, plan, rearAt, false, 0, time, !!o.still);
+  const nearRear = legPose(body, plan, rearAt, false, Math.PI, time, !!o.still);
   if (hasLegs) {
     feature(ctx, 'limbs', o, st, (s) => {
       if (pres.flight < 0.5) drawLeg(ctx, legPose(body, plan, frontAt, true, Math.PI, time, !!o.still), s, color, legThick, true, false);
-      drawLeg(ctx, legPose(body, plan, rearAt, false, 0, time, !!o.still), s, color, legThick * 1.1, true, false);
+      drawLeg(ctx, farRear, s, color, legThick * 1.1, true, false, avianFeet);
     });
   }
   feature(ctx, 'flight', o, st, (s) =>
-    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, true, false));
+    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, true, false, pres.limbs > 0.5 ? farRear.knee : null));
 
-  // --- 2. płetwy za ciałem
-  const finK = 1 - 0.85 * pres.limbs;
+  // --- 2. płetwy za ciałem; u stałocieplnych i lotnych nie zostaje po nich ślad na ogonie
+  const finK = (1 - 0.85 * pres.limbs) * (1 - pres.flight);
+  const finRest = 0.35 * (1 - Math.max(pres.endothermy, pres.flight));
   feature(ctx, 'fins', o, st, (s, amt) => {
     if (finK > 0.05) {
       drawCaudalFin(ctx, body, s, amt * finK, color);
       drawDorsalFin(ctx, body, s, amt * finK, color);
-    } else drawCaudalFin(ctx, body, s, 0.35 * amt, color);
+    } else if (finRest > 0.02) drawCaudalFin(ctx, body, s, finRest * amt, color);
   });
 
   // --- 3. futro/pióra jako strzępki wzdłuż grzbietu
@@ -611,9 +709,10 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
   ctx.beginPath(); smoothPath(ctx, outline, true);
   const minY = Math.min(...outline.map((p) => p.y)), maxY = Math.max(...outline.map((p) => p.y));
   const grad = ctx.createLinearGradient(0, minY, 0, maxY);
-  grad.addColorStop(0, hexA(mixHex(color, '#2c261e', 0.25), Math.min(1, theme.washAlpha + 0.25)));
-  grad.addColorStop(0.55, hexA(color, theme.washAlpha + 0.1));
-  grad.addColorStop(1, hexA(mixHex(color, '#fbf8f0', 0.45), theme.washAlpha));
+  // przeciwcieniowanie: ciemny grzbiet, jasny brzuch — jak u większości ryb i ssaków
+  grad.addColorStop(0, hexA(mixHex(color, '#2c261e', 0.34), Math.min(1, theme.washAlpha + 0.28)));
+  grad.addColorStop(0.5, hexA(color, theme.washAlpha + 0.1));
+  grad.addColorStop(1, hexA(mixHex(color, '#fbf8f0', 0.55), theme.washAlpha));
   ctx.fillStyle = grad; ctx.fill();
   ctx.clip();
 
@@ -732,6 +831,12 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
       ctx.lineWidth = 0.6; ctx.stroke();
     });
   }
+  // światło nieba na grzbiecie: jasna kreska tuż pod górnym konturem odcina ciemny
+  // grzbiet od tła (z góry, więc zgadza się też z odbitym w poziomie rysunkiem)
+  ctx.save(); ctx.translate(0, 2.6 * lineK);
+  ctx.beginPath(); smoothPath(ctx, outline, true);
+  ctx.strokeStyle = hexA(mixHex(color, '#fff8e6', 0.75), 0.5); ctx.lineWidth = 1.8 * lineK; ctx.setLineDash([]); ctx.stroke();
+  ctx.restore();
   ctx.restore();
 
   // kontur ciała
@@ -765,8 +870,8 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     }
   });
 
-  // --- 6. głowa: oko, pysk, skrzela
-  drawHead(ctx, body, spec, theme, o, st);
+  // --- 6. głowa: oko, pysk (dziób, grzebień, ucho), skrzela
+  drawHead(ctx, body, spec, theme, o, st, plan);
 
   // echolokacja: wypukłe czoło („melon”) i fale dźwięku przed pyskiem
   feature(ctx, 'echolocation', o, st, (s) => {
@@ -819,7 +924,7 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     feature(ctx, 'limbs', o, st, (s) => {
       const hand = pres.grasping_hand > 0.5 && pres.flight < 0.5;
       if (pres.flight < 0.5) drawLeg(ctx, legPose(body, plan, frontAt, true, 0, time, !!o.still), s, color, legThick, false, hand);
-      drawLeg(ctx, legPose(body, plan, rearAt, false, Math.PI, time, !!o.still), s, color, legThick * 1.1, false, false);
+      drawLeg(ctx, nearRear, s, color, legThick * 1.1, false, false, avianFeet);
     });
   }
   feature(ctx, 'grasping_hand', o, st, (s) => {
@@ -844,14 +949,40 @@ function drawCreatureInner(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Creatu
     ctx.restore();
   });
   feature(ctx, 'flight', o, st, (s) =>
-    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, false, pres.grasping_hand > 0.5));
+    drawWing(ctx, body, plan, s, spec.accentColor, time, !!o.still, pres.insulation > 0.5, false, pres.grasping_hand > 0.5,
+      pres.limbs > 0.5 ? nearRear.knee : null));
 }
 
-function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: SceneOptions, st: { normal: Style; ghost: Style }) {
+function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: SceneOptions, st: { normal: Style; ghost: Style }, plan: Plan) {
   const time = o.time;
   const pres = o.pres;
   const head = at(body, 0.05);
   const snout = body.P[0];
+  const fwd = mul(head.tan, -1); // kierunek pyska
+
+  // ucho ssaka (futro + stałocieplność na lądzie): zaokrąglony trójkąt za okiem
+  if (plan.mam > 0.5) {
+    const e = at(body, 0.1);
+    const b1 = add(e.p, add(mul(e.n, e.w * 0.85), mul(e.tan, -2))), b2 = add(e.p, add(mul(e.n, e.w * 0.8), mul(e.tan, 5)));
+    const apex = add(e.p, add(mul(e.n, e.w + 10), mul(e.tan, 4)));
+    ctx.beginPath(); ctx.moveTo(b1.x, b1.y); ctx.quadraticCurveTo(lerpV(b1, apex, 0.5).x + fwd.x * 2, lerpV(b1, apex, 0.5).y, apex.x, apex.y);
+    ctx.quadraticCurveTo(lerpV(apex, b2, 0.5).x, lerpV(apex, b2, 0.5).y, b2.x, b2.y); ctx.closePath();
+    ctx.fillStyle = hexA(mixHex(spec.bodyColor, '#2c261e', 0.2), Math.min(1, theme.washAlpha + 0.25)); ctx.fill();
+    inkLine(ctx, st.normal, 1); ctx.stroke();
+    const ic = lerpV(lerpV(b1, b2, 0.5), apex, 0.45);
+    ctx.beginPath(); ctx.ellipse(ic.x, ic.y, 1.4, 2.6, Math.atan2(e.n.y, e.n.x) + Math.PI / 2, 0, Math.PI * 2);
+    ctx.fillStyle = hexA('#d9a08a', 0.7); ctx.fill();
+  }
+  // grzebień pterozaura: płat skóry za głową, w barwie dodatkowej
+  if (plan.ptero > 0.5) {
+    const e = at(body, 0.07);
+    const base1 = add(e.p, mul(e.n, e.w * 0.7)), base2 = add(at(body, 0.13).p, mul(e.n, e.w * 0.6));
+    const apex = add(add(e.p, mul(e.n, e.w + 13)), mul(e.tan, 15));
+    ctx.beginPath(); ctx.moveTo(base1.x, base1.y); ctx.quadraticCurveTo(lerpV(base1, apex, 0.5).x, lerpV(base1, apex, 0.5).y - 3, apex.x, apex.y);
+    ctx.lineTo(base2.x, base2.y); ctx.closePath();
+    ctx.fillStyle = hexA(spec.accentColor, Math.min(1, theme.washAlpha + 0.2)); ctx.fill();
+    inkLine(ctx, st.normal, 1); ctx.stroke();
+  }
 
   // pysk; szczęki otwierają się co kilka sekund („kłapnięcie”)
   const mouthEnd = add(at(body, 0.075).p, mul(head.n, -head.w * 0.25));
@@ -869,6 +1000,7 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
   inkLine(ctx, st.normal, 1.1); ctx.stroke();
 
   feature(ctx, 'jaws', o, st, (s) => {
+    if (plan.bird > 0.5) return; // u ptaka szczęki to dziób (niżej)
     ctx.beginPath();
     const teeth = 5;
     for (let q = 0; q < teeth; q++) {
@@ -902,6 +1034,23 @@ function drawHead(ctx: Ctx, body: Body, spec: CreatureSpec, theme: Theme, o: Sce
       }
     }
   });
+
+  // dziób: ptak — krótki, zakrzywiony (drapieżny przy szczękach); pterozaur — długi i spiczasty
+  const avian = Math.max(plan.bird, plan.ptero);
+  if (avian > 0.5) {
+    const len = plan.ptero > 0.5 ? 20 + head.w : 9 + head.w * 0.7;
+    const up = add(snout, mul(head.n, head.w * 0.32)), dn = add(snout, mul(head.n, -head.w * 0.3));
+    const tipB = add(add(snout, mul(fwd, len)), mul(head.n, plan.ptero > 0.5 ? 0 : -2));
+    const hook = add(tipB, add(mul(head.n, -3), mul(fwd, -2.5)));
+    ctx.beginPath(); ctx.moveTo(up.x, up.y);
+    ctx.quadraticCurveTo(lerpV(up, tipB, 0.55).x + head.n.x * 2, lerpV(up, tipB, 0.55).y + head.n.y * 2, tipB.x, tipB.y);
+    if (plan.bird > 0.5 && pres.jaws > 0.5) ctx.lineTo(hook.x, hook.y);
+    ctx.quadraticCurveTo(lerpV(tipB, dn, 0.5).x, lerpV(tipB, dn, 0.5).y, dn.x, dn.y); ctx.closePath();
+    ctx.fillStyle = hexA(mixHex(theme.horn, '#e0b45a', 0.45), Math.min(1, theme.washAlpha + 0.3)); ctx.fill();
+    inkLine(ctx, st.normal, 1.1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(snout.x, snout.y); ctx.lineTo(lerpV(snout, tipB, 0.85).x, lerpV(snout, tipB, 0.85).y);
+    inkLine(ctx, st.normal, 0.7); ctx.stroke();
+  }
 
   // oko: plamka światłoczuła albo prawdziwe oko z mruganiem
   const eyeC = add(at(body, 0.048).p, mul(head.n, head.w * 0.32));
@@ -1064,15 +1213,18 @@ export function drawPortrait(ctx: Ctx, sc: PortraitScene) {
   const pres = o.pres;
   const L = 200 * spec.proportions.length;
   const ext = planExtents(spec, pres);
-  const extentX = ext ? ext.left + ext.right : L + 40 + 20 * pres.fins;
-  const extentY = ext ? (ext.top + ext.bottom) * 0.75
-    : 62 + 30 * pres.limbs + (spec.form === 'saur' ? 26 * pres.limbs : 0) + 75 * planFor(spec, pres).raise + 110 * pres.flight * (spec.niche === 'powietrze' ? 1 : 0.2);
-  const s = Math.min((w * 0.74) / extentX, (h * 0.78) / extentY);
+  const extentX = ext.left + ext.right;
+  const extentY = (ext.top + ext.bottom) * 0.75;
+  const standing = spec.niche === 'lad' && pres.limbs > 0.5;
+  const fd = standing ? footDrop(spec, pres) : 0;
+  // wysokie sylwetki (postawa wyprostowana, ptak) muszą się zmieścić od gruntu do górnej krawędzi
+  const fitH = standing ? (ground - 6) / (ext.top + fd) : (h * 0.94) / (ext.top + ext.bottom);
+  const s = Math.min((w * 0.74) / extentX, (h * 0.78) / extentY, fitH);
   const cx = w * 0.53;
   let cy: number;
   const bob = o.still ? 0 : Math.sin(o.time * 1.6) * 1.5;
-  if (spec.niche === 'lad' && pres.limbs > 0.5) {
-    cy = ground - footDrop(spec, pres) * s;
+  if (standing) {
+    cy = ground - fd * s;
   } else if (spec.niche === 'powietrze' && pres.flight > 0.5) {
     cy = h * 0.6 + (o.still ? 0 : Math.sin(o.time * 6.5) * 2.5);
   } else {

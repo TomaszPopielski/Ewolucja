@@ -101,11 +101,15 @@ export class TurnDirector {
   }
   private newborns = 0;
 
+  /** Losuje ofiary; bohater sceny ginie dopiero wtedy, gdy nie ma już nikogo innego. */
   private takeVictims(n: number): Agent[] {
     const out: Agent[] = [];
     for (let q = 0; q < n && this.remaining.length; q++) {
-      const idx = Math.floor(this.st.rand() * this.remaining.length);
-      out.push(this.remaining.splice(idx, 1)[0]);
+      const pool = this.remaining.filter((a) => !a.hero);
+      const from = pool.length ? pool : this.remaining;
+      const a = from[Math.floor(this.st.rand() * from.length)];
+      this.remaining.splice(this.remaining.indexOf(a), 1);
+      out.push(a);
     }
     return out;
   }
@@ -196,7 +200,7 @@ export class TurnDirector {
       this.phases.push({
         title: m.beneficial ? L.mutationGood : L.mutationBad, sub: m.text, tone: m.beneficial ? 'ep' : 'bad', dur: 1.6,
         start: () => {
-          who = this.pick();
+          who = this.pick(true);
           if (who) {
             this.rings.push({ x: who.x, y: who.y, r0: 16, r1: 16, t: 0, dur: 1.6, color: m.beneficial ? COLORS.ep : COLORS.bad, width: 2.5, follow: who });
             this.float(m.text, who.x, who.y - 26, m.beneficial ? COLORS.ep : COLORS.bad, 13);
@@ -281,9 +285,11 @@ export class TurnDirector {
     this.phases.push({ title: '', sub: '', tone: 'neutral', dur: 0.5, start: () => this.st.setFeeding(false), update: () => {} });
   }
 
-  private pick(): Agent | null {
+  /** Osobnik do pokazania zdarzenia (mutacja, narodziny): najchętniej bohater sceny. */
+  private pick(preferHero = false): Agent | null {
     const pool = this.remaining.filter((a) => !a.doom);
-    return pool.length ? pool[Math.floor(this.st.rand() * pool.length)] : null;
+    const hero = preferHero ? pool.find((a) => a.hero) : undefined;
+    return hero || (pool.length ? pool[Math.floor(this.st.rand() * pool.length)] : null);
   }
 
   // ------------------------------------------------------------------ pętla

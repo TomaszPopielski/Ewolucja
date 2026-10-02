@@ -16,7 +16,7 @@ export const CREATURES = [
   ['Gatunek rozumny', ['fins', 'limbs', 'jaws', 'omnivory', 'eyes', 'scales', 'endothermy', 'insulation', 'ganglia', 'brain',
     'big_brain', 'social', 'grasping_hand', 'tool_use', 'parental_care', 'many_eggs'], 'lad'],
   ['Wodny z mózgiem', ['fins', 'eyes', 'ganglia', 'brain', 'jaws', 'camouflage'], 'woda'],
-    ['Trylobit', ['shell', 'eyes'], 'woda', 'stawonog'],
+  ['Trylobit', ['shell', 'eyes'], 'woda', 'stawonog'],
   ['Skorupiak', ['fins', 'jaws', 'shell', 'eyes', 'lateral_line'], 'przybrzeze', 'stawonog'],
   ['Pająk lądowy', ['limbs', 'jaws', 'eyes', 'scales', 'camouflage'], 'lad', 'stawonog'],
   ['Ważka', ['limbs', 'flight', 'jaws', 'eyes', 'scales'], 'powietrze', 'stawonog'],
@@ -24,5 +24,7 @@ export const CREATURES = [
   ['Łodzikowiec', ['shell', 'eyes'], 'woda', 'glowonog'],
   ['Kałamarnica', ['fins', 'jaws', 'eyes', 'fast_muscle', 'lateral_line'], 'woda', 'glowonog'],
   ['Ośmiornica', ['limbs', 'jaws', 'eyes', 'camouflage', 'ganglia', 'brain', 'grasping_hand', 'tool_use'], 'przybrzeze', 'glowonog'],
-  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog']
+  ['Szybująca kałamarnica', ['fins', 'flight', 'jaws', 'eyes'], 'powietrze', 'glowonog'],
+  ['Ptak na ziemi', ['fins', 'limbs', 'flight', 'jaws', 'eyes', 'scales', 'endothermy', 'insulation', 'parental_care'], 'lad'],
+  ['Ssak wodny', ['fins', 'limbs', 'jaws', 'eyes', 'endothermy', 'insulation', 'ganglia', 'brain', 'echolocation'], 'woda']
 ];

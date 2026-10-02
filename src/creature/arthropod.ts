@@ -63,13 +63,18 @@ export function drawArthropod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sce
       const w = lerp(0.4, 1, limbs);
       const sw = Math.sin(ph) * 6 * w, lift = Math.max(0, Math.cos(ph)) * 5 * w;
       const arm = j === 0 && !far && pres.grasping_hand > 0.5 && limbs > 0.5 && pres.flight < 0.5;
-      // kolano wysoko i na zewnątrz (jak u pająka), stopa daleko od biodra
-      let knee = v(hip.x + f * 15 * w + sw * 0.4, hip.y - lerp(4, 17, limbs));
-      let foot = v(hip.x + f * 27 * w + sw, shp.ground - lift);
+      // trzy człony: udo w górę i na zewnątrz (kolano nad grzbietem, jak u pająka),
+      // goleń w dół do stawu przy ziemi, stopa (stęp) odchylona na zewnątrz
+      const dorsal = at(0.3 + j * 0.11, 1).y;
+      // owad latający nosi nogi niżej (kolano na wysokości boku), pająk — wysoko nad grzbietem
+      let knee = v(hip.x + f * 14 * w + sw * 0.3, lerp(hip.y - 4, lerp(dorsal - 9, (hip.y + dorsal) / 2, pres.flight), limbs));
+      let ankle = v(hip.x + f * 27 * w + sw * 0.85, shp.ground - lerp(3, 8, limbs) - lift * 0.7);
+      let foot = v(ankle.x + f * 6 * w + sw * 0.15, shp.ground - lift);
       if (arm) {
         // chwytny przedni odnóż: uniesiony, ze szczypcami
         const b = still ? 0 : Math.sin(time * omega) * 2;
         knee = v(hip.x + 13, hip.y - 5);
+        ankle = v(knee.x + 6, knee.y - 4 + b * 0.5);
         foot = v(knee.x + 12, knee.y - 9 + b);
       }
       const seg = (a: V, b2: V, wd: number, fillC: string) => {
@@ -78,9 +83,10 @@ export function drawArthropod(ctx: Ctx, spec: CreatureSpec, theme: Theme, o: Sce
         ctx.stroke();
       };
       const fillC = s.ghost ? s.fill('#000', 0.5) : mixHex(color, far ? '#3a3a3a' : '#ffffff', far ? 0.15 : 0.3);
-      seg(hip, knee, thick * 1.1, ''); seg(knee, foot, thick * 0.8, '');
-      seg(hip, knee, thick * 1.1, fillC); seg(knee, foot, thick * 0.8, fillC);
+      seg(hip, knee, thick * 1.1, ''); seg(knee, ankle, thick * 0.85, ''); seg(ankle, foot, thick * 0.6, '');
+      seg(hip, knee, thick * 1.1, fillC); seg(knee, ankle, thick * 0.85, fillC); seg(ankle, foot, thick * 0.6, fillC);
       ctx.beginPath(); ctx.arc(knee.x, knee.y, thick * 0.6, 0, Math.PI * 2); ctx.fillStyle = fillC; ctx.fill();
+      ctx.beginPath(); ctx.arc(ankle.x, ankle.y, thick * 0.45, 0, Math.PI * 2); ctx.fillStyle = fillC; ctx.fill();
       // pazurek albo szczypce
       ctx.beginPath();
       if (arm) {

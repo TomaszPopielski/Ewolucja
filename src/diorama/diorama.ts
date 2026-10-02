@@ -48,6 +48,7 @@ export interface DioramaData {
 }
 
 const FADE = 0.8;
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 /**
  * Czy WebGL działa programowo (bez karty graficznej)? Wtedy renderer Canvas
@@ -123,9 +124,16 @@ export interface Agent {
   directed: boolean;
   /** Tymczasowy drapieżnik sprowadzony na potrzeby animacji tury. */
   temp: boolean;
-  /** Cień na gruncie (sceny z nowym światłem, light.ts). */
+  /** Cień na gruncie albo na dnie. */
   shadow?: Sprite;
+  /** Bohater sceny: jeden osobnik aktywnej linii, większy, na pierwszym planie. */
+  hero: boolean;
+  /** Zwykłe klatki linii (bohater ma własne, większe — `baked`). */
+  base: Baked;
 }
+
+/** Ile razy bohater jest większy od zwykłego osobnika linii (na lądzie bardziej: stado stoi w głębi i maleje). */
+const HERO = 1.65, HERO_LAND = 1.9;
 
 /** Dostęp reżysera tury (turnplay.ts) do sceny. */
 export interface StageAccess {
@@ -378,10 +386,16 @@ export class Diorama {
 
   // ------------------------------------------------------------------ populacja
 
-  private bakedFor(spec: CreatureSpec, key: string, unitPx: number): Baked {
+  private bakedFor(spec: CreatureSpec, key: string, unitPx: number, frames = 12): Baked {
     let b = this.bakedByKey.get(key);
-    if (!b) { b = bakeCreature(spec, this.theme, unitPx, this.res); this.bakedByKey.set(key, b); }
+    if (!b) { b = bakeCreature(spec, this.theme, unitPx, this.res, frames); this.bakedByKey.set(key, b); }
     return b;
+  }
+
+  /** Klatki bohatera: większe, a na wysokiej jakości gęstszy cykl ruchu. */
+  private heroBaked(spec: CreatureSpec, key: string): Baked {
+    const k = this.data && this.data.niche === 'lad' ? HERO_LAND : HERO;
+    return this.bakedFor(spec, key + '|hero', this.unitPxFor(spec, false) * k, this.q.level === 'high' ? 18 : 12);
   }
 
   /** Rozmiar osobnika na scenie: stała wielkość na ekranie niezależnie od planu budowy. */
@@ -439,24 +453,33 @@ export class Diorama {
       // Specjacja: nowa gałąź powstaje z połowy stada rodzica, które się rozchodzi.
       const lin = d.lineages.find((l) => l.id === id);
       if (!w.predator && !mine.length && lin && lin.parentId && !nicheChanged) {
-        const parents = this.agents.filter((a) => !a.leaving && !a.doom && a.lineageId === lin.parentId);
+        const parents = this.agents.filter((a) => !a.leaving && !a.doom && !a.hero && a.lineageId === lin.parentId);
         const moved = parents.slice(0, Math.floor(parents.length / 2));
         const cx = moved.reduce((s2, a) => s2 + a.x, 0) / Math.max(1, moved.length);
         moved.forEach((a) => {
-          a.lineageId = id; a.baked = baked; a.sprite.anchor.set(baked.anchorX, baked.anchorY);
+          a.lineageId = id; a.baked = a.base = baked; a.sprite.anchor.set(baked.anchorX, baked.anchorY);
           a.grow = 0.55; // krótkie „pulsowanie” przy zmianie
           a.tx = cx < this.W / 2 ? this.W * (0.65 + this.r() * 0.3) : this.W * (0.05 + this.r() * 0.3);
           a.retarget = 4;
         });
         mine = moved;
       }
-      // nowe cechy → podmiana klatek bez znikania osobników
-      mine.forEach((a) => { if (a.baked !== baked) { a.baked = baked; a.sprite.anchor.set(baked.anchorX, baked.anchorY); } });
+      // nowe cechy → podmiana klatek bez znikania osobników (bohater dostaje swoje, większe)
+      mine.forEach((a) => {
+        a.base = baked;
+        const tb = a.hero ? this.heroBaked(w.spec, w.key) : baked;
+        if (a.baked !== tb) { a.baked = tb; a.sprite.anchor.set(tb.anchorX, tb.anchorY); }
+      });
+      // bohater na początku listy, żeby przy spadku liczebności odchodzili najpierw inni
+      mine.sort((p, q) => (q.hero ? 1 : 0) - (p.hero ? 1 : 0));
       for (let i = mine.length; i < n; i++) this.spawn(id, baked, w.predator, d);
       for (let i = n; i < mine.length; i++) mine[i].leaving = true;
     });
+    this.assignHero(d, want);
     // porządek w wypiekach nieużywanych już linii
     const used = new Set<string>(); want.forEach((w) => used.add(w.key));
+    const activeW = want.get(d.lineages.find((l) => l.active)?.id || '');
+    if (activeW) used.add(activeW.key + '|hero');
     this.bakedByKey.forEach((b, k) => {
       if (!used.has(k) && !this.agents.some((a) => a.baked === b)) { destroyBaked(b); this.bakedByKey.delete(k); }
     });
@@ -474,7 +497,7 @@ export class Diorama {
       depth, scale: predator ? 1 : 0.72 + 0.28 * depth, facing: this.r() > 0.5 ? 1 : -1,
       phase: this.r(), speed: (predator ? 0.7 : 1) * (0.85 + this.r() * 0.3),
       alpha: 0, leaving: false, dash: 0, dashCool: 4 + this.r() * 6,
-      grow: 1, doom: null, directed: false, temp: false
+      grow: 1, doom: null, directed: false, temp: false, hero: false, base: baked
     };
     if (d.niche === 'powietrze') a.facing = 1;
     this.pickTarget(a);
@@ -485,9 +508,44 @@ export class Diorama {
 
   private pickTarget(a: Agent) {
     const lay = this.lay || sceneLayout('woda', this.W, this.H);
+    const span = lay.lifeBottom - lay.lifeTop;
+    if (a.hero) {
+      // bohater krąży w środkowej i prawej części kadru (lewy dolny róg zajmuje podpis sceny),
+      // na lądzie z przodu, w wodzie i powietrzu w środkowym pasie
+      a.tx = this.W * (0.3 + this.r() * 0.58);
+      const band = this.data && this.data.niche === 'lad' ? [0.62, 0.95] : [0.3, 0.75];
+      a.ty = lay.lifeTop + span * (band[0] + this.r() * (band[1] - band[0]));
+      a.retarget = 4 + this.r() * 5;
+      return;
+    }
     a.tx = 30 + this.r() * (this.W - 60);
-    a.ty = lay.lifeTop + this.r() * (lay.lifeBottom - lay.lifeTop);
+    a.ty = lay.lifeTop + this.r() * span;
     a.retarget = 3 + this.r() * 5;
+  }
+
+  /**
+   * Dokładnie jeden bohater: osobnik aktywnej linii, większy i na pierwszym planie.
+   * Gdy bohater odchodzi (zmiana linii, specjacja, śmierć), jego rolę przejmuje inny.
+   */
+  private assignHero(d: DioramaData, want: Map<string, { spec: CreatureSpec; key: string; predator: boolean }>) {
+    const active = d.lineages.find((l) => l.active);
+    let hero = this.agents.find((a) => a.hero) || null;
+    if (hero && (!active || hero.lineageId !== active.id || hero.leaving || hero.doom)) {
+      hero.hero = false; hero.baked = hero.base; hero.sprite.anchor.set(hero.base.anchorX, hero.base.anchorY);
+      hero.scale = 0.72 + 0.28 * hero.depth; hero.speed = 0.85 + this.r() * 0.3;
+      hero = null;
+    }
+    const w = active ? want.get(active.id) : undefined;
+    if (hero || !active || !w) return;
+    const cand = this.agents.find((a) => !a.predator && !a.leaving && !a.doom && a.lineageId === active.id);
+    if (!cand) return;
+    cand.hero = true;
+    cand.baked = this.heroBaked(w.spec, w.key);
+    cand.sprite.anchor.set(cand.baked.anchorX, cand.baked.anchorY);
+    cand.depth = 1; cand.scale = 1; cand.speed = 0.8;
+    this.pickTarget(cand);
+    // świeżo pojawiony (jeszcze niewidoczny) osobnik staje od razu w pasie bohatera
+    if (cand.alpha < 0.5) { cand.x = cand.tx; cand.y = cand.ty; }
   }
 
   private cleanupAgents() {
@@ -542,8 +600,8 @@ export class Diorama {
         if (c && c.n > 1) { fx += (c.x / c.n - a.x) * 0.08; fy += (c.y / c.n - a.y) * 0.08; }
         for (const b of this.agents) {
           if (b === a || b.predator) continue;
-          const sx = a.x - b.x, sy = a.y - b.y, d2 = sx * sx + sy * sy;
-          if (d2 < 26 * 26 && d2 > 0.01) { const k = (26 * 26 - d2) / (26 * 26); fx += sx * k * 1.2; fy += sy * k * 1.2; }
+          const sx = a.x - b.x, sy = a.y - b.y, d2 = sx * sx + sy * sy, R = a.hero || b.hero ? 46 : 26;
+          if (d2 < R * R && d2 > 0.01) { const k = (R * R - d2) / (R * R); fx += sx * k * 1.2; fy += sy * k * 1.2; }
         }
         // ucieczka przed drapieżnikiem — dobór naturalny w akcji
         for (const p of preds) {
@@ -613,7 +671,7 @@ export class Diorama {
       s.zIndex = a.y;
       s.y = a.y - a.baked.foot * a.baked.unitPx * sc;
     } else {
-      s.zIndex = a.depth * 100 + (a.predator ? 50 : 0);
+      s.zIndex = a.depth * 100 + (a.predator ? 50 : a.hero ? 45 : 0);
       s.y = a.y;
       sc *= grow;
     }
@@ -628,17 +686,33 @@ export class Diorama {
     this.placeShadow(a, sc, niche);
   }
 
-  /** Cień zwierzęcia na gruncie, odsunięty od słońca (tylko ląd w scenie z nowym światłem). */
+  /**
+   * Cień zwierzęcia: na lądzie pod stopami, odsunięty od słońca; w wodzie na dnie
+   * pod osobnikiem (w perspektywie: bliższe osobniki rzucają cień niżej), tym
+   * słabszy i szerszy, im wyżej płynie. W powietrzu bez cienia.
+   */
   private placeShadow(a: Agent, sc: number, niche: NicheKey) {
     const l = this.look;
-    if (!l || niche !== 'lad') { if (a.shadow) a.shadow.visible = false; return; }
+    if (!l || niche === 'powietrze') { if (a.shadow) a.shadow.visible = false; return; }
     if (!a.shadow) { a.shadow = new Sprite(this.shadowTex); a.shadow.anchor.set(0.5); this.shadowLayer.addChild(a.shadow); }
     const sh = a.shadow, len = a.baked.length * a.baked.unitPx * sc, sl = shadowLen(l);
     sh.visible = true;
-    sh.x = a.x - litSide(l) * len * sl * 0.22; sh.y = a.y + 1;
-    sh.width = len * (0.9 + sl * 0.5); sh.height = Math.max(3, len * 0.15);
     sh.tint = parseInt(l.shade.slice(1), 16);
-    sh.alpha = 0.55 * a.sprite.alpha;
+    if (niche === 'lad') {
+      sh.x = a.x - litSide(l) * len * sl * 0.22; sh.y = a.y + 1;
+      sh.width = len * (0.9 + sl * 0.5); sh.height = Math.max(3, len * 0.15);
+      sh.alpha = 0.55 * a.sprite.alpha;
+      return;
+    }
+    const lay = this.lay;
+    const floor = lay.floorY + 3 + a.depth * Math.max(0, this.H - lay.floorY - 10);
+    const up = clamp01((floor - a.y) / Math.max(1, floor - lay.lifeTop));
+    const alpha = 0.34 * Math.pow(1 - up, 1.6) * a.sprite.alpha;
+    // ryby wysoko w toni nie rzucają widocznego cienia — nie rysujemy go wcale
+    if (alpha < 0.04) { sh.visible = false; return; }
+    sh.x = a.x; sh.y = floor;
+    sh.width = len * (0.8 + 0.7 * up); sh.height = Math.max(2.5, len * (0.1 + 0.05 * up));
+    sh.alpha = alpha;
   }
 
   // ------------------------------------------------------------------ cząstki
@@ -764,7 +838,7 @@ export class Diorama {
       spawnNewborn: (id, x, y) => {
         const parent = this.agents.find((a) => a.lineageId === id && !a.predator);
         if (!parent || !this.data) return null;
-        const a = this.spawn(id, parent.baked, false, this.data);
+        const a = this.spawn(id, parent.base, false, this.data);
         a.x = x; a.y = y; a.grow = 0; a.alpha = 1; a.depth = parent.depth; a.scale = parent.scale; a.facing = parent.facing;
         this.placeAgent(a);
         return a;

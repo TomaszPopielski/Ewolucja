@@ -72,9 +72,9 @@ Każda cecha gry ma widoczny odpowiednik; test pilnuje, by nowa cecha w
 | Filtrowanie | szczeliny skrzelowe, cząstki płynące do pyska |
 | Szczęki / Wszystkożerność | zęby i „kłapnięcie”; płaskie trzonowce |
 | Płetwy / Szybkie mięśnie | płetwy z promieniami; miomery (pasy mięśni) |
-| Kończyny / Stałocieplność | nogi w rozkroku → nogi pod ciałem, krótszy ogon |
-| Lot / Izolacja | skrzydła (błona albo pióra), futro, ogon z piór |
-| Ręka chwytna / Narzędzia | wyprostowana postawa, dłoń, pięściak w dłoni |
+| Kończyny / Stałocieplność | nogi w rozkroku → nogi pod ciałem, krótszy ogon; z futrem: dłuższe nogi i ucho (ssak) |
+| Lot / Izolacja | skrzydła (błona albo pióra), futro, ogon z piór; ptak: krótki tułów, szyja, dziób, nogi pod środkiem ciężkości; pterozaur: długi dziób, grzebień, błona do nogi |
+| Ręka chwytna / Narzędzia | wyprostowana postawa (z rozbudowanym mózgiem prawie pionowa, na dwóch nogach), dłoń, pięściak w dłoni |
 | Łuski / Pancerz / Kamuflaż | wzór łusek, płytki grzbietowe, plamy |
 | Oczy / Linia boczna | oko z tęczówką i mruganiem; kropkowana linia |
 | Jaja / Opieka | skrzek, jaja z otoczką; młode obok rodzica |
@@ -246,7 +246,7 @@ stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
 - **Paleta dla zaburzeń widzenia barw**: Ustawienia grafiki → „Paleta barw”. Zamiast zieleń/czerwień: niebieski = zysk, cynober = strata (zmienne CSS przy `data-palette="cb"`); znaczenie niesie też znak +/− i kształt ramki.
 - **Telefon**: przycisk „Przeżyj turę” jest przyklejony do dołu ekranu.
 - **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
-- **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.
+- **Test wizualny**: `npm run visual` rysuje 23 okazy (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.
 
 ## Światło, barwy i głębia (etap 1)
 
@@ -317,3 +317,45 @@ kl./s strony; „przed” = scena sprzed etapu 1):
 | Przybrzeże (paleozoik), średnia, procesor spowolniony 6× | 25 | 30 |
 
 Testy palet i układu scen: `test/light.test.mjs`.
+
+## Sylwetki, bohater sceny i cienie (etap 2)
+
+Plan: [`GRAFIKA-PROPOZYCJA.md`](./GRAFIKA-PROPOZYCJA.md), pakiet B. Porównania:
+[`grafika/etap2-stworzenia.jpg`](./grafika/etap2-stworzenia.jpg) (sylwetki przed/po),
+[`grafika/etap2-diorama.jpg`](./grafika/etap2-diorama.jpg) (bohater i cienie).
+
+**Formy końcowe z własnymi proporcjami** (`src/creature/draw.ts`). Mieszanie planów budowy zostaje
+(nowa cecha nadal „wyrasta”), ale każda forma końcowa ma docelowy kształt. Współczynniki liczy
+`planFor`: `bird` = lot × izolacja, `ptero` = lot bez izolacji, `mam` = stałocieplność × izolacja
+× kończyny (bez lotu), `raise` = postawa wyprostowana.
+
+| Forma | Zmiany |
+|---|---|
+| Ptak | krótszy tułów, cienka szyja i głęboka pierś, mała głowa wysoko, dziób (z hakiem przy szczękach) zamiast zębów, nogi pod środkiem ciężkości i ptasia stopa (trzy palce w przód, jeden w tył); na ziemi uniesiona pierś |
+| Pterozaur | długi, spiczasty dziób, grzebień w barwie dodatkowej, błona lotna od palca skrzydłowego do tylnej nogi |
+| Ssak | dłuższe nogi pod ciałem, ucho; bez śladu płetwy na ogonie |
+| Forma rozumna | tułów obrócony prawie do pionu, głowa z powrotem do przodu, krótszy tułów i ogon, smuklejsza sylwetka (profil `erect`), długie nogi lekko rozstawione; gadzia sylwetka zachowuje dłuższy ogon jako przeciwwagę |
+| Stawonóg | odnóża z trzech członów: udo z kolanem nad grzbietem (jak u pająka), goleń do stawu przy ziemi, stopa; owad latający nosi kolana niżej |
+
+- **Przeciwcieniowanie:** ciemniejszy grzbiet i jaśniejszy brzuch, jak u większości ryb i ssaków.
+- **Światło nieba na grzbiecie:** jasna kreska tuż pod górnym konturem ciała odcina ciemny grzbiet od tła. Pada z góry, więc zgadza się też z odbitym w poziomie osobnikiem w dioramie.
+- **Wymiary rysunku** (`planExtents`) liczy dla kręgowca sama geometria: ciało, nogi, skrzydło, dziób, płetwy i dodatki. Miniatury biorą stałą pozę (`motion = false`), a wypiekane klatki zapas na ruch. Portret dopasowuje wysokie sylwetki (postać wyprostowana, ptak na ziemi) od gruntu do górnej krawędzi.
+
+**Bohater sceny** (`src/diorama/diorama.ts`): jeden osobnik aktywnej linii jest większy
+(×1,65, na lądzie ×1,9, z własnymi, ostrymi klatkami, na wysokiej jakości 18 zamiast 12 na cykl).
+Krąży w środkowej i prawej części kadru, bo lewy dolny róg zajmuje podpis sceny: na lądzie z przodu,
+w wodzie i powietrzu w środkowym pasie. Inne osobniki trzymają się od niego dalej. Gdy bohater
+odchodzi (zmiana linii, specjacja, spadek liczebności), rolę przejmuje inny osobnik
+(`assignHero`). W animacji tury bohater ginie dopiero wtedy, gdy nie ma już nikogo innego,
+a mutację pokazuje właśnie na nim (`turnplay.ts`).
+
+**Cienie:** na lądzie pod stopami, odsunięte od słońca (etap 1). W wodzie i na przybrzeżu cień
+pada na dno w perspektywie: bliższe osobniki rzucają go niżej. Im wyżej osobnik płynie, tym cień
+jest słabszy i szerszy, a pod rybami wysoko w toni nie jest rysowany wcale. W powietrzu cieni nie ma.
+
+Płynność (renderer Canvas, procesor spowolniony 4× i 6×, mediana z 5 pomiarów) w porównaniu
+z etapem 1 mieści się w szumie pomiaru, do ±3 kl./s.
+
+Z „ruchu wtórnego” z propozycji zrobiony jest tylko gęstszy cykl klatek bohatera (falowanie ogona
+z opóźnieniem fazy było już wcześniej). Oddech i ugięcie ciała przy wypadzie drapieżnika zostają
+do zrobienia. Odrzucone, jak w propozycji: widok 3/4 i rysunek z wielu kątów.

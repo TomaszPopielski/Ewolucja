@@ -11,6 +11,13 @@ tury, raport, drzewo życia). Zasady stylu, których propozycja się trzyma:
 > [`STYL.md`](./STYL.md), sekcja „Światło, barwy i głębia”. Porównania:
 > [`grafika/etap1-wszystkie-sceny.jpg`](./grafika/etap1-wszystkie-sceny.jpg),
 > [`grafika/etap1-klimaty.jpg`](./grafika/etap1-klimaty.jpg). Tabela diagnozy niżej opisuje stan sprzed etapu 1.
+>
+> Etap 2 (pakiet B) zrealizowany: formy końcowe (ptak, pterozaur, ssak, forma rozumna,
+> odnóża stawonogów), przeciwcieniowanie, światło na grzbiecie, bohater sceny i cienie na dnie.
+> Z ruchu wtórnego tylko gęstszy cykl klatek bohatera; oddech i ugięcie przy wypadzie — do zrobienia.
+> Opis: [`STYL.md`](./STYL.md), sekcja „Sylwetki, bohater sceny i cienie”. Porównania:
+> [`grafika/etap2-stworzenia.jpg`](./grafika/etap2-stworzenia.jpg),
+> [`grafika/etap2-diorama.jpg`](./grafika/etap2-diorama.jpg).
 
 **Teza w jednym zdaniu:** styl „ilustracji naukowej” jest dobrym wyborem
 i należy go zachować. Teraz trzeba dodać mu **światło, głębię i dramaturgię**,
@@ -158,7 +165,7 @@ ciemniejsze brzegi plamy i przebarwienia. Są dwie drogi:
 |---|---|---|---|
 | 0 | F: arkusz scen, test wizualny dioramy, pomiar kontrastu | 0,5–1 dnia | nic, to siatka bezpieczeństwa |
 | 1 ✅ | A: scenariusz barw, światło, głębia | 2–3 dni | inną grę od pierwszego ekranu *(zrobione: 12 scen × 3 klimaty)* |
-| 2 | B: bohater, cień, przeciwcieniowanie, formy końcowe | 4–6 dni | zwierzęta, które da się rozpoznać |
+| 2 ✅ | B: bohater, cień, przeciwcieniowanie, formy końcowe | 4–6 dni | zwierzęta, które da się rozpoznać *(zrobione)* |
 | 3 | C: rysowanie cechy, tablica ery, przemiana na końcu, wodospad | 3–4 dni | chwile, o których się opowiada |
 | 4 | D: karty-okazy, pasek skał, HUD, telefon | 2–3 dni | lżejszy, bardziej „atlasowy” ekran |
 | 5 | E: materiał akwareli (opcjonalnie) | 2+ dni | „papier, który da się dotknąć” |
