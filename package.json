@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node test/engine.test.js && node --experimental-strip-types --no-warnings test/creature.test.mjs",
+    "test": "node test/engine.test.js && node --experimental-strip-types --no-warnings test/creature.test.mjs && node --experimental-strip-types --no-warnings test/light.test.mjs",
     "shots": "node scripts/screenshots.mjs",
     "visual": "node scripts/visual-check.mjs"
   },

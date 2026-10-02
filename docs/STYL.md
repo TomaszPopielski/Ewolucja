@@ -245,3 +245,55 @@ stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
 - **Telefon**: przycisk „Przeżyj turę” jest przyklejony do dołu ekranu.
 - **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
 - **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.
+
+## Światło, barwy i głębia (etap 1, prototyp: ląd w kenozoiku)
+
+Plan: [`GRAFIKA-PROPOZYCJA.md`](./GRAFIKA-PROPOZYCJA.md), pakiet A. Porównanie przed/po:
+[`grafika/etap1-lad-kenozoik.jpg`](./grafika/etap1-lad-kenozoik.jpg).
+
+Scena, która ma **scenariusz barw**, maluje się nowym światłem (`src/diorama/light.ts`).
+Pozostałe sceny malują się po staremu (`scenery.ts`), dopóki nie dostaną palety.
+Na razie paletę ma tylko ląd w kenozoiku.
+
+- **Scenariusz barw** (`Look`, tabela `LOOKS`): paleta dla pary era × nisza w trzech
+  wariantach klimatu tury. Papier nie rozbiela już barw, zostaje jako ziarno na malowanych
+  warstwach (zwierzęta są bez ziarna).
+- **Jedno słońce** (`sun.x`, `sun.y`): wyznacza jasną stronę koron, pni, skał i gór, kierunek
+  i długość cieni rzucanych (`litSide`, `shadowLen`), poświatę nieba i snopy światła.
+- **Perspektywa powietrzna:** góry i wzgórza są jaśniejsze, chłodniejsze i rozmyte raz,
+  przy malowaniu. Grunt przechodzi od bladego przy horyzoncie do nasyconego przy widzu,
+  a plamy światła i kępy trawy rosną ku dolnej krawędzi.
+- **Głębszy grunt** (`sceneLayout(…, deep)`): grunt zajmuje ok. 40% kadru, a stado chodzi
+  w głębi (skala osobnika od 0,56 do 1). Pas stada nigdy nie jest węższy niż w dawnym układzie.
+- **Rama kadru:** ciemne, rozmyte kępy traw w dolnych rogach, pod światło.
+- **Cień pod zwierzęciem** (zapożyczony z etapu 2, bo bez niego zwierzęta „wisiały” w oświetlonej scenie).
+
+| Klimat tury | Światło | Na scenie |
+|---|---|---|
+| Umiarkowany | jasny dzień, słońce wysoko z prawej | sawanna: gaje drzew liściastych, akacje, kwiaty |
+| Ciepły | złote, zamglone popołudnie, widoczna tarcza słońca | ta sama sawanna w ciepłej mgiełce, mocniejsze snopy |
+| Zimny | niskie słońce, długie niebieskie cienie | śnieg na górach i płaty śniegu, bezlistne drzewa, ośnieżone świerki |
+
+- **Ślad po katastrofie:** paleta blaknie do popielatej (`ashen`) i przez trzy tury wraca
+  do pełnych barw; scena maluje się od nowa w krokach co 1/3. Nakładka barwna z `applyMood`
+  zostaje tylko dla zapowiedzi katastrofy (rdzawy odcień).
+- **Tryb ciemny:** ta sama scena o zmierzchu (`dusk`): słońce tuż nad horyzontem, przygaszone barwy, bez snopów.
+- **Zmiana klimatu albo śladu** między turami = nowa scena, która przenika się z poprzednią.
+
+Warstwy od tyłu: niebo z górami i wzgórzami (jeden obraz) → chmury (dryfują 3 px/s, przed
+górami) → snopy światła → grunt z tylnym rzędem drzew i światłem na gruncie (jeden obraz,
+przycięty do pasa z treścią) → cienie zwierząt → pokarm i zwierzęta → trawy pierwszego planu
+i rama (jeden obraz, dolny pas). Ląd się nie przesuwa, dlatego nieruchome warstwy są sklejane
+przy malowaniu. Renderer przerysowuje co klatkę mniej pikseli niż w dawnej scenie.
+
+Pomiary na tej samej scenie (Chromium bez karty graficznej, renderer Canvas, 1280×860,
+mediana z 5 pomiarów, kl./s strony):
+
+| Jakość | Przed | Po |
+|---|---|---|
+| Wysoka, procesor spowolniony 4× | 43 | 60 |
+| Średnia, procesor spowolniony 4× | 59 | 60 |
+| Średnia, procesor spowolniony 6× | 35 | 41 |
+
+Nowa scena dla innej pary era × nisza: wpis w `LOOKS` (trzy klimaty) i, jeśli trzeba,
+własne rośliny tylnego rzędu w `paintMidLit`. Testy palety i układu: `test/light.test.mjs`.

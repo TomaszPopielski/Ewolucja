@@ -27,7 +27,16 @@ export interface SceneLayout {
   lifeTop: number; lifeBottom: number;
 }
 
-export function sceneLayout(niche: NicheKey, W: number, H: number): SceneLayout {
+/**
+ * @param deep  scena z nowym światłem (light.ts): na lądzie grunt zajmuje ok. 40% kadru,
+ *              a stado rozkłada się w głąb (dawniej wąski pas przy dolnej krawędzi).
+ */
+export function sceneLayout(niche: NicheKey, W: number, H: number, deep = false): SceneLayout {
+  if (deep && niche === 'lad') {
+    const floorY = Math.round(H * 0.6);
+    // pas stada nigdy węższy niż w dawnym układzie (ważne w niskich scenach)
+    return { W, H, surfaceY: -1, floorY, lifeTop: Math.min(floorY + Math.round(H * 0.08), H - 54), lifeBottom: H - 12 };
+  }
   switch (niche) {
     case 'woda': return { W, H, surfaceY: 10, floorY: H - 26, lifeTop: 34, lifeBottom: H - 44 };
     case 'przybrzeze': return { W, H, surfaceY: Math.round(H * 0.3), floorY: H - 22, lifeTop: Math.round(H * 0.3) + 22, lifeBottom: H - 38 };
@@ -38,29 +47,29 @@ export function sceneLayout(niche: NicheKey, W: number, H: number): SceneLayout 
 
 // ------------------------------------------------------------------ pędzle
 
-function hexA(hex: string, a: number): string {
+export function hexA(hex: string, a: number): string {
   if (!hex.startsWith('#')) return hex;
   const p = parseInt(hex.slice(1), 16);
   return 'rgba(' + ((p >> 16) & 255) + ',' + ((p >> 8) & 255) + ',' + (p & 255) + ',' + a.toFixed(3) + ')';
 }
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
   const c = (sh: number) => Math.round(((pa >> sh) & 255) + (((pb >> sh) & 255) - ((pa >> sh) & 255)) * t);
   return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
 }
 
-interface Brush { th: Theme; alpha: number; line: number }
-function ink(ctx: Ctx, b: Brush, w = 1, a = 1) {
+export interface Brush { th: Theme; alpha: number; line: number }
+export function ink(ctx: Ctx, b: Brush, w = 1, a = 1) {
   ctx.strokeStyle = hexA(b.th.ink, b.alpha * a * 0.9);
   ctx.lineWidth = w * b.line; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.stroke();
 }
-function wash(ctx: Ctx, b: Brush, color: string, a = 0.5) {
+export function wash(ctx: Ctx, b: Brush, color: string, a = 0.5) {
   ctx.fillStyle = hexA(color, a * b.alpha); ctx.fill();
 }
 
 /** Rysuje element także „po drugiej stronie” kafla, jeśli wystaje poza krawędź. */
-function wrapped(tileW: number, x: number, reach: number, fn: (x: number) => void) {
+export function wrapped(tileW: number, x: number, reach: number, fn: (x: number) => void) {
   fn(x);
   if (x - reach < 0) fn(x + tileW);
   if (x + reach > tileW) fn(x - tileW);
@@ -378,7 +387,7 @@ function conifer(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => n
 }
 
 /** Kępa kwiatów kenozoiku: łodyżki z barwnymi główkami. */
-function wildflowers(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
+export function wildflowers(ctx: Ctx, b: Brush, x: number, y: number, s: number, r: () => number) {
   const cols = ['#d59ab0', '#e3c25a', '#f3efe4', '#a48ad0'];
   for (let q = 0; q < 6; q++) {
     const fx = x + (q - 2.5) * 3.2 * s, h = (8 + r() * 8) * s;
@@ -413,7 +422,7 @@ export interface PaintArgs {
   niche: NicheKey; era: Era; theme: Theme; lay: SceneLayout; tileW: number; seed: number; res: number;
 }
 
-function canvasOf(w: number, h: number, res: number): { c: HTMLCanvasElement; ctx: Ctx } {
+export function canvasOf(w: number, h: number, res: number): { c: HTMLCanvasElement; ctx: Ctx } {
   const c = document.createElement('canvas');
   c.width = Math.ceil(w * res); c.height = Math.ceil(h * res);
   const ctx = c.getContext('2d')!;
