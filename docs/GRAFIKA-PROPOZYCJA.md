@@ -6,9 +6,11 @@ Propozycja kolejnego etapu oprawy wizualnej. Opiera się na przeglądzie kodu
 tury, raport, drzewo życia). Zasady stylu, których propozycja się trzyma:
 [`STYL.md`](./STYL.md).
 
-> **Status:** etap 1 ma prototyp na jednej scenie (ląd w kenozoiku, trzy klimaty, ślad po
-> katastrofie, tryb ciemny). Opis i pomiary: [`STYL.md`](./STYL.md), sekcja „Światło, barwy
-> i głębia”. Porównanie przed/po: [`grafika/etap1-lad-kenozoik.jpg`](./grafika/etap1-lad-kenozoik.jpg).
+> **Status:** etap 1 (pakiet A) zrealizowany we wszystkich 12 scenach: palety er w trzech
+> klimatach, światło, głębia, ślad po katastrofie i tryb ciemny. Opis i pomiary:
+> [`STYL.md`](./STYL.md), sekcja „Światło, barwy i głębia”. Porównania:
+> [`grafika/etap1-wszystkie-sceny.jpg`](./grafika/etap1-wszystkie-sceny.jpg),
+> [`grafika/etap1-klimaty.jpg`](./grafika/etap1-klimaty.jpg). Tabela diagnozy niżej opisuje stan sprzed etapu 1.
 
 **Teza w jednym zdaniu:** styl „ilustracji naukowej” jest dobrym wyborem
 i należy go zachować. Teraz trzeba dodać mu **światło, głębię i dramaturgię**,
@@ -155,7 +157,7 @@ ciemniejsze brzegi plamy i przebarwienia. Są dwie drogi:
 | Etap | Zakres | Czas | Co zobaczy gracz |
 |---|---|---|---|
 | 0 | F: arkusz scen, test wizualny dioramy, pomiar kontrastu | 0,5–1 dnia | nic, to siatka bezpieczeństwa |
-| 1 | A: scenariusz barw, światło, głębia | 2–3 dni | inną grę od pierwszego ekranu *(prototyp: ląd w kenozoiku; zostało 11 scen)* |
+| 1 ✅ | A: scenariusz barw, światło, głębia | 2–3 dni | inną grę od pierwszego ekranu *(zrobione: 12 scen × 3 klimaty)* |
 | 2 | B: bohater, cień, przeciwcieniowanie, formy końcowe | 4–6 dni | zwierzęta, które da się rozpoznać |
 | 3 | C: rysowanie cechy, tablica ery, przemiana na końcu, wodospad | 3–4 dni | chwile, o których się opowiada |
 | 4 | D: karty-okazy, pasek skał, HUD, telefon | 2–3 dni | lżejszy, bardziej „atlasowy” ekran |

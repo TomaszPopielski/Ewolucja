@@ -92,16 +92,18 @@ Scena nad panelami gry pokazuje świat aktywnej linii. Jest rysowana w PixiJS
 | Dane gry | Na scenie |
 |---|---|
 | Nisza aktywnej linii | woda, przybrzeże (z lądem na horyzoncie), ląd, powietrze |
-| Era | roślinność i drobna fauna: liliowce, gąbki, trylobity, lepidodendrony, skrzypy → amonity, koralowce, araukarie, sagowce → kelp, drzewa liściaste, trawy |
+| Era | paleta i światło ery oraz roślinność i drobna fauna: liliowce, gąbki, trylobity, bagienny las lepidodendronów → amonity, koralowce, araukarie, sagowce, dymiący wulkan → las kelpowy, sawanna z akacjami, trawy |
 | Populacja linii | liczba osobników w ławicy/stadzie (∝ √populacji) |
 | Inne linie w tej niszy | ich osobniki w innej barwie (specjacja) |
 | Pokarm tury | plankton, pyłki, owady |
 | Presja drapieżników | 0–3 drapieżniki; ofiary uciekają przed ich wypadami |
-| Klimat tury | śnieg i chłodny odcień; ciepłe światło i pył |
+| Klimat tury | pora i jakość światła: złote, zamglone popołudnie (pył) albo niskie słońce, śnieg i kra |
 | Zapowiedź katastrofy w niszy | rdzawy odcień sceny i ostrzeżenie w podpisie |
 
-- `scenery.ts`: malowanie warstw (tło, daleki, środkowy, pierwszy plan) w
-  stylu tusz + ton. Warstwy są zapętlone i przesuwają się z efektem głębi.
+- `looks.ts`: scenariusz barw — paleta każdej sceny w trzech klimatach (sekcja „Światło, barwy i głębia” niżej).
+- `lit-land.ts`, `lit-water.ts`, `lit-air.ts`: przepisy scen (ląd; woda i przybrzeże; powietrze),
+  `lit-scene.ts` wybiera przepis według niszy, `light.ts` — wspólne narzędzia.
+- `scenery.ts`: układ sceny, pędzle tusz + ton i rysunki roślin oraz zwierząt dna.
 - `bake.ts`: klatki animacji zwierzęcia wypiekane z tego samego rysunku co rycina.
 - `diorama.ts`: scena, ruch stada (spójność, rozproszenie, ucieczka) i przejścia
   (przenikanie przy zmianie linii, niszy lub tury).
@@ -196,8 +198,8 @@ grafiką ilustratora, bez zmian w logice gry:
 | Element | Gdzie podmienić | Oczekiwany format |
 |---|---|---|
 | Ikony | `src/art/icons.ts` (treść pod kluczem) | SVG 24×24, klasy `.w/.f/.t` |
-| Warstwy krajobrazu | `paintFar/paintMid/paintNear/paintBackground` w `src/diorama/scenery.ts` | funkcja zwraca `<canvas>` — wystarczy narysować na nim obraz (`drawImage`) o szerokości kafla, zapętlony w poziomie |
-| Roślinność i fauna tła | funkcje `crinoid`, `lepidodendron`, `araucaria`… w `scenery.ts` | dowolny rysunek na kontekście 2D |
+| Warstwy krajobrazu | funkcje `paint…` w `src/diorama/lit-land.ts`, `lit-water.ts`, `lit-air.ts` (składa je przepis sceny: `landRecipe`, `seaRecipe`, `coastRecipe`, `airRecipe`) | funkcja zwraca `<canvas>` — wystarczy narysować na nim obraz (`drawImage`); warstwy przesuwane z kamerą mają szerokość kafla i są zapętlone w poziomie |
+| Roślinność i fauna tła | funkcje `crinoid`, `lepidodendron`, `araucaria`… w `scenery.ts` (światło nakłada `litObject`), drzewa kenozoiku w `lit-land.ts` | dowolny rysunek na kontekście 2D |
 | Osobniki w dioramie | `bakeCreature` w `src/diorama/bake.ts` | tablica klatek (tekstur) jednego cyklu ruchu + punkt zaczepienia |
 | Rycina i miniatury | `drawCreature` w `src/creature/draw.ts` (lub osobny rysunek w `portrait.ts` / `thumb.ts`) | rysunek na kontekście 2D w pozie z parametru `time` |
 
@@ -246,54 +248,72 @@ stawonogi (ląd, powietrze). Galeria w `npm run shots` ma okazy obu planów.
 - **Ekrany startowy i końcowy**: numer tablicy, podwójna ramka i rycina w oprawie.
 - **Test wizualny**: `npm run visual` rysuje 21 okazów (`scripts/specimens.mjs`) w nieruchomej pozie i porównuje z wzorcami z `test/visual/` (dopuszcza 0,4% różniących się pikseli). Po zamierzonej zmianie wyglądu: `npm run visual -- --update`, a zmienione wzorce wchodzą do commita.
 
-## Światło, barwy i głębia (etap 1, prototyp: ląd w kenozoiku)
+## Światło, barwy i głębia (etap 1)
 
-Plan: [`GRAFIKA-PROPOZYCJA.md`](./GRAFIKA-PROPOZYCJA.md), pakiet A. Porównanie przed/po:
-[`grafika/etap1-lad-kenozoik.jpg`](./grafika/etap1-lad-kenozoik.jpg).
+Plan: [`GRAFIKA-PROPOZYCJA.md`](./GRAFIKA-PROPOZYCJA.md), pakiet A. Porównania:
+[`grafika/etap1-wszystkie-sceny.jpg`](./grafika/etap1-wszystkie-sceny.jpg) (przed/po, 12 scen),
+[`grafika/etap1-klimaty.jpg`](./grafika/etap1-klimaty.jpg) (każda scena w trzech klimatach),
+[`grafika/etap1-lad-kenozoik.jpg`](./grafika/etap1-lad-kenozoik.jpg) (prototyp).
 
-Scena, która ma **scenariusz barw**, maluje się nowym światłem (`src/diorama/light.ts`).
-Pozostałe sceny malują się po staremu (`scenery.ts`), dopóki nie dostaną palety.
-Na razie paletę ma tylko ląd w kenozoiku.
+Każda z 12 scen (era × nisza) ma **scenariusz barw** (`src/diorama/looks.ts`) i jedno słońce.
 
-- **Scenariusz barw** (`Look`, tabela `LOOKS`): paleta dla pary era × nisza w trzech
-  wariantach klimatu tury. Papier nie rozbiela już barw, zostaje jako ziarno na malowanych
-  warstwach (zwierzęta są bez ziarna).
-- **Jedno słońce** (`sun.x`, `sun.y`): wyznacza jasną stronę koron, pni, skał i gór, kierunek
-  i długość cieni rzucanych (`litSide`, `shadowLen`), poświatę nieba i snopy światła.
-- **Perspektywa powietrzna:** góry i wzgórza są jaśniejsze, chłodniejsze i rozmyte raz,
-  przy malowaniu. Grunt przechodzi od bladego przy horyzoncie do nasyconego przy widzu,
-  a plamy światła i kępy trawy rosną ku dolnej krawędzi.
-- **Głębszy grunt** (`sceneLayout(…, deep)`): grunt zajmuje ok. 40% kadru, a stado chodzi
-  w głębi (skala osobnika od 0,56 do 1). Pas stada nigdy nie jest węższy niż w dawnym układzie.
-- **Rama kadru:** ciemne, rozmyte kępy traw w dolnych rogach, pod światło.
-- **Cień pod zwierzęciem** (zapożyczony z etapu 2, bo bez niego zwierzęta „wisiały” w oświetlonej scenie).
+- **Scenariusz barw** (`Look`): paleta bazowa każdej sceny (`BASE`), z której wariant ciepły
+  i zimny wylicza `withClimate`. Ląd w kenozoiku ma paletę dobraną ręcznie w prototypie.
+  Papier nie rozbiela już barw, zostaje jako ziarno na malowanych warstwach (zwierzęta są bez ziarna).
+- **Jedno słońce** (`sun.x`, `sun.y`): na lądzie i w powietrzu wyznacza jasną stronę koron,
+  pni, skał i gór, kierunek i długość cieni (`litSide`, `shadowLen`), poświatę nieba i snopy.
+  Pod wodą światło pada z góry: jasne wierzchy, cień pod spodem, snopy spod powierzchni
+  pochylone od słońca, a na wysokiej jakości ruchome refleksy (kaustyki) na dnie.
+- **Perspektywa powietrzna** (pod wodą: zamglenie toni): dalsze plany są jaśniejsze,
+  chłodniejsze i rozmyte raz, przy malowaniu (`blurred`: jedna operacja na całą warstwę).
+- **Grunt w perspektywie** (`sceneLayout`): na lądzie ok. 40% kadru, w wodzie dno od 80%
+  wysokości; stado chodzi w głąb (na lądzie skala osobnika od 0,56 do 1, cień pod spodem).
+- **Rama kadru:** ciemne, rozmyte rośliny pierwszego planu w dolnych rogach, pod światło
+  (trawy w kenozoiku, liście paproci wcześniej, wodorosty pod wodą).
+- **Dawne rysunki** roślin i zwierząt (`scenery.ts`) dostają światło przez `litObject`:
+  rysunek powstaje na osobnym płótnie, a jego piksele dostają światło z boku albo z góry
+  i zamglenie dali.
+
+| Era | Charakter | Ląd | Woda i przybrzeże |
+|---|---|---|---|
+| Paleozoik | wilgotny, turkusowo-zielony | bagienny las lepidodendronów, skrzypy, paprocie, kałuże odbijające niebo; na brzegu niskie kobierce pierwszych roślin | liliowce, gąbki, trylobity, ramienionogi, łodzikowce; stromatolity na przybrzeżu |
+| Mezozoik | ciepły, oliwkowo-złoty | araukarie, sagowce, paprocie drzewiaste, iglaste; dymiący wulkan na horyzoncie | koralowce, amonity, jeżowce, gąbki |
+| Kenozoik | czyste światło, sawanna | gaje drzew liściastych, akacje, trawy, kwiaty | las kelpowy, koralowce, rozgwiazdy, trawa morska |
 
 | Klimat tury | Światło | Na scenie |
 |---|---|---|
-| Umiarkowany | jasny dzień, słońce wysoko z prawej | sawanna: gaje drzew liściastych, akacje, kwiaty |
-| Ciepły | złote, zamglone popołudnie, widoczna tarcza słońca | ta sama sawanna w ciepłej mgiełce, mocniejsze snopy |
-| Zimny | niskie słońce, długie niebieskie cienie | śnieg na górach i płaty śniegu, bezlistne drzewa, ośnieżone świerki |
+| Umiarkowany | jasny dzień, słońce wysoko z prawej | pełne barwy ery |
+| Ciepły | złote, zamglone popołudnie, widoczna tarcza słońca | ciepła mgiełka, mocniejsze snopy; zieleńsza, mętniejsza toń |
+| Zimny | niskie słońce, długie niebieskie cienie | śnieg na górach i płaty śniegu (w mezozoiku szron), kra na wodzie, bezlistne drzewa w kenozoiku; ciemniejsza, czystsza toń |
+
+Śnieg, kałuże i kra mają osobne losowanie, więc rośliny i skały stoją w tych samych miejscach
+w każdym klimacie: to samo miejsce w innej pogodzie.
 
 - **Ślad po katastrofie:** paleta blaknie do popielatej (`ashen`) i przez trzy tury wraca
-  do pełnych barw; scena maluje się od nowa w krokach co 1/3. Nakładka barwna z `applyMood`
-  zostaje tylko dla zapowiedzi katastrofy (rdzawy odcień).
+  do pełnych barw; scena maluje się od nowa w krokach co 1/3. Jedyna nakładka barwna to
+  rdzawy odcień zapowiedzi katastrofy (`applyMood`).
 - **Tryb ciemny:** ta sama scena o zmierzchu (`dusk`): słońce tuż nad horyzontem, przygaszone barwy, bez snopów.
 - **Zmiana klimatu albo śladu** między turami = nowa scena, która przenika się z poprzednią.
+  Malowanie sceny trwa 40–200 ms (prototyp lądu potrzebował 1,3 s, bo rozmywał każdy kształt osobno).
 
-Warstwy od tyłu: niebo z górami i wzgórzami (jeden obraz) → chmury (dryfują 3 px/s, przed
-górami) → snopy światła → grunt z tylnym rzędem drzew i światłem na gruncie (jeden obraz,
-przycięty do pasa z treścią) → cienie zwierząt → pokarm i zwierzęta → trawy pierwszego planu
-i rama (jeden obraz, dolny pas). Ląd się nie przesuwa, dlatego nieruchome warstwy są sklejane
-przy malowaniu. Renderer przerysowuje co klatkę mniej pikseli niż w dawnej scenie.
+Warstwy (`LitRecipe`): nieruchome są sklejane przy malowaniu i przycinane do pasa, w którym
+coś jest; ruchome (chmury, a w wodzie i powietrzu krajobraz, który płynie z kamerą) to
+zapętlone kafle z paralaksą. Ląd: niebo z górami i wzgórzami (jeden obraz) → chmury → snopy →
+grunt z roślinnością → zwierzęta → pierwszy plan i rama. Woda: toń → daleka rafa → snopy →
+powierzchnia → dno → kaustyki → zwierzęta → wodorosty i rama. Przybrzeże: niebo i toń → chmury →
+brzeg z daleką rafą → snopy → powierzchnia → dno. Powietrze: niebo → krajobraz w dole → snopy →
+duże chmury → zwierzęta → obłoki pierwszego planu.
 
-Pomiary na tej samej scenie (Chromium bez karty graficznej, renderer Canvas, 1280×860,
-mediana z 5 pomiarów, kl./s strony):
+Pomiary (Chromium bez karty graficznej, renderer Canvas, 1280×860, mediana z 5 pomiarów,
+kl./s strony; „przed” = scena sprzed etapu 1):
 
-| Jakość | Przed | Po |
+| Scena, jakość | Przed | Po |
 |---|---|---|
-| Wysoka, procesor spowolniony 4× | 43 | 60 |
-| Średnia, procesor spowolniony 4× | 59 | 60 |
-| Średnia, procesor spowolniony 6× | 35 | 41 |
+| Ląd (kenozoik), wysoka, procesor spowolniony 4× | 43 | 60 |
+| Ląd (kenozoik), średnia, procesor spowolniony 6× | 35 | 41 |
+| Woda (paleozoik), wysoka, procesor spowolniony 4× | 28 | 43 |
+| Woda (paleozoik), średnia, procesor spowolniony 6× | 24 | 33 |
+| Przybrzeże (paleozoik), wysoka, procesor spowolniony 4× | 31 | 44 |
+| Przybrzeże (paleozoik), średnia, procesor spowolniony 6× | 25 | 30 |
 
-Nowa scena dla innej pary era × nisza: wpis w `LOOKS` (trzy klimaty) i, jeśli trzeba,
-własne rośliny tylnego rzędu w `paintMidLit`. Testy palety i układu: `test/light.test.mjs`.
+Testy palet i układu scen: `test/light.test.mjs`.

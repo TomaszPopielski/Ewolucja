@@ -16,13 +16,12 @@ import type { Theme } from '../creature/draw.ts';
 import { bakeCreature, destroyBaked, type Baked } from './bake.ts';
 import type { QualityParams } from '../art/settings.ts';
 import {
-  sceneLayout, paintBackground, paintFar, paintMid, paintNear, paintDot, paintBubble, paintSnow, paintRay, paintVignette, paintNoise,
+  sceneLayout, paintDot, paintBubble, paintSnow, paintVignette, paintNoise,
   type Era, type NicheKey, type SceneLayout, type PaintArgs
 } from './scenery.ts';
-import {
-  hasLook, lookFor, aftermathStep, litSide, shadowLen, paintSkyLit, paintCloudsLit, paintMountainsLit, paintFarLit, paintMidLit,
-  paintLightLit, paintNearLit, paintFrameLit, paintShadowBlob, paintSunRay, paintGrain, type Look
-} from './light.ts';
+import { lookFor, aftermathStep, litSide, shadowLen, type Look } from './looks.ts';
+import { paintShadowBlob, paintSunRay, type LitLayer } from './light.ts';
+import { litRecipe } from './lit-scene.ts';
 
 export interface DioramaLineage {
   id: string; name: string; traits: string[]; niche: string; population: number; active: boolean;
@@ -175,8 +174,8 @@ export class Diorama {
   private bakedByKey = new Map<string, Baked>();
   private agents: Agent[] = [];
   private particles: Particle[] = [];
-  private dotTex!: Texture; private bubbleTex!: Texture; private snowTex!: Texture; private rayTex!: Texture; private sunRayTex!: Texture; private shadowTex!: Texture;
-  /** Scenariusz barw bieżącej sceny (null = scena malowana po staremu). */
+  private dotTex!: Texture; private bubbleTex!: Texture; private snowTex!: Texture; private sunRayTex!: Texture; private shadowTex!: Texture;
+  /** Scenariusz barw bieżącej sceny (looks.ts); null do pierwszych danych. */
   private look: Look | null = null;
   private camX = 0;
   private time = 0;
@@ -220,7 +219,6 @@ export class Diorama {
     this.dotTex = tex(paintDot('#ffffff', this.res), this.res);
     this.bubbleTex = tex(paintBubble(this.theme, this.res), this.res);
     this.snowTex = tex(paintSnow(this.theme, this.res), this.res);
-    this.rayTex = tex(paintRay(this.res), this.res);
     this.sunRayTex = tex(paintSunRay(this.res), this.res);
     this.shadowTex = tex(paintShadowBlob(this.res), this.res);
 
@@ -295,12 +293,11 @@ export class Diorama {
     if (this.director) this.director.finish();
     const prev = this.data;
     this.data = data;
-    this.look = lookFor(data.era, data.niche, data.climate, this.theme.dark, data.aftermath);
-    // Scena z nowym światłem zależy też od klimatu tury (inna pora i jakość światła)
+    const look = this.look = lookFor(data.era, data.niche, data.climate, this.theme.dark, data.aftermath);
+    // Scena zależy też od klimatu tury (inna pora i jakość światła)
     // i od śladu po katastrofie (barwy wracają przez trzy tury).
-    const lit = this.look ? [data.climate || '', aftermathStep(data.aftermath)].join('/') : '';
-    const sceneKey = [data.niche, data.era, this.W, this.theme.dark, lit].join('|');
-    if (!this.scenes.length || this.scenes[this.scenes.length - 1].key !== sceneKey) this.swapScene(sceneKey, data);
+    const sceneKey = [data.niche, data.era, this.W, this.theme.dark, data.climate || '', aftermathStep(data.aftermath)].join('|');
+    if (!this.scenes.length || this.scenes[this.scenes.length - 1].key !== sceneKey) this.swapScene(sceneKey, data, look);
     this.lay = this.layoutFor(data);
     this.applyMood(data);
     this.syncPopulation(data, prev);
@@ -309,52 +306,50 @@ export class Diorama {
   }
 
   private layoutFor(d: DioramaData): SceneLayout {
-    return sceneLayout(d.niche, this.W, this.H, hasLook(d.era, d.niche));
+    return sceneLayout(d.niche, this.W, this.H);
   }
 
-  private swapScene(key: string, d: DioramaData) {
+  private swapScene(key: string, d: DioramaData, l: Look) {
     const lay = this.layoutFor(d);
     const tileW = Math.ceil(Math.max(900, this.W * 1.6) / 10) * 10;
     const args: PaintArgs = { niche: d.niche, era: d.era, theme: this.theme, lay, tileW, seed: hashString(d.niche + d.era), res: this.res };
+    const rec = litRecipe(args, l, { W: this.W, H: this.H, res: this.res, theme: this.theme, effects: this.q.effects });
     const textures: Texture[] = [];
-    const mk = (c: HTMLCanvasElement) => { const t = tex(c, this.res); textures.push(t); return t; };
-    if (this.look) { this.pushScene(this.buildLitScene(key, args, this.look, mk, textures)); return; }
-
-    const back = new Container();
-    const bg = new Sprite(mk(paintBackground(args)));
-    bg.width = this.W; bg.height = this.H;
-    back.addChild(bg);
-    const far = new Strip(mk(paintFar(args)), tileW);
-    back.addChild(far);
-    const rays: Sprite[] = [];
-    if (d.niche === 'woda' || d.niche === 'przybrzeze' || d.niche === 'lad') {
-      const n = d.niche === 'lad' ? 3 : 5;
-      for (let i = 0; i < n; i++) {
-        const s = new Sprite(this.rayTex);
-        // Renderer Canvas (Pixi 8) źle przywraca tryb mieszania po „add” — tam zwykłe mieszanie.
-        if (this.filtersOk) s.blendMode = 'add';
-        s.x = (i + 0.3 + this.r() * 0.5) * (this.W / n);
-        s.y = d.niche === 'przybrzeze' ? lay.surfaceY : (d.niche === 'lad' ? -20 : 0);
-        s.height = (d.niche === 'lad' ? this.H * 0.9 : lay.floorY - s.y) ;
-        s.width = 40 + this.r() * 50;
-        s.skew.x = d.niche === 'lad' ? -0.5 : -0.25 + this.r() * 0.1;
-        s.alpha = d.niche === 'lad' ? 0.18 : 0.35;
-        back.addChild(s); rays.push(s);
+    const tiles: SceneSet['tiles'] = [];
+    const make = (layer: LitLayer): Container => {
+      const t = tex(layer.canvas, this.res); textures.push(t);
+      if (layer.tile) {
+        const strip = new Strip(t, tileW); strip.y = layer.y0;
+        tiles.push({ t: strip, k: layer.k ?? 0, drift: layer.drift });
+        return strip;
       }
-    }
-    const mid = new Strip(mk(paintMid(args)), tileW);
-    back.addChild(mid);
+      const sp = new Sprite(t); sp.y = layer.y0; sp.width = this.W; sp.height = layer.h;
+      return sp;
+    };
+    const back = new Container();
+    const rays: Sprite[] = [];
+    // mieszanie addytywne (WebGL) rozjaśnia mocniej niż zwykłe — wtedy snopy słabsze
+    const rayAlpha = rec.rays ? rec.rays.alpha * (this.filtersOk ? 0.55 : 1) : 0;
+    rec.back.forEach((layer, i) => {
+      back.addChild(make(layer));
+      if (i === rec.raysAfter && rec.rays) {
+        const R = rec.rays;
+        R.xs.forEach((x, j) => {
+          const s = new Sprite(this.sunRayTex);
+          // Renderer Canvas (Pixi 8) źle przywraca tryb mieszania po „add” — tam zwykłe mieszanie.
+          if (this.filtersOk) s.blendMode = 'add';
+          s.x = x; s.y = R.y; s.height = R.h; s.width = R.widths[j];
+          s.alpha = rayAlpha; s.skew.x = R.skew; // tak zostają w scenie nieruchomej
+          back.addChild(s); rays.push(s);
+        });
+      }
+    });
     if (this.dispFilter && (d.niche === 'woda' || d.niche === 'przybrzeze')) back.filters = [this.dispFilter];
-
     const near = new Container();
-    const nearT = new Strip(mk(paintNear(args)), tileW);
-    near.addChild(nearT);
-
+    rec.front.forEach((layer) => near.addChild(make(layer)));
     this.pushScene({
-      key, back, near, rays, textures,
-      // w dioramie lądowej płyną tylko chmury dalekiego planu
-      tiles: [{ t: far, k: 0.25, drift: d.niche === 'lad' ? 3 : undefined }, { t: mid, k: 0.6 }, { t: nearT, k: 1.3 }],
-      rayAlpha: d.niche === 'lad' ? 0.12 : 0.2, raySkew: d.niche === 'lad' ? -0.5 : -0.2, rayFlicker: 0.08,
+      key, back, near, rays, textures, tiles,
+      rayAlpha, raySkew: rec.rays ? rec.rays.skew : 0, rayFlicker: rayAlpha * 0.35,
       alpha: 0, target: 1
     });
   }
@@ -369,82 +364,16 @@ export class Diorama {
     this.nearRoot.addChild(set.near);
   }
 
-  /**
-   * Scena z nowym światłem (light.ts): niebo z poświatą słońca, zamglone góry,
-   * wzgórza z lasem, dryfujące chmury, snopy światła od słońca, grunt
-   * w perspektywie i światło na gruncie; przed zwierzętami trawy i rama kadru.
-   * Ląd stoi w miejscu (płyną tylko chmury), więc nieruchome warstwy są przy
-   * malowaniu sklejane i przycinane do pasa, w którym coś jest — renderer
-   * przerysowuje co klatkę mniej pikseli niż w dawnej scenie.
-   */
-  private buildLitScene(key: string, args: PaintArgs, l: Look,
-    mk: (c: HTMLCanvasElement) => Texture, textures: Texture[]): SceneSet {
-    const { lay, tileW } = args;
-    const res = this.res, k = this.H / 300;
-    /** Skleja warstwy (lewy kraniec kafla = lewy brzeg sceny) w pasie y0…y1, opcjonalnie z ziarnem papieru od grainFrom. */
-    const flat = (layers: HTMLCanvasElement[], y0: number, y1: number, grainFrom: number | null, seed: number) => {
-      y0 = Math.max(0, Math.floor(y0)); y1 = Math.min(this.H, Math.ceil(y1));
-      const w = Math.ceil(this.W * res), sy = Math.floor(y0 * res), h = Math.ceil((y1 - y0) * res);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const ctx = c.getContext('2d')!;
-      layers.forEach((src) => {
-        const cw = Math.min(w, src.width), ch = Math.min(h, src.height - sy);
-        if (ch > 0) ctx.drawImage(src, 0, sy, cw, ch, 0, 0, cw, ch);
-      });
-      if (grainFrom !== null) paintGrain(ctx, w, h, Math.max(0, (grainFrom - y0) * res), res, this.theme, seed);
-      const sp = new Sprite(mk(c));
-      sp.y = y0; sp.width = this.W; sp.height = y1 - y0;
-      return sp;
-    };
-    const back = new Container();
-    // niebo, góry i wzgórza: jeden nieprzezroczysty obraz; chmury płyną przed górami
-    back.addChild(flat([paintSkyLit(args, l), paintMountainsLit(args, l), paintFarLit(args, l)], 0, this.H, 0, args.seed));
-    const clouds = new Strip(mk(paintCloudsLit(args, l)), tileW);
-    back.addChild(clouds);
-    const rays: Sprite[] = [];
-    // mieszanie addytywne (WebGL) rozjaśnia mocniej niż zwykłe — wtedy snopy słabsze
-    const rayAlpha = l.rays * (this.filtersOk ? 0.55 : 1);
-    if (l.rays > 0) {
-      const sx = l.sun.x * this.W, sy = l.sun.y * this.H, n = 4;
-      for (let i = 0; i < n; i++) {
-        const s = new Sprite(this.sunRayTex);
-        if (this.filtersOk) s.blendMode = 'add';
-        s.x = sx + (i - (n - 1) / 2) * this.W * 0.05 + (this.r() - 0.5) * 20;
-        s.y = sy - 8;
-        s.height = lay.floorY + this.H * 0.12 - s.y;
-        s.width = 50 + this.r() * 60;
-        s.alpha = rayAlpha; s.skew.x = -0.55 * litSide(l); // tak zostają w scenie nieruchomej
-        back.addChild(s); rays.push(s);
-      }
-    }
-    // grunt z tylnym rzędem drzew (najwyższe sięgają ok. 135 px nad horyzont przy scenie 300 px)
-    back.addChild(flat([paintMidLit(args, l), paintLightLit(args, l)], lay.floorY - 135 * k, this.H, lay.floorY, args.seed + 1));
-    const near = new Container();
-    near.addChild(flat([paintNearLit(args, l), paintFrameLit(args, l)], this.H - 102 * k, this.H, null, 0));
-    return {
-      key, back, near, rays, textures,
-      tiles: [{ t: clouds, k: 0, drift: 3 }],
-      rayAlpha, raySkew: -0.55 * litSide(l), rayFlicker: rayAlpha * 0.35,
-      alpha: 0, target: 1
-    };
-  }
-
   private disposeScene(s: SceneSet) {
     s.back.destroy({ children: true });
     s.near.destroy({ children: true });
     s.textures.forEach((t) => t.destroy(true));
   }
 
-  /** Klimat i zapowiedź katastrofy — delikatna nakładka barwna. */
+  /** Zapowiedź katastrofy — rdzawa nakładka (klimat i ślad po katastrofie są już w palecie sceny). */
   private applyMood(d: DioramaData) {
     this.tint.clear();
-    let color = 0, alpha = 0;
-    if (d.catastrophe) { color = 0x7a3a2a; alpha = 0.16; }
-    else if (d.aftermath && d.aftermath > 0 && !this.look) { color = 0x8a8072; alpha = 0.26 * Math.min(1, d.aftermath); }
-    // scena z nowym światłem ma klimat i ślad po katastrofie już w palecie — bez nakładki
-    else if (d.climate === 'zimno' && !this.look) { color = 0x9fc0dc; alpha = 0.18; }
-    else if (d.climate === 'cieplo' && !this.look) { color = 0xf0c070; alpha = 0.08; }
-    if (alpha) this.tint.rect(0, 0, this.W, this.H).fill({ color, alpha });
+    if (d.catastrophe) this.tint.rect(0, 0, this.W, this.H).fill({ color: 0x7a3a2a, alpha: 0.16 });
   }
 
   // ------------------------------------------------------------------ populacja
@@ -679,8 +608,8 @@ export class Diorama {
     if (niche === 'lad') {
       // głębia z pozycji na gruncie: dalej = wyżej, mniejsze, bledsze
       const dep = (a.y - lay.lifeTop) / Math.max(1, lay.lifeBottom - lay.lifeTop);
-      // głębszy grunt sceny z nowym światłem = większa rozpiętość skali (dalej wyraźnie mniejsze)
-      sc = (a.predator ? 1 : 0.95) * (this.look ? 0.56 + 0.44 * dep : 0.72 + 0.28 * dep) * grow;
+      // grunt w perspektywie: dalsze osobniki wyraźnie mniejsze
+      sc = (a.predator ? 1 : 0.95) * (0.56 + 0.44 * dep) * grow;
       s.zIndex = a.y;
       s.y = a.y - a.baked.foot * a.baked.unitPx * sc;
     } else {

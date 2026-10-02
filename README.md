@@ -267,6 +267,9 @@ obu dróg, przewagi rozgałęziania się i reguł scenariuszy. Wyniki pomiarów:
   (skąd pochodzą punkty).
 - **Diorama środowiska** — animowana scena niszy i ery: populacja jako ławica
   lub stado, pokarm, drapieżniki i klimat tury wynikają wprost z symulacji.
+  Każda era ma własną paletę i roślinność, a klimat tury zmienia światło
+  (złote popołudnie, niskie słońce ze śniegiem i krą); po katastrofie krajobraz
+  blednie i odradza się przez trzy tury.
 - **Tura jako wydarzenie** — przed raportem krótka animacja: żerowanie, ataki
   drapieżników, głód, narodziny, mutacja i katastrofy (meteoryt, zlodowacenie,
   wulkanizm); można ją pominąć.
